@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from angel_adapter import AngelBroker
 from strategy import compute_signal, Params
 import live_hook
+from prop_firm_monitor import PropFirmMonitor  # Phase 8e
 
 load_dotenv()
 logging.basicConfig(
@@ -192,6 +193,9 @@ def main():
     trades_today = 0
     pnl_today = 0.0
     kill = False
+    soft_halt = False  # Phase 8e: prop-firm soft halt blocks new entries
+    pfm = PropFirmMonitor(capital=CAPITAL)  # Phase 8e
+    log.info(f"[pfm] init: {pfm.status_summary()}")
     last_minute = None
     reasons_log = []              # Phase 3b: for circuit breaker
     last_hb_ts = 0.0              # Phase 5b
@@ -203,6 +207,11 @@ def main():
         now = datetime.now()
         if now.time() > dtime(15, 30):
             log.info(f"EOD. trades={trades_today} pnl=Rs{pnl_today:.0f}")
+            try:
+                pfm.end_of_day(pnl_today)
+                log.info(f"[pfm] EOD: {pfm.status_summary()}")
+            except Exception as _e:
+                log.warning(f"[pfm] end_of_day failed: {_e}")
             break
 
         # Phase 5b: clean heartbeat
@@ -320,7 +329,15 @@ def main():
                 reasons_log.append("EOD")
                 continue
 
-            if kill or pnl_today <= -DAILY_LOSS * CAPITAL:
+            # Phase 8e: prop-firm rule check
+            _pfm_state = pfm.check(pnl_today)
+            if _pfm_state["state"] == "soft_halt" and not soft_halt:
+                soft_halt = True
+                log.warning(f"[pfm] SOFT HALT: {_pfm_state['reason']} pnl={pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
+            _pfm_hard = _pfm_state["state"] == "hard_halt"
+            if kill or pnl_today <= -DAILY_LOSS * CAPITAL or _pfm_hard:
+                if _pfm_hard and not kill:
+                    log.error(f"[pfm] HARD HALT: {_pfm_state['reason']} pnl={pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
                 if position:
                     p = _exit(broker, position, bar, "KILL")
                     pnl_today += p
@@ -355,6 +372,8 @@ def main():
                 continue
 
             if not sig or not sig.side:
+                continue
+            if soft_halt:  # Phase 8e: no new entries during soft halt
                 continue
             if not (SESSION_START <= bar.name.time() <= SESSION_END):
                 continue
