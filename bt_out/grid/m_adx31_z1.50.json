@@ -1,0 +1,18 @@
+{
+  "trades": 21,
+  "win_rate": 0.5238,
+  "avg_win": 2675.27,
+  "avg_loss": -1712.2,
+  "profit_factor": 1.719,
+  "total_pnl": 12306.0,
+  "return_pct": 8.2,
+  "sharpe": 2.689,
+  "sortino": 4.24,
+  "max_drawdown_pct": -2.69,
+  "trading_days": 37,
+  "trades_per_day": 0.57,
+  "reasons": {
+    "TIME": 19,
+    "TARGET": 2
+  }
+}

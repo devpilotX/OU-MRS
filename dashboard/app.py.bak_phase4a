@@ -165,29 +165,23 @@ def api_equity():
 _portfolio_cache = {"ts": 0, "data": None}
 @app.get("/api/portfolio", dependencies=[Depends(need_auth)])
 def api_portfolio():
-    # Phase 4a: read from state/live.json instead of re-logging into Angel.
-    # The bot pushes fresh portfolio data via live_hook.tick(portfolio=...).
-    # Eliminates the dashboard/bot Angel-session ping-pong.
-    import time, json
-    sp = BOT_DIR / "state" / "live.json"
-    if not sp.exists():
-        return {"ok": False, "reason": "waiting_for_bot",
-                "message": "Bot is not running or has not pushed state yet."}
+    # cache 25s to avoid hammering Angel
+    if _portfolio_cache["data"] and time.time() - _portfolio_cache["ts"] < 25:
+        return _portfolio_cache["data"]
     try:
-        data = json.loads(sp.read_text())
-        age = time.time() - data.get("updated_ts", 0)
-        portfolio = data.get("portfolio") or {}
-        return {
-            "ok": True,
-            "rms": portfolio.get("rms") if portfolio else None,
-            "position": portfolio.get("position") if portfolio else None,
-            "portfolio_ts": portfolio.get("ts") if portfolio else None,
-            "age_sec": round(age, 1),
-            "stale": age > 120,
-            "ts": data.get("updated_at"),
-        }
+        from angel_adapter import AngelBroker
+        b = AngelBroker().login()
+        rms = None; pos = None
+        try: rms = b.smart.rmsLimit().get("data")
+        except Exception as e: rms = {"error": str(e)}
+        try: pos = b.smart.position().get("data")
+        except Exception as e: pos = {"error": str(e)}
+        data = {"ok": True, "rms": rms, "position": pos, "ts": datetime.now().isoformat()}
     except Exception as e:
-        return {"ok": False, "error": str(e)[:200]}
+        data = {"ok": False, "error": str(e)}
+    _portfolio_cache["ts"] = time.time()
+    _portfolio_cache["data"] = data
+    return data
 
 
 # PREMIUM_API_v1

@@ -1,7 +1,7 @@
 """Event-driven backtest of OU-MRS on cached 1-min data.
    Fills at NEXT bar's OPEN with slippage (no look-ahead bias).
    Outputs: trades.csv, equity.csv, metrics.json, equity.png"""
-import os, json, math, logging
+import json, math, logging
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -14,13 +14,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
-DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
+DATA = Path("data/BANKNIFTY_FUT_1min.parquet")
 OUT  = Path("bt_out"); OUT.mkdir(exist_ok=True)
 
 CAPITAL        = 150_000
 LOT_SIZE       = 15
-MAX_LOTS       = 2  # Phase 8b.5: halved for prop-firm DD rules
-KELLY_SEED     = 0.05  # Phase 8b.5: halved from 0.10
+MAX_LOTS       = 4
+KELLY_SEED     = 0.10
 BROKERAGE_RT   = 40
 SLIPPAGE_TICKS = 2
 TICK           = 0.05
@@ -30,11 +30,7 @@ SQUAREOFF      = pd.Timestamp("15:15").time()
 DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
-PARAMS = Params(
-    adx_threshold=float(os.environ.get("BT_ADX", 25.0)),
-    z_entry=float(os.environ.get("BT_ZENTRY", 1.5)),
-    min_r2=float(os.environ.get("BT_MINR2", 0.05)),
-)
+PARAMS = Params()
 
 def size_lots(atr: float) -> int:
     stop_rs = max(atr * 1.5, 20)

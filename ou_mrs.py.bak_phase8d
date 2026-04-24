@@ -38,24 +38,6 @@ def size_lots(atr: float) -> int:
 def _exit(broker, pos, bar, reason):
     side = "SELL" if pos["side"] == "BUY" else "BUY"
     qty = pos["qty"] * LOT_SIZE
-    # Phase 8d: cancel pending SL before closing (skip if reason==STOP — SL already fired)
-    _sl_id = pos.get("sl_order_id")
-    if LIVE and _sl_id and reason != "STOP":
-        try:
-            broker.cancel_order(_sl_id)
-        except Exception as _e:
-            log.warning(f"SL cancel failed for {_sl_id}: {_e}")
-    try:
-        import json as _json
-        from pathlib import Path as _P
-        _P("state").mkdir(exist_ok=True)
-        with open("state/sl_orders.jsonl", "a") as _f:
-            _f.write(_json.dumps({
-                "ts": str(bar.name), "event": "exit",
-                "reason": reason, "sl_order_id": _sl_id,
-            }) + "\n")
-    except Exception as _e:
-        log.debug(f"SL state log failed: {_e}")
     if LIVE:
         broker.place_market(side, qty)
     else:
@@ -289,28 +271,10 @@ def main():
 
             qty_lots = size_lots(sig.atr)
             qty = qty_lots * LOT_SIZE
-            # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
-            _sl_offset = max(1.5 * sig.atr, 20.0)
-            _slip = max(0.3 * sig.atr, 5.0)
-            if sig.side == "BUY":
-                _sl_trig = sig.price - _sl_offset
-                _sl_lim  = _sl_trig - _slip
-                _sl_side = "SELL"
-            else:
-                _sl_trig = sig.price + _sl_offset
-                _sl_lim  = _sl_trig + _slip
-                _sl_side = "BUY"
-            sl_oid = None
             if LIVE:
                 broker.place_market(sig.side, qty)
-                try:
-                    sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
-                except Exception as _e:
-                    log.error(f"SL placement failed: {_e} — emergency market exit")
-                    broker.place_market(_sl_side, qty)
-                    continue
             else:
-                log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
+                log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f}")
             position = {
                 "side": sig.side,
                 "qty": qty_lots,
@@ -319,23 +283,7 @@ def main():
                 "half_life": sig.half_life,
                 "atr": sig.atr,
                 "bars_held": 0,
-                "sl_order_id": sl_oid,
-                "sl_trigger": _sl_trig,
-                "sl_limit": _sl_lim,
             }
-            # Phase 8d: persist SL state for crash recovery
-            try:
-                import json as _json
-                from pathlib import Path as _P
-                _P("state").mkdir(exist_ok=True)
-                with open("state/sl_orders.jsonl", "a") as _f:
-                    _f.write(_json.dumps({
-                        "ts": str(bar.name), "event": "placed",
-                        "sl_order_id": sl_oid, "side": _sl_side,
-                        "trigger": _sl_trig, "limit": _sl_lim, "qty": qty,
-                    }) + "\n")
-            except Exception as _e:
-                log.debug(f"SL state persist failed: {_e}")
             trades_today += 1
             log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
         except Exception as e:

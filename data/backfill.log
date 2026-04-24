@@ -1,0 +1,26 @@
+nohup: ignoring input
+[22:47:57] === Phase 8g v6 backfill START (INDEX mode) ===
+[22:47:57] Target: Nifty Bank token=99926009 @ NSE
+[22:47:57] Window: 2025-10-01 -> 2026-04-24
+[I 260424 22:47:57 smartConnect:124] in pool
+[22:47:57] Login OK
+[22:47:57] Fetch 2025-10-01 -> 2025-10-31 ...
+[22:47:57]   got 7190 bars
+[22:47:58] Fetch 2025-10-31 -> 2025-11-30 ...
+[22:47:59]   got 7500 bars
+[22:48:00] Fetch 2025-11-30 -> 2025-12-30 ...
+[22:48:00]   got 7501 bars
+[22:48:02] Fetch 2025-12-30 -> 2026-01-29 ...
+[22:48:02]   got 7501 bars
+[22:48:03] Fetch 2026-01-29 -> 2026-02-28 ...
+[22:48:04]   got 8000 bars
+[22:48:05] Fetch 2026-02-28 -> 2026-03-30 ...
+[22:48:05]   got 6751 bars
+[22:48:07] Fetch 2026-03-30 -> 2026-04-24 ...
+[22:48:07]   got 6375 bars
+[22:48:08] Total raw bars collected: 50818
+[22:48:09] After dedup + market-hours filter: 50440 bars
+[22:48:09] Date range: 2025-10-01 09:15:00 -> 2026-04-24 15:29:00
+[22:48:09] Trading days: 137
+[22:48:09] WROTE data/BANKNIFTY_INDEX_1min.parquet (1479.4 KB)
+[22:48:09] === Phase 8g v6 backfill DONE ===

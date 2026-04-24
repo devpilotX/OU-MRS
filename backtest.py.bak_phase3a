@@ -1,7 +1,6 @@
 """Event-driven backtest of OU-MRS on cached 1-min data.
-   Fills at NEXT bar's OPEN with slippage (no look-ahead bias).
    Outputs: trades.csv, equity.csv, metrics.json, equity.png"""
-import os, json, math, logging
+import json, math, logging
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -14,14 +13,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
-DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
+DATA = Path("data/BANKNIFTY_FUT_1min.parquet")
 OUT  = Path("bt_out"); OUT.mkdir(exist_ok=True)
 
 CAPITAL        = 150_000
 LOT_SIZE       = 15
-MAX_LOTS       = 2  # Phase 8b.5: halved for prop-firm DD rules
-KELLY_SEED     = 0.05  # Phase 8b.5: halved from 0.10
-BROKERAGE_RT   = 40
+MAX_LOTS       = 4
+KELLY_SEED     = 0.10
+BROKERAGE_RT   = 40        # Rs per round-trip
 SLIPPAGE_TICKS = 2
 TICK           = 0.05
 SESSION_START  = pd.Timestamp("09:30").time()
@@ -30,11 +29,7 @@ SQUAREOFF      = pd.Timestamp("15:15").time()
 DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
-PARAMS = Params(
-    adx_threshold=float(os.environ.get("BT_ADX", 25.0)),
-    z_entry=float(os.environ.get("BT_ZENTRY", 1.5)),
-    min_r2=float(os.environ.get("BT_MINR2", 0.05)),
-)
+PARAMS = Params()
 
 def size_lots(atr: float) -> int:
     stop_rs = max(atr * 1.5, 20)
@@ -42,14 +37,13 @@ def size_lots(atr: float) -> int:
     raw = risk_budget / (stop_rs * LOT_SIZE)
     return max(1, min(MAX_LOTS, int(raw)))
 
-def _close(pos, fill_bar, fill_ts, reason):
-    """Fill at NEXT bar's OPEN with slippage. No look-ahead."""
-    exit_px = fill_bar["open"] - (SLIPPAGE_TICKS * TICK) * (1 if pos["side"] == "BUY" else -1)
+def _close(pos, bar, reason):
+    exit_px = bar["close"] - (SLIPPAGE_TICKS * TICK) * (1 if pos["side"] == "BUY" else -1)
     pnl_pts = (exit_px - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
     gross   = pnl_pts * pos["qty"] * LOT_SIZE
     net     = gross - BROKERAGE_RT
     return {
-        "entry_ts": pos["entry_ts"], "exit_ts": fill_ts,
+        "entry_ts": pos["entry_ts"], "exit_ts": bar.name,
         "side": pos["side"], "qty": pos["qty"],
         "entry": pos["entry_px"], "exit": exit_px,
         "pnl": net, "gross": gross, "reason": reason,
@@ -74,17 +68,14 @@ def run():
         pnl_today = 0.0
         kill = False
 
-        # len(day) - 1 ensures day.iloc[i+1] always exists (no look-ahead)
-        for i in range(PARAMS.window, len(day) - 1):
-            bar_ts      = day.index[i]
-            bar         = day.iloc[i]
-            next_bar    = day.iloc[i+1]
-            next_bar_ts = day.index[i+1]
-            t           = bar_ts.time()
+        for i in range(PARAMS.window, len(day)):
+            bar_ts = day.index[i]
+            bar    = day.iloc[i]
+            t      = bar_ts.time()
 
             if kill or pnl_today <= -DAILY_LOSS_PCT * CAPITAL:
                 if position:
-                    trades.append(_close(position, next_bar, next_bar_ts, "KILL"))
+                    trades.append(_close(position, bar, "KILL"))
                     pnl_today += trades[-1]["pnl"]
                     pnl_cum   += trades[-1]["pnl"]
                     position = None
@@ -92,7 +83,7 @@ def run():
                 break
 
             if position and t >= SQUAREOFF:
-                trades.append(_close(position, next_bar, next_bar_ts, "EOD"))
+                trades.append(_close(position, bar, "EOD"))
                 pnl_today += trades[-1]["pnl"]
                 pnl_cum   += trades[-1]["pnl"]
                 position = None
@@ -108,14 +99,14 @@ def run():
                     if   position["side"] == "BUY"  and z >= 0: reason = "TARGET"
                     elif position["side"] == "SELL" and z <= 0: reason = "TARGET"
                     elif abs(z) > PARAMS.z_stop and (
-                         (position["side"] == "BUY"  and z < 0) or
+                         (position["side"] == "BUY" and z < 0) or
                          (position["side"] == "SELL" and z > 0)):
                         reason = "STOP"
                 position["bars_held"] += 1
                 if not reason and position["bars_held"] >= int(5 * position["half_life"]):
                     reason = "TIME"
                 if reason:
-                    trades.append(_close(position, next_bar, next_bar_ts, reason))
+                    trades.append(_close(position, bar, reason))
                     pnl_today += trades[-1]["pnl"]
                     pnl_cum   += trades[-1]["pnl"]
                     position = None
@@ -131,11 +122,10 @@ def run():
                 continue
 
             qty_lots = size_lots(sig.atr)
-            # Entry fills at NEXT bar's OPEN with slippage (no look-ahead)
-            entry_px = next_bar["open"] + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
+            entry_px = sig.price + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
             position = {
                 "side": sig.side, "qty": qty_lots,
-                "entry_px": entry_px, "entry_ts": next_bar_ts,
+                "entry_px": entry_px, "entry_ts": bar_ts,
                 "half_life": sig.half_life, "atr": sig.atr,
                 "bars_held": 0,
             }
@@ -156,7 +146,7 @@ def run():
     if not edf.empty:
         plt.figure(figsize=(10, 5))
         plt.plot(pd.to_datetime(edf["date"]), edf["equity"])
-        plt.title("OU-MRS Equity Curve (look-ahead fixed)")
+        plt.title("OU-MRS Equity Curve")
         plt.ylabel("Rs")
         plt.grid(alpha=0.3)
         plt.tight_layout()

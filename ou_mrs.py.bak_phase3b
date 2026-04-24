@@ -18,7 +18,7 @@ log = logging.getLogger("ou_mrs")
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
 CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
 LOT_SIZE      = 15
-MAX_LOTS      = 2  # Phase 8b.5: halved from 4 for prop-firm DD rules
+MAX_LOTS      = 4
 MAX_TRADES    = 8
 DAILY_LOSS    = 0.02
 SESSION_START = dtime(9, 30)
@@ -26,36 +26,14 @@ SESSION_END   = dtime(14, 45)
 SQUAREOFF     = dtime(15, 15)
 PARAMS        = Params()
 
-HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
-PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
-STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> kill
-
 def size_lots(atr: float) -> int:
     stop = max(atr * 1.5, 20)
-    budget = 0.25 * 0.05 * CAPITAL  # Phase 8b.5: Kelly halved from 0.10
+    budget = 0.25 * 0.10 * CAPITAL
     return max(1, min(MAX_LOTS, int(budget / (stop * LOT_SIZE))))
 
 def _exit(broker, pos, bar, reason):
     side = "SELL" if pos["side"] == "BUY" else "BUY"
     qty = pos["qty"] * LOT_SIZE
-    # Phase 8d: cancel pending SL before closing (skip if reason==STOP — SL already fired)
-    _sl_id = pos.get("sl_order_id")
-    if LIVE and _sl_id and reason != "STOP":
-        try:
-            broker.cancel_order(_sl_id)
-        except Exception as _e:
-            log.warning(f"SL cancel failed for {_sl_id}: {_e}")
-    try:
-        import json as _json
-        from pathlib import Path as _P
-        _P("state").mkdir(exist_ok=True)
-        with open("state/sl_orders.jsonl", "a") as _f:
-            _f.write(_json.dumps({
-                "ts": str(bar.name), "event": "exit",
-                "reason": reason, "sl_order_id": _sl_id,
-            }) + "\n")
-    except Exception as _e:
-        log.debug(f"SL state log failed: {_e}")
     if LIVE:
         broker.place_market(side, qty)
     else:
@@ -76,53 +54,13 @@ def _exit(broker, pos, bar, reason):
         }) + "\n")
     return pnl
 
-def _market_hours_check():
-    """Phase 5a: exit cleanly on weekends / after-hours.
-    Prevents systemd restart-loops from burning Angel sessions."""
-    now = datetime.now()
-    if now.weekday() >= 5:
-        log.info(f"Weekend ({now.strftime('%A')}) — not trading. Clean exit.")
-        return False
-    if now.time() >= dtime(15, 31):
-        log.info(f"After market hours ({now.strftime('%H:%M')}) — clean exit.")
-        return False
-    if now.time() < dtime(9, 10):
-        log.info(f"Before market ({now.strftime('%H:%M')}) — sleeping until 09:14.")
-        while datetime.now().time() < dtime(9, 14):
-            time.sleep(30)
-    return True
-
-def _snapshot_portfolio(broker):
-    """Phase 4b: pull rmsLimit + position once. Never raises."""
-    try:
-        rms = None; pos = None
-        try:
-            rms = broker.smart.rmsLimit().get("data")
-        except Exception:
-            pass
-        try:
-            pos = broker.smart.position().get("data")
-        except Exception:
-            pass
-        return {"rms": rms, "position": pos, "ts": datetime.now().isoformat()}
-    except Exception:
-        return None
-
 def main():
-    # Phase 5a: gate Angel login behind market-hours check
-    if not _market_hours_check():
-        return 0
-
     broker = AngelBroker().login()
     position = None
     trades_today = 0
     pnl_today = 0.0
     kill = False
     last_minute = None
-    reasons_log = []              # Phase 3b: for circuit breaker
-    last_hb_ts = 0.0              # Phase 5b
-    last_portfolio_ts = 0.0       # Phase 4b
-    cached_portfolio = None
     log.info(f"OU-MRS started. LIVE={LIVE} CAPITAL=Rs{CAPITAL:,}")
 
     while True:
@@ -130,14 +68,11 @@ def main():
         if now.time() > dtime(15, 30):
             log.info(f"EOD. trades={trades_today} pnl=Rs{pnl_today:.0f}")
             break
-
-        # Phase 5b: clean heartbeat
-        _t = time.time()
-        if _t - last_hb_ts >= HB_INTERVAL_SEC:
-            log.info(f"[heartbeat] alive position={'YES' if position else 'no'} trades={trades_today} pnl=Rs{pnl_today:.0f}")
-            last_hb_ts = _t
-
         if now.minute == last_minute or now.second < 5:
+            _now = time.time()
+            if int(_now) % 60 < 2 and int(_now) != getattr(main, "_hb", 0):
+                main._hb = int(_now)
+                print("[heartbeat] alive at " + time.strftime("%H:%M:%S"), flush=True)
             time.sleep(1)
             continue
         last_minute = now.minute
@@ -152,11 +87,6 @@ def main():
             df = df.set_index("ts")
             bar = df.iloc[-1]
             sig = compute_signal(df, PARAMS)
-
-            # Phase 4b: refresh portfolio snapshot, throttled
-            if _t - last_portfolio_ts >= PORTFOLIO_REFRESH_SEC:
-                cached_portfolio = _snapshot_portfolio(broker)
-                last_portfolio_ts = _t
 
             # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
             try:
@@ -173,7 +103,7 @@ def main():
                     _state = "in_trade"
                     _reason = f"holding {position['side']} {position['qty']}l @ Rs{position.get('entry_px','-')}"
                 elif kill:
-                    _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
+                    _state, _reason = "cooldown", "daily loss limit hit"
                 else:
                     _state = "idle"
                     _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
@@ -228,11 +158,6 @@ def main():
                     position=_pos, depth=_depth,
                     ohlc_today=_ohlc,
                     next_check_in_sec=max(1, 60 - datetime.now().second),
-                    portfolio=cached_portfolio,
-                    reasons_log=reasons_log[-10:],
-                    kill=kill,
-                    trades_today=trades_today,
-                    pnl_today=round(pnl_today, 2),
                 )
             except Exception as _e:
                 log.debug(f"live_hook tick failed: {_e}")
@@ -240,18 +165,14 @@ def main():
 
 
             if position and bar.name.time() >= SQUAREOFF:
-                p = _exit(broker, position, bar, "EOD")
-                pnl_today += p
+                _exit(broker, position, bar, "EOD")
                 position = None
-                reasons_log.append("EOD")
                 continue
 
             if kill or pnl_today <= -DAILY_LOSS * CAPITAL:
                 if position:
-                    p = _exit(broker, position, bar, "KILL")
-                    pnl_today += p
+                    _exit(broker, position, bar, "KILL")
                     position = None
-                    reasons_log.append("KILL")
                 kill = True
                 continue
 
@@ -273,11 +194,6 @@ def main():
                     p = _exit(broker, position, bar, reason)
                     pnl_today += p
                     position = None
-                    reasons_log.append(reason)
-                    # Phase 3b: circuit breaker — 3 consecutive STOPs kills the day
-                    if reason == "STOP" and reasons_log[-STOP_CIRCUIT_THRESHOLD:].count("STOP") >= STOP_CIRCUIT_THRESHOLD:
-                        kill = True
-                        log.warning(f"CIRCUIT BREAKER: {STOP_CIRCUIT_THRESHOLD} consecutive STOPs — shutting down for day.")
                 continue
 
             if not sig or not sig.side:
@@ -289,28 +205,10 @@ def main():
 
             qty_lots = size_lots(sig.atr)
             qty = qty_lots * LOT_SIZE
-            # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
-            _sl_offset = max(1.5 * sig.atr, 20.0)
-            _slip = max(0.3 * sig.atr, 5.0)
-            if sig.side == "BUY":
-                _sl_trig = sig.price - _sl_offset
-                _sl_lim  = _sl_trig - _slip
-                _sl_side = "SELL"
-            else:
-                _sl_trig = sig.price + _sl_offset
-                _sl_lim  = _sl_trig + _slip
-                _sl_side = "BUY"
-            sl_oid = None
             if LIVE:
                 broker.place_market(sig.side, qty)
-                try:
-                    sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
-                except Exception as _e:
-                    log.error(f"SL placement failed: {_e} — emergency market exit")
-                    broker.place_market(_sl_side, qty)
-                    continue
             else:
-                log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
+                log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f}")
             position = {
                 "side": sig.side,
                 "qty": qty_lots,
@@ -319,23 +217,7 @@ def main():
                 "half_life": sig.half_life,
                 "atr": sig.atr,
                 "bars_held": 0,
-                "sl_order_id": sl_oid,
-                "sl_trigger": _sl_trig,
-                "sl_limit": _sl_lim,
             }
-            # Phase 8d: persist SL state for crash recovery
-            try:
-                import json as _json
-                from pathlib import Path as _P
-                _P("state").mkdir(exist_ok=True)
-                with open("state/sl_orders.jsonl", "a") as _f:
-                    _f.write(_json.dumps({
-                        "ts": str(bar.name), "event": "placed",
-                        "sl_order_id": sl_oid, "side": _sl_side,
-                        "trigger": _sl_trig, "limit": _sl_lim, "qty": qty,
-                    }) + "\n")
-            except Exception as _e:
-                log.debug(f"SL state persist failed: {_e}")
             trades_today += 1
             log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
         except Exception as e:

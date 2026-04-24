@@ -101,52 +101,6 @@ class AngelBroker:
         self.ensure_session()
         return self.smart.position()
 
-    def place_stoploss_limit(self, side: str, qty: int, trigger_px: float, limit_px: float) -> str:
-        """Phase 8d: server-side SL that survives bot crash. STOPLOSS_LIMIT variant."""
-        self.ensure_session()
-        params = {
-            "variety": "STOPLOSS",
-            "tradingsymbol": self.symbol,
-            "symboltoken": str(self.token),
-            "transactiontype": side,
-            "exchange": "NFO",
-            "ordertype": "STOPLOSS_LIMIT",
-            "producttype": "INTRADAY",
-            "duration": "DAY",
-            "price": f"{limit_px:.2f}",
-            "triggerprice": f"{trigger_px:.2f}",
-            "squareoff": "0",
-            "stoploss": "0",
-            "quantity": str(qty),
-        }
-        oid = self.smart.placeOrder(params)
-        log.info(f"Angel SL-LIMIT: {side} {qty} trig={trigger_px:.2f} lim={limit_px:.2f} -> {oid}")
-        return oid
-
-    def cancel_order(self, order_id: str, variety: str = "STOPLOSS") -> dict:
-        """Phase 8d: cancel pending SL on normal TIME/TARGET/EOD exit."""
-        self.ensure_session()
-        try:
-            resp = self.smart.cancelOrder(order_id, variety)
-            log.info(f"Angel cancel {order_id}: {resp}")
-            return resp
-        except Exception as e:
-            log.warning(f"cancel_order {order_id} failed: {e}")
-            return {"status": False, "message": str(e)}
-
-    def open_orders(self) -> list:
-        """Phase 8d: list pending orders for startup reconciliation."""
-        self.ensure_session()
-        try:
-            resp = self.smart.orderBook()
-            if not resp or not resp.get("status"):
-                return []
-            return [o for o in (resp.get("data") or [])
-                    if str(o.get("orderstatus", "")).lower() in ("open", "pending", "trigger pending")]
-        except Exception as e:
-            log.warning(f"orderBook failed: {e}")
-            return []
-
     def square_off_all(self):
         pos = self.positions()
         if not pos or not pos.get("data"):

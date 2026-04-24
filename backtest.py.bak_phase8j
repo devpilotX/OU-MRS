@@ -30,11 +30,7 @@ SQUAREOFF      = pd.Timestamp("15:15").time()
 DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
-PARAMS = Params(
-    adx_threshold=float(os.environ.get("BT_ADX", 25.0)),
-    z_entry=float(os.environ.get("BT_ZENTRY", 1.5)),
-    min_r2=float(os.environ.get("BT_MINR2", 0.05)),
-)
+PARAMS = Params()
 
 def size_lots(atr: float) -> int:
     stop_rs = max(atr * 1.5, 20)

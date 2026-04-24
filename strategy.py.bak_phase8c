@@ -1,16 +1,12 @@
 """
 Pure OU-MRS signal logic. No I/O, no broker calls. Unit-testable.
 Shared between live bot and backtest so they produce identical signals.
-
-Phase 8c: ADX-based regime filter added. Skips entries when market is
-trending (ADX > threshold). Addresses walk-forward Fold1 weakness.
 """
 import math
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass
 from typing import Optional
-
 
 @dataclass
 class Signal:
@@ -23,8 +19,6 @@ class Signal:
     atr: float
     price: float
     r2: float
-    adx: float = 0.0  # Phase 8c: regime strength (default keeps existing tests passing)
-
 
 @dataclass
 class Params:
@@ -37,10 +31,6 @@ class Params:
     min_r2: float = 0.05
     atr_pct_low: float = 0.20
     atr_pct_high: float = 0.80
-    adx_n: int = 14                  # Phase 8c: ADX smoothing period
-    adx_threshold: float = 25.0      # Phase 8c: reject entries when ADX above this
-    adx_lookback_bars: int = 60      # Phase 8c: bars used for ADX estimation
-
 
 def estimate_ou(x: np.ndarray):
     if len(x) < 30:
@@ -62,33 +52,6 @@ def estimate_ou(x: np.ndarray):
     sigma_eq = math.sqrt(max(sigma2, 1e-12)) / math.sqrt(2 * theta)
     half_life = math.log(2) / theta
     return theta, mu, sigma_eq, half_life, r2
-
-
-def compute_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, n: int = 14) -> Optional[float]:
-    """ADX(n) via simple rolling means. Returns most recent ADX or None if insufficient bars."""
-    if len(highs) < 2 * n + 2:
-        return None
-    high_diff = highs[1:] - highs[:-1]
-    low_diff = lows[:-1] - lows[1:]
-    plus_dm = np.where((high_diff > low_diff) & (high_diff > 0), high_diff, 0.0)
-    minus_dm = np.where((low_diff > high_diff) & (low_diff > 0), low_diff, 0.0)
-    tr = np.maximum(
-        highs[1:] - lows[1:],
-        np.maximum(np.abs(highs[1:] - closes[:-1]), np.abs(lows[1:] - closes[:-1]))
-    )
-    tr_s       = pd.Series(tr).rolling(n).mean()
-    plus_dm_s  = pd.Series(plus_dm).rolling(n).mean()
-    minus_dm_s = pd.Series(minus_dm).rolling(n).mean()
-    tr_safe   = tr_s.replace(0, np.nan)
-    plus_di   = 100.0 * plus_dm_s / tr_safe
-    minus_di  = 100.0 * minus_dm_s / tr_safe
-    di_sum    = (plus_di + minus_di).replace(0, np.nan)
-    dx        = 100.0 * (plus_di - minus_di).abs() / di_sum
-    adx       = dx.rolling(n).mean().dropna()
-    if adx.empty:
-        return None
-    return float(adx.iloc[-1])
-
 
 def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     if len(df) < p.window:
@@ -130,19 +93,6 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     if not (p.atr_pct_low <= pct <= p.atr_pct_high):
         return None
 
-    # Phase 8c: regime filter - pull wider tail of df for stable ADX estimate
-    adx_tail = df.iloc[-p.adx_lookback_bars:] if len(df) >= p.adx_lookback_bars else df
-    adx_val = compute_adx(
-        adx_tail["high"].to_numpy(dtype=float),
-        adx_tail["low"].to_numpy(dtype=float),
-        adx_tail["close"].to_numpy(dtype=float),
-        n=p.adx_n,
-    )
-    if adx_val is None:
-        return None
-    if adx_val > p.adx_threshold:
-        return None  # trending regime - skip entries
-
     z      = (x[-1] - mu) / max(sigma_eq, 1e-9)
     z_prev = (x[-2] - mu) / max(sigma_eq, 1e-9)
 
@@ -155,6 +105,5 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     return Signal(
         side=side, z=float(z), z_prev=float(z_prev),
         half_life=float(half_life), sigma_eq=float(sigma_eq),
-        mu=float(mu), atr=atr, price=float(closes[-1]), r2=float(r2),
-        adx=float(adx_val),
+        mu=float(mu), atr=atr, price=float(closes[-1]), r2=float(r2)
     )

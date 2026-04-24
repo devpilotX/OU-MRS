@@ -1,0 +1,146 @@
+"""
+Phase 8g: Multi-month BankNifty FUT 1-min data backfill.
+Fetches each monthly contract's active period, stitches into continuous series.
+"""
+import os, time, requests, sys
+from datetime import datetime, timedelta
+from pathlib import Path
+import pandas as pd
+from dotenv import load_dotenv
+from SmartApi import SmartConnect
+import pyotp
+
+load_dotenv()
+API_KEY     = os.getenv("ANGEL_API_KEY")
+CLIENT_CODE = os.getenv("ANGEL_CLIENT_CODE")
+MPIN        = os.getenv("ANGEL_MPIN")
+TOTP_SECRET = os.getenv("ANGEL_TOTP_SECRET")
+
+DATA_PATH      = Path("data/BANKNIFTY_FUT_1min.parquet")
+INSTRUMENT_URL = "https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPI_ScripMaster.json"
+
+# Target: Oct 1, 2025 -> Feb 28, 2026 (existing data covers Mar 1 -> Apr 25, 2026)
+START_DATE = datetime(2025, 10, 1)
+END_DATE   = datetime(2026, 2, 28)
+
+def log(msg):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}", flush=True)
+
+def login():
+    smart = SmartConnect(api_key=API_KEY)
+    totp = pyotp.TOTP(TOTP_SECRET).now()
+    data = smart.generateSession(CLIENT_CODE, MPIN, totp)
+    if not data.get("status"):
+        raise Exception(f"Login failed: {data}")
+    return smart
+
+def find_banknifty_futs():
+    log("Downloading instrument master...")
+    r = requests.get(INSTRUMENT_URL, timeout=60)
+    r.raise_for_status()
+    instr = r.json()
+    log(f"  {len(instr):,} instruments total")
+    contracts = []
+    for row in instr:
+        if row.get("name") == "BANKNIFTY" and row.get("instrumenttype") == "FUTIDX" and row.get("exch_seg") == "NFO":
+            try:
+                expiry = datetime.strptime(row["expiry"], "%d%b%Y")
+            except Exception:
+                continue
+            if datetime(2025, 9, 1) <= expiry <= datetime(2026, 3, 31):
+                contracts.append({"symbol": row["symbol"], "token": str(row["token"]), "expiry": expiry})
+    contracts.sort(key=lambda c: c["expiry"])
+    return contracts
+
+def fetch_candles(smart, token, from_dt, to_dt):
+    rows = []
+    chunk_start = from_dt
+    while chunk_start < to_dt:
+        chunk_end = min(chunk_start + timedelta(days=25), to_dt)  # safe under 30d limit
+        params = {
+            "exchange": "NFO",
+            "symboltoken": token,
+            "interval": "ONE_MINUTE",
+            "fromdate": chunk_start.strftime("%Y-%m-%d %H:%M"),
+            "todate":   chunk_end.strftime("%Y-%m-%d %H:%M"),
+        }
+        try:
+            resp = smart.getCandleData(params)
+            if resp and resp.get("status") and resp.get("data"):
+                rows.extend(resp["data"])
+                log(f"    {chunk_start.date()} -> {chunk_end.date()}: +{len(resp['data']):>5} bars")
+            else:
+                log(f"    {chunk_start.date()} -> {chunk_end.date()}: empty/failed ({resp.get('message') if resp else 'no resp'})")
+        except Exception as e:
+            log(f"    ERROR {chunk_start.date()}: {e}")
+        time.sleep(0.4)  # rate limit buffer
+        chunk_start = chunk_end + timedelta(minutes=1)
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    return df
+
+def main():
+    log("=== Phase 8g backfill START ===")
+    smart = login()
+    log("Login OK")
+    contracts = find_banknifty_futs()
+    log(f"Found {len(contracts)} BANKNIFTY FUT contracts:")
+    for c in contracts:
+        log(f"  {c['symbol']:<25}  token={c['token']:<10}  expiry={c['expiry'].date()}")
+
+    all_data = []
+    for i, c in enumerate(contracts):
+        # Active window: day after previous expiry -> this expiry
+        if i > 0:
+            active_start = contracts[i-1]["expiry"] + timedelta(days=1)
+        else:
+            active_start = c["expiry"] - timedelta(days=32)
+        active_end = c["expiry"]
+        # Clamp to target window
+        active_start = max(active_start, START_DATE)
+        active_end   = min(active_end, END_DATE)
+        if active_start >= active_end:
+            log(f"Skip {c['symbol']} (outside target window)")
+            continue
+        log(f"\nFetch {c['symbol']} active: {active_start.date()} -> {active_end.date()}")
+        fetch_from = datetime.combine(active_start.date(), datetime.min.time().replace(hour=9, minute=15))
+        fetch_to   = datetime.combine(active_end.date(),   datetime.min.time().replace(hour=15, minute=30))
+        df = fetch_candles(smart, c["token"], fetch_from, fetch_to)
+        log(f"  {c['symbol']}: got {len(df):,} bars")
+        if not df.empty:
+            df["contract"] = c["symbol"]
+            all_data.append(df)
+
+    if not all_data:
+        log("ERROR: No data fetched. Aborting without modifying parquet.")
+        sys.exit(1)
+
+    backfilled = pd.concat(all_data, ignore_index=True)
+    backfilled = backfilled.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+    log(f"\nBackfilled: {len(backfilled):,} bars  {backfilled['timestamp'].min()} -> {backfilled['timestamp'].max()}")
+
+    if DATA_PATH.exists():
+        existing = pd.read_parquet(DATA_PATH)
+        log(f"Existing:   {len(existing):,} bars  {existing['timestamp'].min()} -> {existing['timestamp'].max()}")
+        # Keep "contract" column only if it exists in existing, else fill
+        if "contract" not in existing.columns:
+            existing["contract"] = "PRE_BACKFILL"
+        combined = pd.concat([backfilled, existing], ignore_index=True)
+        combined = combined.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+    else:
+        combined = backfilled
+
+    log(f"\nFinal:      {len(combined):,} bars  {combined['timestamp'].min()} -> {combined['timestamp'].max()}")
+
+    if DATA_PATH.exists():
+        backup = DATA_PATH.parent / (DATA_PATH.stem + ".bak_phase8g.parquet")
+        DATA_PATH.rename(backup)
+        log(f"Backup saved -> {backup}")
+    combined.to_parquet(DATA_PATH, index=False)
+    log(f"Saved -> {DATA_PATH}")
+    log("=== Phase 8g backfill COMPLETE ===")
+
+if __name__ == "__main__":
+    main()

@@ -11,9 +11,7 @@ _IST = ZoneInfo("Asia/Kolkata")
 def tick(*, ltp=None, z=None, mean=None, std=None, window=40,
          z_entry=1.5, z_stop=3.5, candles_count=0, intraday_candles=None,
          state="idle", state_reason="", position=None, depth=None,
-         ohlc_today=None, next_check_in_sec=None,
-         portfolio=None, reasons_log=None, kill=False,
-         trades_today=0, pnl_today=0.0):
+         ohlc_today=None, next_check_in_sec=None):
     try:
         data = {
             "updated_at": datetime.now(_IST).isoformat(),
@@ -26,11 +24,6 @@ def tick(*, ltp=None, z=None, mean=None, std=None, window=40,
             "position": position, "depth": depth,
             "ohlc_today": ohlc_today,
             "next_check_in_sec": next_check_in_sec,
-            "portfolio": portfolio,
-            "reasons_log": reasons_log or [],
-            "kill": kill,
-            "trades_today": trades_today,
-            "pnl_today": pnl_today,
         }
         tmp = _STATE.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, default=str))

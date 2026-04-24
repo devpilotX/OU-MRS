@@ -1,0 +1,86 @@
+[
+  {
+    "trades": 2,
+    "win_rate": 1.0,
+    "avg_win": 2489.0,
+    "avg_loss": 0,
+    "profit_factor": Infinity,
+    "total_pnl": 4978.0,
+    "return_pct": 3.32,
+    "sharpe": 7.384,
+    "sortino": NaN,
+    "max_drawdown_pct": 0.0,
+    "trading_days": 9,
+    "trades_per_day": 0.22,
+    "reasons": {
+      "TIME": 2
+    },
+    "fold": "Fold1_EarlyMar",
+    "start": "2026-03-01",
+    "end": "2026-03-15",
+    "bars": 2938
+  },
+  {
+    "trades": 4,
+    "win_rate": 0.75,
+    "avg_win": 2570.0,
+    "avg_loss": -3280.0,
+    "profit_factor": 2.351,
+    "total_pnl": 4430.0,
+    "return_pct": 2.95,
+    "sharpe": 3.707,
+    "sortino": NaN,
+    "max_drawdown_pct": 0.0,
+    "trading_days": 9,
+    "trades_per_day": 0.44,
+    "reasons": {
+      "TIME": 4
+    },
+    "fold": "Fold2_LateMar",
+    "start": "2026-03-15",
+    "end": "2026-03-29",
+    "bars": 2958
+  },
+  {
+    "trades": 4,
+    "win_rate": 0.75,
+    "avg_win": 3136.0,
+    "avg_loss": -1486.0,
+    "profit_factor": 6.331,
+    "total_pnl": 7922.0,
+    "return_pct": 5.28,
+    "sharpe": 6.049,
+    "sortino": NaN,
+    "max_drawdown_pct": -0.97,
+    "trading_days": 8,
+    "trades_per_day": 0.5,
+    "reasons": {
+      "TIME": 4
+    },
+    "fold": "Fold3_EarlyApr",
+    "start": "2026-03-29",
+    "end": "2026-04-12",
+    "bars": 2735
+  },
+  {
+    "trades": 3,
+    "win_rate": 1.0,
+    "avg_win": 2444.0,
+    "avg_loss": 0,
+    "profit_factor": Infinity,
+    "total_pnl": 7332.0,
+    "return_pct": 4.89,
+    "sharpe": 11.459,
+    "sortino": NaN,
+    "max_drawdown_pct": 0.0,
+    "trading_days": 8,
+    "trades_per_day": 0.38,
+    "reasons": {
+      "TIME": 3
+    },
+    "fold": "Fold4_LateApr",
+    "start": "2026-04-12",
+    "end": "2026-04-25",
+    "bars": 2739
+  }
+]
