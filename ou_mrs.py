@@ -108,12 +108,86 @@ def _snapshot_portfolio(broker):
     except Exception:
         return None
 
+def reconcile_sl_orders(broker):
+    """Phase 8d.1: on startup, sweep state/sl_orders.jsonl for today's SL orders,
+    query broker status, cancel any still-open orphans from a prior crashed session."""
+    import json, os
+    from datetime import date, datetime
+    path = "state/sl_orders.jsonl"
+    if not os.path.exists(path):
+        log.info("[reconcile] no sl_orders.jsonl yet - clean slate")
+        return {"checked": 0, "cancelled": 0, "stale": 0, "unknown": 0}
+    today = date.today().isoformat()
+    seen = {}
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                oid = rec.get("sl_order_id")
+                if not oid:
+                    continue
+                if not str(rec.get("ts", "")).startswith(today):
+                    continue
+                seen[oid] = rec
+    except Exception as e:
+        log.warning(f"[reconcile] failed to read {path}: {e}")
+        return {"checked": 0, "cancelled": 0, "stale": 0, "unknown": 0, "error": str(e)}
+    if not seen:
+        log.info("[reconcile] no SL orders recorded today")
+        return {"checked": 0, "cancelled": 0, "stale": 0, "unknown": 0}
+    log.info(f"[reconcile] checking {len(seen)} SL orders from today")
+    checked = cancelled = stale = unknown = 0
+    for oid, rec in seen.items():
+        checked += 1
+        try:
+            res = broker.get_order_status(oid)
+        except Exception as e:
+            log.warning(f"[reconcile] status {oid} raised: {e}")
+            unknown += 1
+            continue
+        status = res.get("status", "unknown")
+        action = rec.get("action", "?")
+        if status == "open":
+            log.warning(f"[reconcile] SL {oid} still OPEN (prior={action}) - cancelling orphan")
+            try:
+                broker.cancel_order(oid)
+                cancelled += 1
+                with open(path, "a") as _f:
+                    _f.write(json.dumps({
+                        "ts": datetime.now().isoformat(),
+                        "action": "RECONCILE_CANCEL",
+                        "sl_order_id": oid,
+                        "prior_action": action,
+                    }) + "\n")
+            except Exception as e:
+                log.error(f"[reconcile] cancel {oid} failed: {e}")
+        elif status in ("complete", "cancelled", "rejected"):
+            log.info(f"[reconcile] SL {oid} already {status} at broker - clean")
+            stale += 1
+        else:
+            log.warning(f"[reconcile] SL {oid} status=unknown raw={res.get('raw')} - manual review")
+            unknown += 1
+    summary = {"checked": checked, "cancelled": cancelled, "stale": stale, "unknown": unknown}
+    log.info(f"[reconcile] done: {summary}")
+    return summary
+
+
 def main():
     # Phase 5a: gate Angel login behind market-hours check
     if not _market_hours_check():
         return 0
 
     broker = AngelBroker().login()
+    try:
+        reconcile_sl_orders(broker)   # Phase 8d.1
+    except Exception as _e:
+        log.warning(f"[reconcile] failed (non-fatal): {_e}")
     position = None
     trades_today = 0
     pnl_today = 0.0

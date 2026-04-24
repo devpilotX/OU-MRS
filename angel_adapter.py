@@ -123,6 +123,31 @@ class AngelBroker:
         log.info(f"Angel SL-LIMIT: {side} {qty} trig={trigger_px:.2f} lim={limit_px:.2f} -> {oid}")
         return oid
 
+    def get_order_status(self, order_id: str) -> dict:
+        """Phase 8d.1: query single-order status.
+        Returns {'status': 'open'|'complete'|'cancelled'|'rejected'|'unknown', 'raw': dict}."""
+        self.ensure_session()
+        try:
+            resp = self.smart.individual_order_details(order_id)
+            if not resp:
+                return {"status": "unknown", "raw": {}}
+            data = resp.get("data") or {}
+            raw_status = str(data.get("orderstatus") or data.get("status") or "").lower().strip()
+            if raw_status in ("open", "trigger pending", "pending", "open pending"):
+                norm = "open"
+            elif raw_status in ("complete", "completed", "executed", "traded"):
+                norm = "complete"
+            elif raw_status in ("cancelled", "canceled"):
+                norm = "cancelled"
+            elif raw_status in ("rejected", "reject"):
+                norm = "rejected"
+            else:
+                norm = raw_status or "unknown"
+            return {"status": norm, "raw": data}
+        except Exception as e:
+            log.warning(f"get_order_status({order_id}) failed: {e}")
+            return {"status": "unknown", "raw": {"error": str(e)}}
+
     def cancel_order(self, order_id: str, variety: str = "STOPLOSS") -> dict:
         """Phase 8d: cancel pending SL on normal TIME/TARGET/EOD exit."""
         self.ensure_session()
