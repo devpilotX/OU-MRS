@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OU-MRS · Pro Dashboard</title>
+<link rel="stylesheet" href="/static/style.css?v=7"/>
+<link rel="preconnect" href="https://fonts.gstatic.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">⚡</div>
+    <div><div class="brand-name">OU-MRS</div><div class="brand-sub">Pro Trading Dashboard</div></div>
+  </div>
+  <div class="topbar-chips">
+    <span id="market-chip" class="chip">Market: —</span>
+    <span id="mode-chip" class="chip">Mode: —</span>
+    <span id="health-chip" class="chip">— · — · —</span>
+    <button id="theme-toggle" class="btn-icon">☀️</button>
+    <a href="/logout" class="btn-logout">Logout</a>
+  </div>
+</header>
+<main>
+  <section class="kpi-grid">
+    <div class="kpi"><span class="kpi-label">BOT</span><span id="bot-status" class="kpi-value">—</span><span id="bot-sub" class="kpi-sub">—</span></div>
+    <div class="kpi"><span class="kpi-label">CAPITAL</span><span id="capital" class="kpi-value">—</span><span id="mode-label" class="kpi-sub">—</span></div>
+    <div class="kpi"><span class="kpi-label">TOTAL P&L</span><span id="total-pnl" class="kpi-value">—</span><span id="pnl-pct" class="kpi-sub">—</span></div>
+    <div class="kpi"><span class="kpi-label">TRADES</span><span id="trade-count" class="kpi-value">—</span><span id="win-rate" class="kpi-sub">—</span></div>
+    <div class="kpi"><span class="kpi-label">UPTIME</span><span id="uptime-val" class="kpi-value">—</span><span id="uptime-sub" class="kpi-sub">—</span></div>
+    <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">—</div></div>
+  </section>
+  <section class="panel">
+    <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">—</span></div><span class="panel-badge">BACKTEST · 121d</span></div>
+    <div id="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
+  </section>
+  <section class="grid-2">
+    <div class="panel"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
+    <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">—</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
+  </section>
+  <section class="grid-2">
+    <div class="panel"><div class="panel-header"><h2>Backtest Metrics</h2></div><div id="metrics-view" class="metrics-grid"></div></div>
+    <div class="panel"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">—</span></div><div id="portfolio-view">—</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">—</div><div id="heartbeat-info" class="muted">—</div></div>
+  </section>
+  <section class="panel">
+    <div class="panel-header"><div><h2>Trade History</h2><span id="trade-summary" class="muted">—</span></div>
+    <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
+    <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
+  </section>
+  <section class="panel">
+    <div class="panel-header"><div><h2>Live Bot Log</h2><span class="muted" id="log-source">—</span></div>
+    <div class="panel-actions"><label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label><label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label></div></div>
+    <pre id="log-view"></pre>
+  </section>
+  <footer class="footer"><span>Updated <span id="last-update">—</span></span><span>Server <span id="server-time">—</span></span><span>DevPilotX · OU-MRS v1.0</span></footer>
+</main>
+<script src="/static/app.js?v=8"></script>
+</body>
+</html>
