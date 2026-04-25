@@ -3,7 +3,8 @@ import json
 from datetime import date
 from pathlib import Path
 
-EQUITY_LOG = Path("state/equity.jsonl")
+from account import equity_log_path  # Phase 8f.2
+EQUITY_LOG = equity_log_path()
 
 
 class PropFirmMonitor:

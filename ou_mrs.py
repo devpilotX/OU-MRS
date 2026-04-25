@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from angel_adapter import AngelBroker
 from strategy import compute_signal, Params
 import live_hook
+from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
 
 load_dotenv()
@@ -216,7 +217,7 @@ def main():
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b
     cached_portfolio = None
-    log.info(f"OU-MRS started. LIVE={LIVE} CAPITAL=Rs{CAPITAL:,} TIER={CAPITAL_TIER} MAX_LOTS_BNF={MAX_LOTS}")
+    log.info(f"OU-MRS started. ACCOUNT={ACCOUNT_ID} LIVE={LIVE} CAPITAL=Rs{CAPITAL:,} TIER={CAPITAL_TIER} MAX_LOTS_BNF={MAX_LOTS}")
 
     while True:
         now = datetime.now()
