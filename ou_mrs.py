@@ -19,7 +19,22 @@ log = logging.getLogger("ou_mrs")
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
 CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
 LOT_SIZE      = 15
-MAX_LOTS      = 2  # Phase 8b.5: halved from 4 for prop-firm DD rules
+
+# Phase 8f: capital-aware lot caps and tier labels
+# 1 BNF lot needs ~Rs40k margin + ~Rs35k buffer = ~Rs75k per lot
+def max_lots_for_capital(capital: int, instrument: str = "BNF") -> int:
+    per_lot = {"BNF": 75_000, "NF": 50_000, "FNF": 60_000, "SENSEX": 90_000}[instrument]
+    return max(1, min(50, capital // per_lot))
+
+def capital_tier(capital: int) -> str:
+    if capital < 200_000:    return "TINY"
+    if capital < 1_500_000:  return "PAPER"
+    if capital < 2_500_000:  return "FTMO_STARTER"
+    if capital < 5_000_000:  return "FTMO_PRO"
+    return "FTMO_ELITE"
+
+MAX_LOTS      = max_lots_for_capital(CAPITAL, "BNF")
+CAPITAL_TIER  = capital_tier(CAPITAL)
 MAX_TRADES    = 8
 DAILY_LOSS    = 0.02
 SESSION_START = dtime(9, 30)
@@ -201,7 +216,7 @@ def main():
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b
     cached_portfolio = None
-    log.info(f"OU-MRS started. LIVE={LIVE} CAPITAL=Rs{CAPITAL:,}")
+    log.info(f"OU-MRS started. LIVE={LIVE} CAPITAL=Rs{CAPITAL:,} TIER={CAPITAL_TIER} MAX_LOTS_BNF={MAX_LOTS}")
 
     while True:
         now = datetime.now()
