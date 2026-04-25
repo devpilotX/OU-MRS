@@ -13,6 +13,7 @@ APP_DIR = Path(__file__).parent
 BOT_DIR = APP_DIR.parent
 load_dotenv(BOT_DIR / ".env")
 sys.path.insert(0, str(BOT_DIR))
+import signal_publisher  # Phase 8f.5
 
 SECRET_KEY = os.environ.get("DASHBOARD_SECRET") or secrets.token_hex(32)
 ADMIN_USER = os.environ.get("DASHBOARD_USER", "admin")
@@ -277,3 +278,11 @@ def api_live_state():
         return data
     except Exception as e:
         return {"ok": False, "reason": "parse_error", "error": str(e)[:200]}
+
+# Phase 8f.5: Tradetron-compatible signal feed
+@app.get("/api/signals.json")
+def api_signals_json(token: str = ""):
+    expected = os.environ.get("SIGNAL_API_TOKEN", "")
+    if expected and token != expected:
+        raise HTTPException(status_code=401, detail="invalid token")
+    return signal_publisher.read_signal()

@@ -7,6 +7,7 @@ from angel_adapter import AngelBroker
 from strategy import compute_signal, Params
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
+import signal_publisher  # Phase 8f.5
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
 
 load_dotenv()
@@ -91,6 +92,10 @@ def _exit(broker, pos, bar, reason):
             "pnl": pnl,
             "reason": reason,
         }) + "\n")
+    try:
+        signal_publisher.publish_exit(realized_pnl=pnl)  # Phase 8f.5
+    except Exception as _e:
+        log.debug(f"signal publish_exit failed: {_e}")
     return pnl
 
 def _market_hours_check():
@@ -218,6 +223,10 @@ def main():
     last_portfolio_ts = 0.0       # Phase 4b
     cached_portfolio = None
     log.info(f"OU-MRS started. ACCOUNT={ACCOUNT_ID} LIVE={LIVE} CAPITAL=Rs{CAPITAL:,} TIER={CAPITAL_TIER} MAX_LOTS_BNF={MAX_LOTS}")
+    try:
+        signal_publisher.publish_flat()  # Phase 8f.5
+    except Exception as _e:
+        log.debug(f"signal publish_flat failed: {_e}")
 
     while True:
         now = datetime.now()
@@ -235,6 +244,8 @@ def main():
         if _t - last_hb_ts >= HB_INTERVAL_SEC:
             log.info(f"[heartbeat] alive position={'YES' if position else 'no'} trades={trades_today} pnl=Rs{pnl_today:.0f}")
             last_hb_ts = _t
+            try: signal_publisher.heartbeat(pnl_today)  # Phase 8f.5
+            except Exception as _e: log.debug(f"signal heartbeat failed: {_e}")
 
         if now.minute == last_minute or now.second < 5:
             time.sleep(1)
@@ -447,6 +458,13 @@ def main():
                 log.debug(f"SL state persist failed: {_e}")
             trades_today += 1
             log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
+            try:
+                signal_publisher.publish_entry(  # Phase 8f.5
+                    side=sig.side, qty_lots=qty_lots, lot_size=LOT_SIZE,
+                    entry_price=sig.price, entry_time=bar.name, stop_loss=_sl_trig,
+                )
+            except Exception as _e:
+                log.debug(f"signal publish_entry failed: {_e}")
         except Exception as e:
             log.exception(f"Loop error: {e}")
         time.sleep(2)
