@@ -442,7 +442,61 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
   setInterval(check, 30000);
 })();
 
-// Phase 8g.6: per-symbol cards polling
+// Phase 8m.2: per-symbol hero cards with live sparklines (replaces 8g.6 refreshSymbols)
+const SYM_NAMES_8M2 = { BNF: "BANKNIFTY", NF: "NIFTY", FNF: "FINNIFTY" };
+const SYM_COLORS_8M2 = { in_trade: "#3ce04f", cooldown: "#ff5566", warming_up: "#ffaa3c", idle: "#94a3b8", offline: "#475569" };
+const SPARK_BUFFER = { BNF: [], NF: [], FNF: [] };
+const SPARK_MAX = 60;
+
+function pushSpark(sym, ltp) {
+  if (ltp == null || isNaN(Number(ltp))) return;
+  const arr = SPARK_BUFFER[sym];
+  arr.push(Number(ltp));
+  if (arr.length > SPARK_MAX) arr.shift();
+}
+
+function drawSparkline(canvas, samples, color) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || canvas.parentElement.clientWidth - 40;
+  const h = canvas.clientHeight || 50;
+  if (canvas.width !== w*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!samples || samples.length < 2) {
+    ctx.fillStyle = "rgba(148,163,184,0.5)";
+    ctx.font = "10px JetBrains Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(samples.length === 0 ? "awaiting first tick" : "warming up", w/2, h/2);
+    return;
+  }
+  const min = Math.min.apply(null, samples);
+  const max = Math.max.apply(null, samples);
+  const range = (max - min) || 1;
+  const stepX = w / (samples.length - 1);
+  const yFor = v => h - ((v - min) / range) * (h - 8) - 4;
+  ctx.beginPath();
+  samples.forEach((v, i) => {
+    const x = i * stepX;
+    const y = yFor(v);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+  ctx.lineTo(w, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color + "33");
+  grad.addColorStop(1, color + "00");
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
 async function refreshSymbols() {
   const d = await fetchJSON("/api/symbols");
   if (!d || !d.symbols) return;
@@ -455,27 +509,56 @@ async function refreshSymbols() {
       card.className = "symbol-card sc-offline";
       const se = document.getElementById(lower + "-state");
       if (se) se.textContent = "OFFLINE";
+      const sp = document.getElementById("spark-" + sym);
+      if (sp) drawSparkline(sp, SPARK_BUFFER[sym], SYM_COLORS_8M2.offline);
       continue;
     }
     const state = data.state || "idle";
     card.className = "symbol-card sc-" + state;
     const se = document.getElementById(lower + "-state");
     if (se) se.textContent = state.toUpperCase().replace(/_/g, " ");
+    pushSpark(sym, data.ltp);
+    const ltpEl = document.getElementById(lower + "-ltp");
+    if (ltpEl) {
+      ltpEl.textContent = (data.ltp != null)
+        ? "Rs " + Number(data.ltp).toLocaleString("en-IN", {maximumFractionDigits: 2})
+        : "--";
+    }
+    const chgEl = document.getElementById(lower + "-chg");
+    if (chgEl) {
+      const arr = SPARK_BUFFER[sym];
+      if (arr.length >= 2) {
+        const first = arr[0];
+        const last = arr[arr.length - 1];
+        const chg = last - first;
+        const pct = first ? (chg / first * 100) : 0;
+        const arrow = chg >= 0 ? "▲" : "▼";
+        chgEl.textContent = arrow + " " + Math.abs(chg).toFixed(1) + " (" + pct.toFixed(2) + "%)";
+        chgEl.className = "sc-chg " + (chg > 0 ? "pnl-pos" : chg < 0 ? "pnl-neg" : "pnl-flat");
+      } else {
+        chgEl.textContent = "--";
+        chgEl.className = "sc-chg pnl-flat";
+      }
+    }
+    const sp = document.getElementById("spark-" + sym);
+    if (sp) drawSparkline(sp, SPARK_BUFFER[sym], SYM_COLORS_8M2[state] || SYM_COLORS_8M2.idle);
     const pe = document.getElementById(lower + "-pnl");
     if (pe) {
       const pnl = Number(data.pnl_today || 0);
-      pe.textContent = (pnl >= 0 ? "+Rs " : "Rs ") + Math.round(pnl).toLocaleString("en-IN");
+      pe.textContent = (pnl >= 0 ? "+Rs " : "-Rs ") + Math.round(Math.abs(pnl)).toLocaleString("en-IN");
       pe.className = "sc-pnl " + (pnl > 0 ? "pnl-pos" : pnl < 0 ? "pnl-neg" : "pnl-flat");
     }
     const te = document.getElementById(lower + "-trades");
-    if (te) te.textContent = (data.trades_today || 0) + " trades";
+    if (te) te.textContent = String(data.trades_today || 0);
     const po = document.getElementById(lower + "-pos");
     if (po) {
       if (data.position) {
         const p = data.position;
-        po.textContent = p.side + " " + p.qty + "L @ " + Math.round(p.entry).toLocaleString("en-IN");
+        po.textContent = (p.side || "?") + " " + (p.qty || 0) + "L @ " + Math.round(p.entry || 0).toLocaleString("en-IN");
+        po.className = "sc-meta-val sc-pos-active";
       } else {
-        po.textContent = "no position";
+        po.textContent = "flat";
+        po.className = "sc-meta-val";
       }
     }
   }
