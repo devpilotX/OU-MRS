@@ -7,6 +7,7 @@ from angel_adapter import AngelBroker
 from strategy import compute_signal, Params
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
+from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
 import signal_publisher  # Phase 8f.5
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
 
@@ -56,7 +57,7 @@ PARAMS        = Params()
 
 HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
-STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> kill
+STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
 
 def size_lots(atr: float) -> int:
     stop = max(atr * 1.5, 20)
@@ -125,7 +126,7 @@ def _market_hours_check():
     return True
 
 def _snapshot_portfolio(broker):
-    """Phase 4b: pull rmsLimit + position once. Never raises."""
+    """Phase 4b: pull rmsLimit + runner.position once. Never raises."""
     try:
         rms = None; pos = None
         try:
@@ -133,7 +134,7 @@ def _snapshot_portfolio(broker):
         except Exception:
             pass
         try:
-            pos = broker.smart.position().get("data")
+            pos = broker.smart.runner.position().get("data")
         except Exception:
             pass
         return {"rms": rms, "position": pos, "ts": datetime.now().isoformat()}
@@ -220,15 +221,12 @@ def main():
         reconcile_sl_orders(broker)   # Phase 8d.1
     except Exception as _e:
         log.warning(f"[reconcile] failed (non-fatal): {_e}")
-    position = None
-    trades_today = 0
-    pnl_today = 0.0
-    kill = False
-    soft_halt = False  # Phase 8e: prop-firm soft halt blocks new entries
     pfm = PropFirmMonitor(capital=CAPITAL)  # Phase 8e
     log.info(f"[pfm] init: {pfm.status_summary()}")
+    # Phase 8g.2.b: per-symbol runner (single-symbol BNF; Step 4 multi-runner)
+    runner = OuMrsRunner("BNF", INSTRUMENT_CFG["BNF"], broker=broker, capital=CAPITAL, params=PARAMS, pfm=pfm)
+    log.info(f"[runner] init: {runner!r}")
     last_minute = None
-    reasons_log = []              # Phase 3b: for circuit breaker
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b
     cached_portfolio = None
@@ -241,9 +239,9 @@ def main():
     while True:
         now = datetime.now()
         if now.time() > dtime(15, 30):
-            log.info(f"EOD. trades={trades_today} pnl=Rs{pnl_today:.0f}")
+            log.info(f"EOD. trades={runner.trades_today} pnl=Rs{runner.pnl_today:.0f}")
             try:
-                pfm.end_of_day(pnl_today)
+                pfm.end_of_day(runner.pnl_today)
                 log.info(f"[pfm] EOD: {pfm.status_summary()}")
             except Exception as _e:
                 log.warning(f"[pfm] end_of_day failed: {_e}")
@@ -252,9 +250,9 @@ def main():
         # Phase 5b: clean heartbeat
         _t = time.time()
         if _t - last_hb_ts >= HB_INTERVAL_SEC:
-            log.info(f"[heartbeat] alive position={'YES' if position else 'no'} trades={trades_today} pnl=Rs{pnl_today:.0f}")
+            log.info(f"[heartbeat] alive runner.position={'YES' if runner.position else 'no'} trades={runner.trades_today} pnl=Rs{runner.pnl_today:.0f}")
             last_hb_ts = _t
-            try: signal_publisher.heartbeat(pnl_today)  # Phase 8f.5
+            try: signal_publisher.heartbeat(runner.pnl_today)  # Phase 8f.5
             except Exception as _e: log.debug(f"signal heartbeat failed: {_e}")
 
         if now.minute == last_minute or now.second < 5:
@@ -289,10 +287,10 @@ def main():
                     _std = _var**0.5
                 if len(df) < _win:
                     _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
-                elif position:
+                elif runner.position:
                     _state = "in_trade"
-                    _reason = f"holding {position['side']} {position['qty']}l @ Rs{position.get('entry_px','-')}"
-                elif kill:
+                    _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
+                elif runner.kill:
                     _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
                 else:
                     _state = "idle"
@@ -309,16 +307,16 @@ def main():
                              float(r["low"]),  float(r["close"])]
                             for idx, r in df.tail(240).iterrows()]
                 _pos = None
-                if position:
-                    _pts = (float(bar["close"]) - position["entry_px"]) * (1 if position["side"]=="BUY" else -1)
-                    _upnl = _pts * position["qty"] * LOT_SIZE - 40
+                if runner.position:
+                    _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
+                    _upnl = _pts * runner.position["qty"] * LOT_SIZE - 40
                     _pos = {
-                        "side": position["side"],
-                        "entry": float(position["entry_px"]),
-                        "qty": position["qty"],
-                        "entry_ts": str(position.get("entry_ts","")),
-                        "bars_held": position.get("bars_held", 0),
-                        "half_life": position.get("half_life", 0),
+                        "side": runner.position["side"],
+                        "entry": float(runner.position["entry_px"]),
+                        "qty": runner.position["qty"],
+                        "entry_ts": str(runner.position.get("entry_ts","")),
+                        "bars_held": runner.position.get("bars_held", 0),
+                        "half_life": runner.position.get("half_life", 0),
                         "unrealized_pnl": round(_upnl, 2),
                     }
                 _depth = None
@@ -349,72 +347,72 @@ def main():
                     ohlc_today=_ohlc,
                     next_check_in_sec=max(1, 60 - datetime.now().second),
                     portfolio=cached_portfolio,
-                    reasons_log=reasons_log[-10:],
-                    kill=kill,
-                    trades_today=trades_today,
-                    pnl_today=round(pnl_today, 2),
+                    reasons_log=runner.reasons_log[-10:],
+                    kill=runner.kill,
+                    trades_today=runner.trades_today,
+                    pnl_today=round(runner.pnl_today, 2),
                 )
             except Exception as _e:
                 log.debug(f"live_hook tick failed: {_e}")
             # --- /LIVE_HOOK_v1 ---
 
 
-            if position and bar.name.time() >= SQUAREOFF:
-                p = _exit(broker, position, bar, "EOD")
-                pnl_today += p
-                position = None
-                reasons_log.append("EOD")
+            if runner.position and bar.name.time() >= SQUAREOFF:
+                p = _exit(broker, runner.position, bar, "EOD")
+                runner.pnl_today += p
+                runner.position = None
+                runner.reasons_log.append("EOD")
                 continue
 
             # Phase 8e: prop-firm rule check
-            _pfm_state = pfm.check(pnl_today)
-            if _pfm_state["state"] == "soft_halt" and not soft_halt:
-                soft_halt = True
-                log.warning(f"[pfm] SOFT HALT: {_pfm_state['reason']} pnl={pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
+            _pfm_state = pfm.check(runner.pnl_today)
+            if _pfm_state["state"] == "soft_halt" and not runner.soft_halt:
+                runner.soft_halt = True
+                log.warning(f"[pfm] SOFT HALT: {_pfm_state['reason']} pnl={runner.pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
             _pfm_hard = _pfm_state["state"] == "hard_halt"
-            if kill or pnl_today <= -DAILY_LOSS * CAPITAL or _pfm_hard:
-                if _pfm_hard and not kill:
-                    log.error(f"[pfm] HARD HALT: {_pfm_state['reason']} pnl={pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
-                if position:
-                    p = _exit(broker, position, bar, "KILL")
-                    pnl_today += p
-                    position = None
-                    reasons_log.append("KILL")
-                kill = True
+            if runner.kill or runner.pnl_today <= -DAILY_LOSS * CAPITAL or _pfm_hard:
+                if _pfm_hard and not runner.kill:
+                    log.error(f"[pfm] HARD HALT: {_pfm_state['reason']} pnl={runner.pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
+                if runner.position:
+                    p = _exit(broker, runner.position, bar, "KILL")
+                    runner.pnl_today += p
+                    runner.position = None
+                    runner.reasons_log.append("KILL")
+                runner.kill = True
                 continue
 
-            if position:
+            if runner.position:
                 if not sig:
                     continue
                 reason = None
                 z = sig.z
-                if   position["side"] == "BUY"  and z >= 0: reason = "TARGET"
-                elif position["side"] == "SELL" and z <= 0: reason = "TARGET"
+                if   runner.position["side"] == "BUY"  and z >= 0: reason = "TARGET"
+                elif runner.position["side"] == "SELL" and z <= 0: reason = "TARGET"
                 elif abs(z) > PARAMS.z_stop and (
-                    (position["side"] == "BUY"  and z < 0) or
-                    (position["side"] == "SELL" and z > 0)):
+                    (runner.position["side"] == "BUY"  and z < 0) or
+                    (runner.position["side"] == "SELL" and z > 0)):
                     reason = "STOP"
-                position["bars_held"] += 1
-                if not reason and position["bars_held"] >= int(5 * position["half_life"]):
+                runner.position["bars_held"] += 1
+                if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
                     reason = "TIME"
                 if reason:
-                    p = _exit(broker, position, bar, reason)
-                    pnl_today += p
-                    position = None
-                    reasons_log.append(reason)
+                    p = _exit(broker, runner.position, bar, reason)
+                    runner.pnl_today += p
+                    runner.position = None
+                    runner.reasons_log.append(reason)
                     # Phase 3b: circuit breaker — 3 consecutive STOPs kills the day
-                    if reason == "STOP" and reasons_log[-STOP_CIRCUIT_THRESHOLD:].count("STOP") >= STOP_CIRCUIT_THRESHOLD:
-                        kill = True
+                    if reason == "STOP" and runner.reasons_log[-STOP_CIRCUIT_THRESHOLD:].count("STOP") >= STOP_CIRCUIT_THRESHOLD:
+                        runner.kill = True
                         log.warning(f"CIRCUIT BREAKER: {STOP_CIRCUIT_THRESHOLD} consecutive STOPs — shutting down for day.")
                 continue
 
             if not sig or not sig.side:
                 continue
-            if soft_halt:  # Phase 8e: no new entries during soft halt
+            if runner.soft_halt:  # Phase 8e: no new entries during soft halt
                 continue
             if not (SESSION_START <= bar.name.time() <= SESSION_END):
                 continue
-            if trades_today >= MAX_TRADES:
+            if runner.trades_today >= MAX_TRADES:
                 continue
 
             qty_lots = size_lots(sig.atr)
@@ -441,7 +439,7 @@ def main():
                     continue
             else:
                 log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
-            position = {
+            runner.position = {
                 "side": sig.side,
                 "qty": qty_lots,
                 "entry_px": sig.price,
@@ -466,7 +464,7 @@ def main():
                     }) + "\n")
             except Exception as _e:
                 log.debug(f"SL state persist failed: {_e}")
-            trades_today += 1
+            runner.trades_today += 1
             log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
             try:
                 signal_publisher.publish_entry(  # Phase 8f.5
