@@ -226,7 +226,6 @@ def main():
     log.info(f"[pfm] init: {pfm.status_summary()}")
     # Phase 8g.4.a: per-symbol runners dict; 4.b will add per-symbol loop
     runners = {sym: OuMrsRunner(sym, INSTRUMENT_CFG[sym], broker=broker, capital=CAPITAL, params=PARAMS, pfm=pfm) for sym in INSTRUMENTS}
-    runner = runners[INSTRUMENTS[0]]  # Phase 8g.4.a: alias preserves single-symbol behavior; 4.b removes
     log.info(f"[runners] init: {len(runners)} symbol(s): " + ", ".join(f"{s}={r!r}" for s, r in runners.items()))
     last_minute = None
     last_hb_ts = 0.0              # Phase 5b
@@ -241,9 +240,13 @@ def main():
     while True:
         now = datetime.now()
         if now.time() > dtime(15, 30):
-            log.info(f"EOD. trades={runner.trades_today} pnl=Rs{runner.pnl_today:.0f}")
+            _total_trades = sum(r.trades_today for r in runners.values())
+            _total_pnl = sum(r.pnl_today for r in runners.values())
+            log.info(f"EOD. trades={_total_trades} pnl=Rs{_total_pnl:.0f}")
+            for _sym, _r in runners.items():
+                log.info(f"  [{_sym}] trades={_r.trades_today} pnl=Rs{_r.pnl_today:.0f}")
             try:
-                pfm.end_of_day(runner.pnl_today)
+                pfm.end_of_day(_total_pnl)
                 log.info(f"[pfm] EOD: {pfm.status_summary()}")
             except Exception as _e:
                 log.warning(f"[pfm] end_of_day failed: {_e}")
@@ -252,9 +255,12 @@ def main():
         # Phase 5b: clean heartbeat
         _t = time.time()
         if _t - last_hb_ts >= HB_INTERVAL_SEC:
-            log.info(f"[heartbeat] alive runner.position={'YES' if runner.position else 'no'} trades={runner.trades_today} pnl=Rs{runner.pnl_today:.0f}")
+            _any_pos = any(r.position for r in runners.values())
+            _hb_trades = sum(r.trades_today for r in runners.values())
+            _hb_pnl = sum(r.pnl_today for r in runners.values())
+            log.info(f"[heartbeat] alive in_trade={'YES' if _any_pos else 'no'} trades={_hb_trades} pnl=Rs{_hb_pnl:.0f}")
             last_hb_ts = _t
-            try: signal_publisher.heartbeat(runner.pnl_today)  # Phase 8f.5
+            try: signal_publisher.heartbeat(_hb_pnl)  # Phase 8f.5
             except Exception as _e: log.debug(f"signal heartbeat failed: {_e}")
 
         if now.minute == last_minute or now.second < 5:
@@ -262,219 +268,231 @@ def main():
             continue
         last_minute = now.minute
 
-        try:
-            session_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-            rows = broker.get_candles(session_open, now, "ONE_MINUTE")
-            if not rows:
-                continue
-            df = pd.DataFrame(rows, columns=["ts","open","high","low","close","volume"])
-            df["ts"] = pd.to_datetime(df["ts"])
-            df = df.set_index("ts")
-            bar = df.iloc[-1]
-            sig = compute_signal(df, PARAMS)
-
-            # Phase 4b: refresh portfolio snapshot, throttled
-            if _t - last_portfolio_ts >= PORTFOLIO_REFRESH_SEC:
-                cached_portfolio = _snapshot_portfolio(broker)
-                last_portfolio_ts = _t
-
-            # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
+        # Phase 8g.4.b: per-symbol orchestration loop with token mutation
+        for sym, runner in runners.items():
+            _saved_tok = getattr(broker, "token", None)
+            _saved_exch = getattr(broker, "exchange", None)
+            broker.token = runner.token
+            broker.exchange = runner.exchange
             try:
-                _win = getattr(PARAMS, "window", 40)
-                _closes = df["close"].tail(_win).tolist()
-                _mean = (sum(_closes)/len(_closes)) if _closes else None
-                _std = None
-                if _closes and _mean is not None:
-                    _var = sum((x-_mean)**2 for x in _closes)/len(_closes)
-                    _std = _var**0.5
-                if len(df) < _win:
-                    _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
-                elif runner.position:
-                    _state = "in_trade"
-                    _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
-                elif runner.kill:
-                    _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
-                else:
-                    _state = "idle"
-                    _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
-                _ohlc = {
-                    "o": float(df.iloc[0]["open"]),
-                    "h": float(df["high"].max()),
-                    "l": float(df["low"].min()),
-                    "c": float(bar["close"]),
-                    "vol": int(df["volume"].sum()) if "volume" in df.columns else 0,
-                }
-                _candles = [[idx.strftime("%H:%M"),
-                             float(r["open"]), float(r["high"]),
-                             float(r["low"]),  float(r["close"])]
-                            for idx, r in df.tail(240).iterrows()]
-                _pos = None
-                if runner.position:
-                    _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
-                    _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
-                    _pos = {
-                        "side": runner.position["side"],
-                        "entry": float(runner.position["entry_px"]),
-                        "qty": runner.position["qty"],
-                        "entry_ts": str(runner.position.get("entry_ts","")),
-                        "bars_held": runner.position.get("bars_held", 0),
-                        "half_life": runner.position.get("half_life", 0),
-                        "unrealized_pnl": round(_upnl, 2),
-                    }
-                _depth = None
-                try:
-                    _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
-                    _tok = runner.token
-                    if _smart and _tok and hasattr(_smart, "getMarketData"):
-                        _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
-                        if _md.get("status") and _md.get("data",{}).get("fetched"):
-                            _d = _md["data"]["fetched"][0]
-                            _depth = {
-                                "bids": _d.get("depth",{}).get("buy",[])[:5],
-                                "asks": _d.get("depth",{}).get("sell",[])[:5],
+                session_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
+                rows = broker.get_candles(session_open, now, "ONE_MINUTE")
+                if not rows:
+                    continue
+                df = pd.DataFrame(rows, columns=["ts","open","high","low","close","volume"])
+                df["ts"] = pd.to_datetime(df["ts"])
+                df = df.set_index("ts")
+                bar = df.iloc[-1]
+                sig = compute_signal(df, PARAMS)
+
+                # Phase 4b: refresh portfolio snapshot, throttled (broker-wide; first symbol only)
+                if sym == INSTRUMENTS[0] and _t - last_portfolio_ts >= PORTFOLIO_REFRESH_SEC:
+                    cached_portfolio = _snapshot_portfolio(broker)
+                    last_portfolio_ts = _t
+
+                # Phase 8g.4.b: live_hook for first symbol only (per-symbol panels = Step 6)
+                if sym == INSTRUMENTS[0]:
+                    # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
+                    try:
+                        _win = getattr(PARAMS, "window", 40)
+                        _closes = df["close"].tail(_win).tolist()
+                        _mean = (sum(_closes)/len(_closes)) if _closes else None
+                        _std = None
+                        if _closes and _mean is not None:
+                            _var = sum((x-_mean)**2 for x in _closes)/len(_closes)
+                            _std = _var**0.5
+                        if len(df) < _win:
+                            _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
+                        elif runner.position:
+                            _state = "in_trade"
+                            _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
+                        elif runner.kill:
+                            _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
+                        else:
+                            _state = "idle"
+                            _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
+                        _ohlc = {
+                            "o": float(df.iloc[0]["open"]),
+                            "h": float(df["high"].max()),
+                            "l": float(df["low"].min()),
+                            "c": float(bar["close"]),
+                            "vol": int(df["volume"].sum()) if "volume" in df.columns else 0,
+                        }
+                        _candles = [[idx.strftime("%H:%M"),
+                                     float(r["open"]), float(r["high"]),
+                                     float(r["low"]),  float(r["close"])]
+                                    for idx, r in df.tail(240).iterrows()]
+                        _pos = None
+                        if runner.position:
+                            _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
+                            _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
+                            _pos = {
+                                "side": runner.position["side"],
+                                "entry": float(runner.position["entry_px"]),
+                                "qty": runner.position["qty"],
+                                "entry_ts": str(runner.position.get("entry_ts","")),
+                                "bars_held": runner.position.get("bars_held", 0),
+                                "half_life": runner.position.get("half_life", 0),
+                                "unrealized_pnl": round(_upnl, 2),
                             }
-                except Exception:
-                    pass
-                live_hook.tick(
-                    ltp=float(bar["close"]),
-                    z=((_closes[-1] - _mean) / _std if (_closes and _mean is not None and _std) else getattr(sig, "z", None)),
-                    mean=_mean, std=_std,
-                    window=_win,
-                    z_entry=getattr(PARAMS,"z_entry",1.5),
-                    z_stop=getattr(PARAMS,"z_stop",3.5),
-                    candles_count=len(df),
-                    intraday_candles=_candles,
-                    state=_state, state_reason=_reason,
-                    position=_pos, depth=_depth,
-                    ohlc_today=_ohlc,
-                    next_check_in_sec=max(1, 60 - datetime.now().second),
-                    portfolio=cached_portfolio,
-                    reasons_log=runner.reasons_log[-10:],
-                    kill=runner.kill,
-                    trades_today=runner.trades_today,
-                    pnl_today=round(runner.pnl_today, 2),
-                )
-            except Exception as _e:
-                log.debug(f"live_hook tick failed: {_e}")
-            # --- /LIVE_HOOK_v1 ---
+                        _depth = None
+                        try:
+                            _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
+                            _tok = runner.token
+                            if _smart and _tok and hasattr(_smart, "getMarketData"):
+                                _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
+                                if _md.get("status") and _md.get("data",{}).get("fetched"):
+                                    _d = _md["data"]["fetched"][0]
+                                    _depth = {
+                                        "bids": _d.get("depth",{}).get("buy",[])[:5],
+                                        "asks": _d.get("depth",{}).get("sell",[])[:5],
+                                    }
+                        except Exception:
+                            pass
+                        live_hook.tick(
+                            ltp=float(bar["close"]),
+                            z=((_closes[-1] - _mean) / _std if (_closes and _mean is not None and _std) else getattr(sig, "z", None)),
+                            mean=_mean, std=_std,
+                            window=_win,
+                            z_entry=getattr(PARAMS,"z_entry",1.5),
+                            z_stop=getattr(PARAMS,"z_stop",3.5),
+                            candles_count=len(df),
+                            intraday_candles=_candles,
+                            state=_state, state_reason=_reason,
+                            position=_pos, depth=_depth,
+                            ohlc_today=_ohlc,
+                            next_check_in_sec=max(1, 60 - datetime.now().second),
+                            portfolio=cached_portfolio,
+                            reasons_log=runner.reasons_log[-10:],
+                            kill=runner.kill,
+                            trades_today=runner.trades_today,
+                            pnl_today=round(runner.pnl_today, 2),
+                        )
+                    except Exception as _e:
+                        log.debug(f"live_hook tick failed: {_e}")
+                    # --- /LIVE_HOOK_v1 ---
 
 
-            if runner.position and bar.name.time() >= SQUAREOFF:
-                p = _exit(broker, runner.position, bar, "EOD", symbol=runner.symbol, lot_size=runner.lot_size)
-                runner.pnl_today += p
-                runner.position = None
-                runner.reasons_log.append("EOD")
-                continue
+                if runner.position and bar.name.time() >= SQUAREOFF:
+                    p = _exit(broker, runner.position, bar, "EOD", symbol=runner.symbol, lot_size=runner.lot_size)
+                    runner.pnl_today += p
+                    runner.position = None
+                    runner.reasons_log.append("EOD")
+                    continue
 
-            # Phase 8e: prop-firm rule check
-            _pfm_state = pfm.check(runner.pnl_today)
-            if _pfm_state["state"] == "soft_halt" and not runner.soft_halt:
-                runner.soft_halt = True
-                log.warning(f"[pfm] SOFT HALT: {_pfm_state['reason']} pnl={runner.pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
-            _pfm_hard = _pfm_state["state"] == "hard_halt"
-            if runner.kill or runner.pnl_today <= -DAILY_LOSS * CAPITAL or _pfm_hard:
-                if _pfm_hard and not runner.kill:
-                    log.error(f"[pfm] HARD HALT: {_pfm_state['reason']} pnl={runner.pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
+                # Phase 8e: prop-firm rule check (aggregate pnl across runners)
+                _agg_pnl = sum(r.pnl_today for r in runners.values())
+                _pfm_state = pfm.check(_agg_pnl)
+                if _pfm_state["state"] == "soft_halt" and not runner.soft_halt:
+                    runner.soft_halt = True
+                    log.warning(f"[pfm] SOFT HALT [{sym}]: {_pfm_state['reason']} agg_pnl={_agg_pnl:.0f} dd={_pfm_state['dd']:.0f}")
+                _pfm_hard = _pfm_state["state"] == "hard_halt"
+                if runner.kill or _agg_pnl <= -DAILY_LOSS * CAPITAL or _pfm_hard:
+                    if _pfm_hard and not runner.kill:
+                        log.error(f"[pfm] HARD HALT [{sym}]: {_pfm_state['reason']} agg_pnl={_agg_pnl:.0f} dd={_pfm_state['dd']:.0f}")
+                    if runner.position:
+                        p = _exit(broker, runner.position, bar, "KILL", symbol=runner.symbol, lot_size=runner.lot_size)
+                        runner.pnl_today += p
+                        runner.position = None
+                        runner.reasons_log.append("KILL")
+                    runner.kill = True
+                    continue
+
                 if runner.position:
-                    p = _exit(broker, runner.position, bar, "KILL", symbol=runner.symbol, lot_size=runner.lot_size)
-                    runner.pnl_today += p
-                    runner.position = None
-                    runner.reasons_log.append("KILL")
-                runner.kill = True
-                continue
-
-            if runner.position:
-                if not sig:
+                    if not sig:
+                        continue
+                    reason = None
+                    z = sig.z
+                    if   runner.position["side"] == "BUY"  and z >= 0: reason = "TARGET"
+                    elif runner.position["side"] == "SELL" and z <= 0: reason = "TARGET"
+                    elif abs(z) > PARAMS.z_stop and (
+                        (runner.position["side"] == "BUY"  and z < 0) or
+                        (runner.position["side"] == "SELL" and z > 0)):
+                        reason = "STOP"
+                    runner.position["bars_held"] += 1
+                    if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
+                        reason = "TIME"
+                    if reason:
+                        p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol, lot_size=runner.lot_size)
+                        runner.pnl_today += p
+                        runner.position = None
+                        runner.reasons_log.append(reason)
+                        # Phase 3b: circuit breaker — 3 consecutive STOPs kills the day
+                        if reason == "STOP" and runner.reasons_log[-STOP_CIRCUIT_THRESHOLD:].count("STOP") >= STOP_CIRCUIT_THRESHOLD:
+                            runner.kill = True
+                            log.warning(f"CIRCUIT BREAKER: {STOP_CIRCUIT_THRESHOLD} consecutive STOPs — shutting down for day.")
                     continue
-                reason = None
-                z = sig.z
-                if   runner.position["side"] == "BUY"  and z >= 0: reason = "TARGET"
-                elif runner.position["side"] == "SELL" and z <= 0: reason = "TARGET"
-                elif abs(z) > PARAMS.z_stop and (
-                    (runner.position["side"] == "BUY"  and z < 0) or
-                    (runner.position["side"] == "SELL" and z > 0)):
-                    reason = "STOP"
-                runner.position["bars_held"] += 1
-                if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
-                    reason = "TIME"
-                if reason:
-                    p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol, lot_size=runner.lot_size)
-                    runner.pnl_today += p
-                    runner.position = None
-                    runner.reasons_log.append(reason)
-                    # Phase 3b: circuit breaker — 3 consecutive STOPs kills the day
-                    if reason == "STOP" and runner.reasons_log[-STOP_CIRCUIT_THRESHOLD:].count("STOP") >= STOP_CIRCUIT_THRESHOLD:
-                        runner.kill = True
-                        log.warning(f"CIRCUIT BREAKER: {STOP_CIRCUIT_THRESHOLD} consecutive STOPs — shutting down for day.")
-                continue
 
-            if not sig or not sig.side:
-                continue
-            if runner.soft_halt:  # Phase 8e: no new entries during soft halt
-                continue
-            if not (SESSION_START <= bar.name.time() <= SESSION_END):
-                continue
-            if runner.trades_today >= MAX_TRADES:
-                continue
+                if not sig or not sig.side:
+                    continue
+                if runner.soft_halt:  # Phase 8e: no new entries during soft halt
+                    continue
+                if not (SESSION_START <= bar.name.time() <= SESSION_END):
+                    continue
+                if runner.trades_today >= MAX_TRADES:
+                    continue
 
-            qty_lots = size_lots(sig.atr)
-            qty = qty_lots * runner.lot_size
-            # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
-            _sl_offset = max(runner.atr_mult * sig.atr, 20.0)
-            _slip = max(0.3 * sig.atr, 5.0)
-            if sig.side == "BUY":
-                _sl_trig = sig.price - _sl_offset
-                _sl_lim  = _sl_trig - _slip
-                _sl_side = "SELL"
-            else:
-                _sl_trig = sig.price + _sl_offset
-                _sl_lim  = _sl_trig + _slip
-                _sl_side = "BUY"
-            sl_oid = None
-            if LIVE:
-                broker.place_market(sig.side, qty)
+                qty_lots = size_lots(sig.atr, lot_size=runner.lot_size, max_lots=runner.max_lots, capital=CAPITAL)
+                qty = qty_lots * runner.lot_size
+                # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
+                _sl_offset = max(runner.atr_mult * sig.atr, 20.0)
+                _slip = max(0.3 * sig.atr, 5.0)
+                if sig.side == "BUY":
+                    _sl_trig = sig.price - _sl_offset
+                    _sl_lim  = _sl_trig - _slip
+                    _sl_side = "SELL"
+                else:
+                    _sl_trig = sig.price + _sl_offset
+                    _sl_lim  = _sl_trig + _slip
+                    _sl_side = "BUY"
+                sl_oid = None
+                if LIVE:
+                    broker.place_market(sig.side, qty)
+                    try:
+                        sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
+                    except Exception as _e:
+                        log.error(f"SL placement failed: {_e} — emergency market exit")
+                        broker.place_market(_sl_side, qty)
+                        continue
+                else:
+                    log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
+                runner.position = {
+                    "side": sig.side,
+                    "qty": qty_lots,
+                    "entry_px": sig.price,
+                    "entry_ts": bar.name,
+                    "half_life": sig.half_life,
+                    "atr": sig.atr,
+                    "bars_held": 0,
+                    "sl_order_id": sl_oid,
+                    "sl_trigger": _sl_trig,
+                    "sl_limit": _sl_lim,
+                }
+                # Phase 8d: persist SL state for crash recovery
                 try:
-                    sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
+                    import json as _json
+                    with open(str(sl_orders_log_path(symbol=runner.symbol)), "a") as _f:
+                        _f.write(_json.dumps({
+                            "ts": str(bar.name), "event": "placed",
+                            "sl_order_id": sl_oid, "side": _sl_side,
+                            "trigger": _sl_trig, "limit": _sl_lim, "qty": qty,
+                        }) + "\n")
                 except Exception as _e:
-                    log.error(f"SL placement failed: {_e} — emergency market exit")
-                    broker.place_market(_sl_side, qty)
-                    continue
-            else:
-                log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
-            runner.position = {
-                "side": sig.side,
-                "qty": qty_lots,
-                "entry_px": sig.price,
-                "entry_ts": bar.name,
-                "half_life": sig.half_life,
-                "atr": sig.atr,
-                "bars_held": 0,
-                "sl_order_id": sl_oid,
-                "sl_trigger": _sl_trig,
-                "sl_limit": _sl_lim,
-            }
-            # Phase 8d: persist SL state for crash recovery
-            try:
-                import json as _json
-                with open(str(sl_orders_log_path(symbol=runner.symbol)), "a") as _f:
-                    _f.write(_json.dumps({
-                        "ts": str(bar.name), "event": "placed",
-                        "sl_order_id": sl_oid, "side": _sl_side,
-                        "trigger": _sl_trig, "limit": _sl_lim, "qty": qty,
-                    }) + "\n")
-            except Exception as _e:
-                log.debug(f"SL state persist failed: {_e}")
-            runner.trades_today += 1
-            log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
-            try:
-                signal_publisher.publish_entry(  # Phase 8f.5
-                    side=sig.side, qty_lots=qty_lots, lot_size=runner.lot_size,
-                    entry_price=sig.price, entry_time=bar.name, stop_loss=_sl_trig,
-                )
-            except Exception as _e:
-                log.debug(f"signal publish_entry failed: {_e}")
-        except Exception as e:
-            log.exception(f"Loop error: {e}")
+                    log.debug(f"SL state persist failed: {_e}")
+                runner.trades_today += 1
+                log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
+                try:
+                    signal_publisher.publish_entry(  # Phase 8f.5
+                        side=sig.side, qty_lots=qty_lots, lot_size=runner.lot_size,
+                        entry_price=sig.price, entry_time=bar.name, stop_loss=_sl_trig,
+                    )
+                except Exception as _e:
+                    log.debug(f"signal publish_entry failed: {_e}")
+            except Exception as e:
+                log.exception(f"Loop error [{sym}]: {e}")
+            finally:
+                if _saved_tok is not None: broker.token = _saved_tok
+                if _saved_exch is not None: broker.exchange = _saved_exch
         time.sleep(2)
 
 if __name__ == "__main__":
