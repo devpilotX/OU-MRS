@@ -30,6 +30,8 @@ class OuMrsRunner:
         self.symbol_full = self.cfg.get("symbol")
         self.margin_per_lot = self.cfg.get("margin_per_lot", 75_000)
         self.atr_mult = self.cfg.get("atr_mult", 1.5)
+        # Phase 8g.4.a: per-symbol max lots from capital and margin_per_lot
+        self.max_lots = max(1, min(50, int(self.capital // self.margin_per_lot)))
 
     def status(self):
         """Snapshot for dashboard + multi-symbol aggregation."""
@@ -44,6 +46,7 @@ class OuMrsRunner:
             "pnl_today": round(self.pnl_today, 2),
             "kill": self.kill,
             "soft_halt": self.soft_halt,
+            "max_lots": self.max_lots,
             "reasons": list(self.reasons_log[-10:]),
         }
 

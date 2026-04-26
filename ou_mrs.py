@@ -46,7 +46,7 @@ def capital_tier(capital: int) -> str:
     if capital < 5_000_000:  return "FTMO_PRO"
     return "FTMO_ELITE"
 
-MAX_LOTS      = max_lots_for_capital(CAPITAL, "BNF")
+MAX_LOTS_BNF  = max_lots_for_capital(CAPITAL, "BNF")  # Phase 8g.4.a: legacy startup log only
 CAPITAL_TIER  = capital_tier(CAPITAL)
 MAX_TRADES    = 8
 DAILY_LOSS    = 0.02
@@ -59,14 +59,17 @@ HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
 STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
 
-def size_lots(atr: float) -> int:
+def size_lots(atr: float, lot_size: int = 15, max_lots: int = 1, capital: int = None) -> int:
+    """Phase 8g.4.a: pure. Pass per-symbol lot_size/max_lots; capital defaults to module CAPITAL."""
+    if capital is None:
+        capital = CAPITAL
     stop = max(atr * 1.5, 20)
-    budget = 0.25 * 0.05 * CAPITAL  # Phase 8b.5: Kelly halved from 0.10
-    return max(1, min(MAX_LOTS, int(budget / (stop * LOT_SIZE))))
+    budget = 0.25 * 0.05 * capital  # Phase 8b.5: Kelly halved from 0.10
+    return max(1, min(max_lots, int(budget / (stop * lot_size))))
 
-def _exit(broker, pos, bar, reason, symbol="BNF"):
+def _exit(broker, pos, bar, reason, symbol="BNF", lot_size=15):
     side = "SELL" if pos["side"] == "BUY" else "BUY"
-    qty = pos["qty"] * LOT_SIZE
+    qty = pos["qty"] * lot_size
     # Phase 8d: cancel pending SL before closing (skip if reason==STOP — SL already fired)
     _sl_id = pos.get("sl_order_id")
     if LIVE and _sl_id and reason != "STOP":
@@ -88,7 +91,7 @@ def _exit(broker, pos, bar, reason, symbol="BNF"):
     else:
         log.info(f"[PAPER] EXIT {side} {pos['qty']}l")
     pnl_pts = (bar["close"] - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
-    pnl = pnl_pts * pos["qty"] * LOT_SIZE - 40
+    pnl = pnl_pts * pos["qty"] * lot_size - 40
     log.info(f"EXIT ({reason}) @ {bar['close']:.2f} pnl=Rs{pnl:.0f}")
     with open("trades.jsonl", "a") as f:
         f.write(json.dumps({
@@ -221,14 +224,15 @@ def main():
         log.warning(f"[reconcile] failed (non-fatal): {_e}")
     pfm = PropFirmMonitor(capital=CAPITAL)  # Phase 8e
     log.info(f"[pfm] init: {pfm.status_summary()}")
-    # Phase 8g.2.b: per-symbol runner (single-symbol BNF; Step 4 multi-runner)
-    runner = OuMrsRunner("BNF", INSTRUMENT_CFG["BNF"], broker=broker, capital=CAPITAL, params=PARAMS, pfm=pfm)
-    log.info(f"[runner] init: {runner!r}")
+    # Phase 8g.4.a: per-symbol runners dict; 4.b will add per-symbol loop
+    runners = {sym: OuMrsRunner(sym, INSTRUMENT_CFG[sym], broker=broker, capital=CAPITAL, params=PARAMS, pfm=pfm) for sym in INSTRUMENTS}
+    runner = runners[INSTRUMENTS[0]]  # Phase 8g.4.a: alias preserves single-symbol behavior; 4.b removes
+    log.info(f"[runners] init: {len(runners)} symbol(s): " + ", ".join(f"{s}={r!r}" for s, r in runners.items()))
     last_minute = None
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b
     cached_portfolio = None
-    log.info(f"OU-MRS started. ACCOUNT={ACCOUNT_ID} LIVE={LIVE} CAPITAL=Rs{CAPITAL:,} TIER={CAPITAL_TIER} MAX_LOTS_BNF={MAX_LOTS}")
+    log.info(f"OU-MRS started. ACCOUNT={ACCOUNT_ID} LIVE={LIVE} CAPITAL=Rs{CAPITAL:,} TIER={CAPITAL_TIER} MAX_LOTS_BNF={MAX_LOTS_BNF}")
     try:
         signal_publisher.publish_flat()  # Phase 8f.5
     except Exception as _e:
@@ -307,7 +311,7 @@ def main():
                 _pos = None
                 if runner.position:
                     _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
-                    _upnl = _pts * runner.position["qty"] * LOT_SIZE - 40
+                    _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
                     _pos = {
                         "side": runner.position["side"],
                         "entry": float(runner.position["entry_px"]),
@@ -320,7 +324,7 @@ def main():
                 _depth = None
                 try:
                     _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
-                    _tok = os.getenv("BANKNIFTY_FUT_TOKEN")
+                    _tok = runner.token
                     if _smart and _tok and hasattr(_smart, "getMarketData"):
                         _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
                         if _md.get("status") and _md.get("data",{}).get("fetched"):
@@ -356,7 +360,7 @@ def main():
 
 
             if runner.position and bar.name.time() >= SQUAREOFF:
-                p = _exit(broker, runner.position, bar, "EOD", symbol=runner.symbol)
+                p = _exit(broker, runner.position, bar, "EOD", symbol=runner.symbol, lot_size=runner.lot_size)
                 runner.pnl_today += p
                 runner.position = None
                 runner.reasons_log.append("EOD")
@@ -372,7 +376,7 @@ def main():
                 if _pfm_hard and not runner.kill:
                     log.error(f"[pfm] HARD HALT: {_pfm_state['reason']} pnl={runner.pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
                 if runner.position:
-                    p = _exit(broker, runner.position, bar, "KILL", symbol=runner.symbol)
+                    p = _exit(broker, runner.position, bar, "KILL", symbol=runner.symbol, lot_size=runner.lot_size)
                     runner.pnl_today += p
                     runner.position = None
                     runner.reasons_log.append("KILL")
@@ -394,7 +398,7 @@ def main():
                 if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
                     reason = "TIME"
                 if reason:
-                    p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol)
+                    p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol, lot_size=runner.lot_size)
                     runner.pnl_today += p
                     runner.position = None
                     runner.reasons_log.append(reason)
@@ -414,9 +418,9 @@ def main():
                 continue
 
             qty_lots = size_lots(sig.atr)
-            qty = qty_lots * LOT_SIZE
+            qty = qty_lots * runner.lot_size
             # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
-            _sl_offset = max(1.5 * sig.atr, 20.0)
+            _sl_offset = max(runner.atr_mult * sig.atr, 20.0)
             _slip = max(0.3 * sig.atr, 5.0)
             if sig.side == "BUY":
                 _sl_trig = sig.price - _sl_offset
@@ -464,7 +468,7 @@ def main():
             log.info(f"ENTRY {sig.side} {qty_lots}l @ {sig.price:.2f} z={sig.z:.2f} hl={sig.half_life:.1f}")
             try:
                 signal_publisher.publish_entry(  # Phase 8f.5
-                    side=sig.side, qty_lots=qty_lots, lot_size=LOT_SIZE,
+                    side=sig.side, qty_lots=qty_lots, lot_size=runner.lot_size,
                     entry_price=sig.price, entry_time=bar.name, stop_loss=_sl_trig,
                 )
             except Exception as _e:

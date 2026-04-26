@@ -80,3 +80,32 @@ def test_reset_for_new_day_clears_all_state():
     assert r.kill is False
     assert r.soft_halt is False
     assert r.reasons_log == []
+
+
+# Phase 8g.4.a: max_lots attribute
+def test_runner_max_lots_bnf():
+    from ou_mrs_runner import OuMrsRunner
+    cfg = {"symbol": "BNFFUT", "token": "66068", "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": 1.5, "exchange": "NFO"}
+    r = OuMrsRunner("BNF", cfg, capital=150_000)
+    assert r.max_lots == 2
+
+
+def test_runner_max_lots_nf():
+    from ou_mrs_runner import OuMrsRunner
+    cfg = {"symbol": "NFFUT", "token": "66071", "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": 1.5, "exchange": "NFO"}
+    r = OuMrsRunner("NF", cfg, capital=150_000)
+    assert r.max_lots == 3
+
+
+def test_runner_max_lots_floor_at_1():
+    from ou_mrs_runner import OuMrsRunner
+    cfg = {"margin_per_lot": 75_000}
+    r = OuMrsRunner("X", cfg, capital=10_000)
+    assert r.max_lots == 1
+
+
+def test_runner_max_lots_cap_at_50():
+    from ou_mrs_runner import OuMrsRunner
+    cfg = {"margin_per_lot": 1}
+    r = OuMrsRunner("X", cfg, capital=10_000_000_000)
+    assert r.max_lots == 50
