@@ -48,7 +48,8 @@ def capital_tier(capital: int) -> str:
 
 MAX_LOTS_BNF  = max_lots_for_capital(CAPITAL, "BNF")  # Phase 8g.4.a: legacy startup log only
 CAPITAL_TIER  = capital_tier(CAPITAL)
-MAX_TRADES    = 8
+MAX_TRADES    = 8           # Phase 8g.5: now AGGREGATE cap across runners (was per-symbol)
+MAX_CONCURRENT_POSITIONS = int(os.environ.get("MAX_CONCURRENT_POSITIONS", 2))  # Phase 8g.5: corr cap
 DAILY_LOSS    = 0.02
 SESSION_START = dtime(9, 30)
 SESSION_END   = dtime(14, 45)
@@ -66,6 +67,22 @@ def size_lots(atr: float, lot_size: int = 15, max_lots: int = 1, capital: int = 
     stop = max(atr * 1.5, 20)
     budget = 0.25 * 0.05 * capital  # Phase 8b.5: Kelly halved from 0.10
     return max(1, min(max_lots, int(budget / (stop * lot_size))))
+
+
+def _can_enter_new_position(runners, current_runner, max_concurrent, max_agg_trades):
+    """Phase 8g.5: gate new entries on aggregate state.
+
+    Returns (allowed: bool, reason: str). Two checks:
+      1. Correlation cap: max_concurrent simultaneous positions across all runners
+      2. Aggregate trade cap: max_agg_trades total entries today across all runners
+    """
+    live_positions = sum(1 for r in runners.values() if r.position)
+    if live_positions >= max_concurrent:
+        return False, f"corr_cap {live_positions}/{max_concurrent}"
+    agg_trades = sum(r.trades_today for r in runners.values())
+    if agg_trades >= max_agg_trades:
+        return False, f"max_trades_agg {agg_trades}/{max_agg_trades}"
+    return True, "ok"
 
 def _exit(broker, pos, bar, reason, symbol="BNF", lot_size=15):
     side = "SELL" if pos["side"] == "BUY" else "BUY"
@@ -429,7 +446,11 @@ def main():
                     continue
                 if not (SESSION_START <= bar.name.time() <= SESSION_END):
                     continue
-                if runner.trades_today >= MAX_TRADES:
+                # Phase 8g.5: correlation + aggregate trade cap
+                _can, _block_reason = _can_enter_new_position(runners, runner, MAX_CONCURRENT_POSITIONS, MAX_TRADES)
+                if not _can:
+                    log.debug(f"[entry_blocked] [{sym}] {_block_reason}")
+                    runner.reasons_log.append(f"BLOCKED:{_block_reason.split()[0]}")
                     continue
 
                 qty_lots = size_lots(sig.atr, lot_size=runner.lot_size, max_lots=runner.max_lots, capital=CAPITAL)
