@@ -64,7 +64,7 @@ def size_lots(atr: float) -> int:
     budget = 0.25 * 0.05 * CAPITAL  # Phase 8b.5: Kelly halved from 0.10
     return max(1, min(MAX_LOTS, int(budget / (stop * LOT_SIZE))))
 
-def _exit(broker, pos, bar, reason):
+def _exit(broker, pos, bar, reason, symbol="BNF"):
     side = "SELL" if pos["side"] == "BUY" else "BUY"
     qty = pos["qty"] * LOT_SIZE
     # Phase 8d: cancel pending SL before closing (skip if reason==STOP — SL already fired)
@@ -76,9 +76,7 @@ def _exit(broker, pos, bar, reason):
             log.warning(f"SL cancel failed for {_sl_id}: {_e}")
     try:
         import json as _json
-        from pathlib import Path as _P
-        _P("state").mkdir(exist_ok=True)
-        with open("state/sl_orders.jsonl", "a") as _f:
+        with open(str(sl_orders_log_path(symbol=symbol)), "a") as _f:
             _f.write(_json.dumps({
                 "ts": str(bar.name), "event": "exit",
                 "reason": reason, "sl_order_id": _sl_id,
@@ -141,12 +139,12 @@ def _snapshot_portfolio(broker):
     except Exception:
         return None
 
-def reconcile_sl_orders(broker):
-    """Phase 8d.1: on startup, sweep state/sl_orders.jsonl for today's SL orders,
+def reconcile_sl_orders(broker, symbol="BNF"):
+    """Phase 8d.1: on startup, sweep this account+symbol's sl_orders.jsonl for today's SL orders,
     query broker status, cancel any still-open orphans from a prior crashed session."""
     import json, os
     from datetime import date, datetime
-    path = "state/sl_orders.jsonl"
+    path = str(sl_orders_log_path(symbol=symbol))
     if not os.path.exists(path):
         log.info("[reconcile] no sl_orders.jsonl yet - clean slate")
         return {"checked": 0, "cancelled": 0, "stale": 0, "unknown": 0}
@@ -218,7 +216,7 @@ def main():
 
     broker = AngelBroker().login()
     try:
-        reconcile_sl_orders(broker)   # Phase 8d.1
+        reconcile_sl_orders(broker, symbol=runner.symbol)   # Phase 8d.1
     except Exception as _e:
         log.warning(f"[reconcile] failed (non-fatal): {_e}")
     pfm = PropFirmMonitor(capital=CAPITAL)  # Phase 8e
@@ -358,7 +356,7 @@ def main():
 
 
             if runner.position and bar.name.time() >= SQUAREOFF:
-                p = _exit(broker, runner.position, bar, "EOD")
+                p = _exit(broker, runner.position, bar, "EOD", symbol=runner.symbol)
                 runner.pnl_today += p
                 runner.position = None
                 runner.reasons_log.append("EOD")
@@ -374,7 +372,7 @@ def main():
                 if _pfm_hard and not runner.kill:
                     log.error(f"[pfm] HARD HALT: {_pfm_state['reason']} pnl={runner.pnl_today:.0f} dd={_pfm_state['dd']:.0f}")
                 if runner.position:
-                    p = _exit(broker, runner.position, bar, "KILL")
+                    p = _exit(broker, runner.position, bar, "KILL", symbol=runner.symbol)
                     runner.pnl_today += p
                     runner.position = None
                     runner.reasons_log.append("KILL")
@@ -396,7 +394,7 @@ def main():
                 if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
                     reason = "TIME"
                 if reason:
-                    p = _exit(broker, runner.position, bar, reason)
+                    p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol)
                     runner.pnl_today += p
                     runner.position = None
                     runner.reasons_log.append(reason)
@@ -454,9 +452,7 @@ def main():
             # Phase 8d: persist SL state for crash recovery
             try:
                 import json as _json
-                from pathlib import Path as _P
-                _P("state").mkdir(exist_ok=True)
-                with open("state/sl_orders.jsonl", "a") as _f:
+                with open(str(sl_orders_log_path(symbol=runner.symbol)), "a") as _f:
                     _f.write(_json.dumps({
                         "ts": str(bar.name), "event": "placed",
                         "sl_order_id": sl_oid, "side": _sl_side,

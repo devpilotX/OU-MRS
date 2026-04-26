@@ -57,3 +57,33 @@ def test_env_var_override():
         os.environ.pop("ACCOUNT_ID", None)
         importlib.reload(account)
         shutil.rmtree(Path("state") / "ff_pool_42", ignore_errors=True)
+
+
+# Phase 8g.3: per-symbol path scoping
+def test_sl_orders_log_path_with_symbol(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from account import sl_orders_log_path
+    p = sl_orders_log_path(account_id="alpha8g3", symbol="BNF")
+    assert "alpha8g3" in str(p)
+    assert "BNF" in str(p)
+    assert str(p).endswith("sl_orders.jsonl")
+    assert p.parent.exists()
+
+
+def test_sl_orders_log_path_no_symbol_backcompat(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from account import sl_orders_log_path
+    p = sl_orders_log_path("legacy8g3")
+    assert "legacy8g3" in str(p)
+    assert p.parent.name == "legacy8g3"
+    assert "/BNF/" not in str(p)
+
+
+def test_state_dir_symbol_isolation(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import account
+    bnf = account.state_dir("isoacct8g3", symbol="BNF")
+    nf = account.state_dir("isoacct8g3", symbol="NF")
+    assert bnf != nf
+    assert bnf.exists() and nf.exists()
+    assert bnf.parent == nf.parent
