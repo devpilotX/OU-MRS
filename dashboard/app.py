@@ -286,3 +286,28 @@ def api_signals_json(token: str = ""):
     if expected and token != expected:
         raise HTTPException(status_code=401, detail="invalid token")
     return signal_publisher.read_signal()
+
+
+# Phase 8g.6: per-symbol state for dashboard cards
+@app.get("/api/symbols", dependencies=[Depends(need_auth)])
+def api_symbols():
+    """Returns {symbols: {BNF,NF,FNF: {...}}, aggregate: {...}}."""
+    state_dir = BOT_DIR / "state"
+    out = {"symbols": {}, "aggregate": {"trades_today": 0, "pnl_today": 0.0, "live_positions": 0, "any_kill": False, "ts": int(time.time())}}
+    if not state_dir.exists():
+        return out
+    for sym_file in sorted(state_dir.glob("live_*.json")):
+        sym = sym_file.stem.replace("live_", "")
+        try:
+            data = json.loads(sym_file.read_text())
+            out["symbols"][sym] = data
+            out["aggregate"]["trades_today"] += int(data.get("trades_today") or 0)
+            out["aggregate"]["pnl_today"] += float(data.get("pnl_today") or 0.0)
+            if data.get("position"):
+                out["aggregate"]["live_positions"] += 1
+            if data.get("kill"):
+                out["aggregate"]["any_kill"] = True
+        except Exception:
+            pass
+    out["aggregate"]["pnl_today"] = round(out["aggregate"]["pnl_today"], 2)
+    return out

@@ -388,6 +388,24 @@ def main():
                     except Exception as _e:
                         log.debug(f"live_hook tick failed: {_e}")
                     # --- /LIVE_HOOK_v1 ---
+                # Phase 8g.6: per-symbol dashboard state (all symbols)
+                try:
+                    if runner.kill:
+                        _ps_state = "cooldown"
+                    elif runner.position:
+                        _ps_state = "in_trade"
+                    elif len(df) < getattr(PARAMS, "window", 40):
+                        _ps_state = "warming_up"
+                    else:
+                        _ps_state = "idle"
+                    _ps_pos = None
+                    if runner.position:
+                        _ps_pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
+                        _ps_upnl = _ps_pts * runner.position["qty"] * runner.lot_size - 40
+                        _ps_pos = {"side": runner.position["side"], "qty": runner.position["qty"], "entry": float(runner.position["entry_px"]), "unrealized_pnl": round(_ps_upnl, 2)}
+                    live_hook.tick_symbol(symbol=sym, ltp=float(bar["close"]), state=_ps_state, position=_ps_pos, trades_today=runner.trades_today, pnl_today=round(runner.pnl_today, 2), kill=runner.kill, max_lots=runner.max_lots, lot_size=runner.lot_size, reasons_log=runner.reasons_log[-5:])
+                except Exception as _e:
+                    log.debug(f"live_hook tick_symbol failed [{sym}]: {_e}")
 
 
                 if runner.position and bar.name.time() >= SQUAREOFF:

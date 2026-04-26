@@ -194,3 +194,36 @@ main, .main, .content, .container, body > section {
   .live-card.main { grid-column: span 2; }
   .pos-card { grid-template-columns: repeat(2,1fr); }
 }
+
+/* Phase 8g.6: per-symbol cards */
+.symbols-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.symbol-card {
+  background: rgba(20, 26, 40, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.symbol-card:hover { transform: translateY(-1px); }
+.symbol-card.sc-in_trade { border-color: rgba(60, 224, 79, 0.5); background: linear-gradient(180deg, rgba(60, 224, 79, 0.08), rgba(20, 26, 40, 0.6)); }
+.symbol-card.sc-cooldown { border-color: rgba(224, 64, 80, 0.5); background: linear-gradient(180deg, rgba(224, 64, 80, 0.08), rgba(20, 26, 40, 0.6)); }
+.symbol-card.sc-warming_up { border-color: rgba(224, 144, 48, 0.5); background: linear-gradient(180deg, rgba(224, 144, 48, 0.08), rgba(20, 26, 40, 0.6)); }
+.symbol-card.sc-idle { border-color: rgba(255, 255, 255, 0.12); }
+.symbol-card.sc-offline { opacity: 0.45; border-style: dashed; }
+.sc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.sc-symbol { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 13px; letter-spacing: 1.5px; color: #e6e9ef; }
+.sc-state { font-family: "Inter", sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: 1.2px; padding: 3px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); color: #8b94a7; }
+.sc-in_trade .sc-state { background: rgba(60, 224, 79, 0.18); color: #3ce04f; }
+.sc-cooldown .sc-state { background: rgba(224, 64, 80, 0.18); color: #ff5566; }
+.sc-warming_up .sc-state { background: rgba(224, 144, 48, 0.18); color: #ffaa3c; }
+.sc-pnl { font-family: "JetBrains Mono", monospace; font-size: 22px; font-weight: 700; margin: 4px 0 10px; color: #e6e9ef; line-height: 1.2; }
+.sc-pnl.pnl-pos { color: #3ce04f; }
+.sc-pnl.pnl-neg { color: #ff5566; }
+.sc-pnl.pnl-flat { color: #8b94a7; }
+.sc-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b94a7; font-family: "JetBrains Mono", monospace; }
+@media (max-width: 768px) { .symbols-grid { grid-template-columns: 1fr; } }

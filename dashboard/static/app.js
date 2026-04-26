@@ -1,4 +1,4 @@
-// DPR_v1 — crisp chart rendering on HiDPI displays
+// DPR_v1 -- crisp chart rendering on HiDPI displays
 (function(){
   if (typeof Chart !== "undefined") {
     Chart.defaults.devicePixelRatio = Math.max(window.devicePixelRatio || 1, 2);
@@ -11,19 +11,19 @@
 })();
 
 const $ = s => document.querySelector(s);
-const fmtMoney = v => v==null||isNaN(v) ? "—" : (v<0?"-":"") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
-const fmtPct = v => v==null ? "—" : (v*100).toFixed(2) + "%";
+const fmtMoney = v => v==null||isNaN(v) ? "--" : (v<0?"-":"") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
+const fmtPct = v => v==null ? "--" : (v*100).toFixed(2) + "%";
 let equityChart=null, pnlChart=null, ddChart=null;
 
 async function fetchJSON(url){const r=await fetch(url,{credentials:"same-origin"});if(r.status===401){location.href="/login";return null;}return r.json();}
-function humanDur(s){if(!s)return"—";const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>24)return Math.floor(h/24)+"d "+(h%24)+"h";if(h>0)return h+"h "+m+"m";return m+"m";}
+function humanDur(s){if(!s)return"--";const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>24)return Math.floor(h/24)+"d "+(h%24)+"h";if(h>0)return h+"h "+m+"m";return m+"m";}
 function escHtml(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 async function refreshStatus(){
   const s=await fetchJSON("/api/status");if(!s)return;
-  const el=$("#bot-status");el.textContent=(s.bot_state||"—").toUpperCase();
+  const el=$("#bot-status");el.textContent=(s.bot_state||"--").toUpperCase();
   el.style.color=s.bot_state==="active"?"var(--green)":"var(--muted)";
-  $("#bot-sub").textContent="Timer: "+(s.timer_state||"—");
+  $("#bot-sub").textContent="Timer: "+(s.timer_state||"--");
   $("#capital").textContent=fmtMoney(s.capital);
   $("#mode-label").textContent=s.live_mode?"🔴 LIVE":"📝 Paper";
   const mc=$("#mode-chip");mc.textContent=s.live_mode?"🔴 LIVE":"📝 Paper";mc.className="chip "+(s.live_mode?"err":"info");
@@ -50,7 +50,7 @@ async function refreshMarket(){
 
 async function refreshStrategy(){
   const s=await fetchJSON("/api/strategy");if(!s)return;
-  $("#strategy-detail").innerHTML=`<div>📊 <b>${s.symbol||"—"}</b></div><div>💰 ₹${(s.capital||0).toLocaleString("en-IN")} · lot ${s.lot_size}</div><div>📏 z_e ${s.z_entry} · z_s ${s.z_stop} · w ${s.window}</div>`;
+  $("#strategy-detail").innerHTML=`<div>📊 <b>${s.symbol||"--"}</b></div><div>💰 ₹${(s.capital||0).toLocaleString("en-IN")} · lot ${s.lot_size}</div><div>📏 z_e ${s.z_entry} · z_s ${s.z_stop} · w ${s.window}</div>`;
 }
 
 async function refreshTrades(){
@@ -68,14 +68,14 @@ async function refreshTrades(){
 function renderTradeTable(trades){
   const filter=$("#trade-filter").value;
   const tbody=$("#trades-table tbody");tbody.innerHTML="";
-  if(!trades.length){tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">No trades yet — bot is watching the market 👀</td></tr>';return;}
+  if(!trades.length){tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:40px">No trades yet -- bot is watching the market 👀</td></tr>';return;}
   let cum=0;const cums=trades.map(t=>{cum+=Number(t.pnl||0);return cum;});
   trades.slice().reverse().forEach((t,idxRev)=>{
     const i=trades.length-1-idxRev;
     if(filter!=="all"&&(t.reason||"")!==filter)return;
     const p=Number(t.pnl||0),c=cums[i];
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${i+1}</td><td>${(t.entry_ts||"").slice(0,16).replace("T"," ")||"—"}</td><td>${(t.exit_ts||"").slice(0,16).replace("T"," ")||"—"}</td><td class="side-${(t.side||"").toLowerCase()}">${t.side||"—"}</td><td>${t.qty||"—"}</td><td>${t.entry!=null?Number(t.entry).toFixed(1):"—"}</td><td>${t.exit!=null?Number(t.exit).toFixed(1):"—"}</td><td>${t.bars_held||"—"}</td><td class="${p>0?"pos":p<0?"neg":""}">${fmtMoney(p)}</td><td class="${c>0?"pos":c<0?"neg":""}">${fmtMoney(c)}</td><td><span class="reason-badge reason-${t.reason||"TIME"}">${t.reason||"—"}</span></td>`;
+    tr.innerHTML=`<td>${i+1}</td><td>${(t.entry_ts||"").slice(0,16).replace("T"," ")||"--"}</td><td>${(t.exit_ts||"").slice(0,16).replace("T"," ")||"--"}</td><td class="side-${(t.side||"").toLowerCase()}">${t.side||"--"}</td><td>${t.qty||"--"}</td><td>${t.entry!=null?Number(t.entry).toFixed(1):"--"}</td><td>${t.exit!=null?Number(t.exit).toFixed(1):"--"}</td><td>${t.bars_held||"--"}</td><td class="${p>0?"pos":p<0?"neg":""}">${fmtMoney(p)}</td><td class="${c>0?"pos":c<0?"neg":""}">${fmtMoney(c)}</td><td><span class="reason-badge reason-${t.reason||"TIME"}">${t.reason||"--"}</span></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -136,7 +136,7 @@ async function refreshDrawdown(){
 async function refreshPortfolio(){
   const p=await fetchJSON("/api/portfolio");if(!p)return;
   const el=$("#portfolio-view");
-  if(!p.ok){el.innerHTML=`<div class="muted">Angel: ${p.error||"—"}</div>`;return;}
+  if(!p.ok){el.innerHTML=`<div class="muted">Angel: ${p.error||"--"}</div>`;return;}
   const rms=p.rms||{};const f=k=>fmtMoney(Number(rms[k]||0));
   el.innerHTML=`<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
   $("#portfolio-ts").textContent=new Date().toLocaleTimeString();
@@ -156,7 +156,7 @@ function initFilters(){$("#trade-filter").onchange=()=>refreshTrades();$("#log-e
 initTheme();initFilters();refreshFast();refreshSlow();
 setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
-// ===== v6 — chart subtitles + info tooltips =====
+// ===== v6 -- chart subtitles + info tooltips =====
 (function(){
   const labels = {
     "Equity Curve":     { sub: "How ₹1,50,000 grew over 121 backtest days (Oct 2025 → Apr 2026)", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
@@ -202,27 +202,27 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       <section id="live-strip" class="live-strip">
         <div class="live-card main waiting" id="lc-ltp">
           <div class="lbl">BANKNIFTY FUT · LTP</div>
-          <div class="ltp-val" id="ltp-val">—</div>
+          <div class="ltp-val" id="ltp-val">--</div>
           <div class="sub" id="ltp-sub">waiting for bot...</div>
         </div>
         <div class="live-card waiting" id="lc-state">
           <div class="lbl">Bot State</div>
           <div class="val" id="state-val"><span class="state-badge idle"><span class="dot"></span>IDLE</span></div>
-          <div class="sub" id="state-sub">—</div>
+          <div class="sub" id="state-sub">--</div>
         </div>
         <div class="live-card waiting" id="lc-zscore">
           <div class="lbl">Z-Score (now)</div>
-          <div class="val" id="z-val">—</div>
+          <div class="val" id="z-val">--</div>
           <div class="sub">entry ±1.5 · stop ±3.5</div>
         </div>
         <div class="live-card waiting" id="lc-candles">
           <div class="lbl">Candles Today</div>
-          <div class="val" id="cn-val">—</div>
+          <div class="val" id="cn-val">--</div>
           <div class="sub">of 375 · warmup 40</div>
         </div>
         <div class="live-card waiting" id="lc-nextcheck">
           <div class="lbl">Next Check</div>
-          <div class="val" id="nc-val">—</div>
+          <div class="val" id="nc-val">--</div>
           <div class="sub">30s loop</div>
         </div>
       </section>
@@ -248,11 +248,11 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
           <div class="depth-grid">
             <div class="depth-col bids">
               <div class="head"><span>BID</span><span>QTY</span><span>ORD</span></div>
-              <div id="depth-bids"><div class="pos-empty">—</div></div>
+              <div id="depth-bids"><div class="pos-empty">--</div></div>
             </div>
             <div class="depth-col asks">
               <div class="head"><span>ASK</span><span>QTY</span><span>ORD</span></div>
-              <div id="depth-asks"><div class="pos-empty">—</div></div>
+              <div id="depth-asks"><div class="pos-empty">--</div></div>
             </div>
           </div>
         </div>
@@ -287,7 +287,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
   function renderDepth(side, rows){
     const el = document.getElementById("depth-"+side);
     if (!el) return;
-    if (!rows || !rows.length) { el.innerHTML = '<div class="pos-empty">—</div>'; return; }
+    if (!rows || !rows.length) { el.innerHTML = '<div class="pos-empty">--</div>'; return; }
     const maxQ = Math.max(...rows.map(r => Number(r.qty||r.quantity||0)), 1);
     el.innerHTML = rows.slice(0,5).map(r => {
       const p = Number(r.price ?? r.Price ?? 0);
@@ -345,7 +345,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       const sv = document.getElementById("state-val");
       if (sv) sv.innerHTML = `<span class="state-badge ${d.state||'idle'}"><span class="dot"></span>${(d.state||'IDLE').toUpperCase().replace("_"," ")}</span>`;
       const ss = document.getElementById("state-sub");
-      if (ss) ss.textContent = d.state_reason || "—";
+      if (ss) ss.textContent = d.state_reason || "--";
       if (d.z != null) {
         document.getElementById("z-val").textContent = (d.z>=0?"+":"") + Number(d.z).toFixed(3) + "σ";
         const z = Math.max(-4, Math.min(4, Number(d.z)));
@@ -366,7 +366,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
   else boot();
 })();
 
-// ===== MARKET_CLOSED_MSG_v1 — friendly messaging when market is closed =====
+// ===== MARKET_CLOSED_MSG_v1 -- friendly messaging when market is closed =====
 (function(){
   function fix(){
     fetch("/api/market-status", {credentials:"same-origin"}).then(r=>r.json()).then(ms=>{
@@ -380,10 +380,51 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       }
       const stale = document.getElementById("ltp-sub");
       if (stale && stale.textContent.includes("stale")) {
-        stale.textContent = "🌙 market closed — resumes Mon 09:15 IST";
+        stale.textContent = "🌙 market closed -- resumes Mon 09:15 IST";
       }
     }).catch(()=>{});
   }
   setTimeout(fix, 1500);
   setInterval(fix, 30000);
 })();
+
+// Phase 8g.6: per-symbol cards polling
+async function refreshSymbols() {
+  const d = await fetchJSON("/api/symbols");
+  if (!d || !d.symbols) return;
+  for (const sym of ["BNF", "NF", "FNF"]) {
+    const lower = sym.toLowerCase();
+    const data = d.symbols[sym];
+    const card = document.getElementById("card-" + sym);
+    if (!card) continue;
+    if (!data) {
+      card.className = "symbol-card sc-offline";
+      const se = document.getElementById(lower + "-state");
+      if (se) se.textContent = "OFFLINE";
+      continue;
+    }
+    const state = data.state || "idle";
+    card.className = "symbol-card sc-" + state;
+    const se = document.getElementById(lower + "-state");
+    if (se) se.textContent = state.toUpperCase().replace(/_/g, " ");
+    const pe = document.getElementById(lower + "-pnl");
+    if (pe) {
+      const pnl = Number(data.pnl_today || 0);
+      pe.textContent = (pnl >= 0 ? "+Rs " : "Rs ") + Math.round(pnl).toLocaleString("en-IN");
+      pe.className = "sc-pnl " + (pnl > 0 ? "pnl-pos" : pnl < 0 ? "pnl-neg" : "pnl-flat");
+    }
+    const te = document.getElementById(lower + "-trades");
+    if (te) te.textContent = (data.trades_today || 0) + " trades";
+    const po = document.getElementById(lower + "-pos");
+    if (po) {
+      if (data.position) {
+        const p = data.position;
+        po.textContent = p.side + " " + p.qty + "L @ " + Math.round(p.entry).toLocaleString("en-IN");
+      } else {
+        po.textContent = "no position";
+      }
+    }
+  }
+}
+setInterval(refreshSymbols, 5000);
+refreshSymbols();
