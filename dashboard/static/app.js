@@ -366,26 +366,80 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
   else boot();
 })();
 
-// ===== MARKET_CLOSED_MSG_v1 -- friendly messaging when market is closed =====
+// ===== MARKET_HERO_v1 -- prop-firm closed-mode hero with live countdown =====
 (function(){
-  function fix(){
-    fetch("/api/market-status", {credentials:"same-origin"}).then(r=>r.json()).then(ms=>{
-      if (!ms || ms.status === "open") return;
-      const botVal = document.querySelector("[data-kpi='bot'] .kpi-value, .kpi-card:first-child .kpi-value");
+  const IST_OFFSET_MS = 5.5 * 3600 * 1000;
+  function nowIST(){ return new Date(Date.now() + IST_OFFSET_MS); }
+  function nextOpenIST(){
+    const ist = nowIST();
+    const target = new Date(ist);
+    target.setUTCHours(9, 15, 0, 0);
+    if (target <= ist) target.setUTCDate(target.getUTCDate() + 1);
+    while (target.getUTCDay() === 0 || target.getUTCDay() === 6) {
+      target.setUTCDate(target.getUTCDate() + 1);
+    }
+    return target;
+  }
+  function fmtCountdown(ms){
+    if (ms <= 0) return "OPENING NOW";
+    const s = Math.floor(ms/1000);
+    const h = Math.floor(s/3600);
+    const m = Math.floor((s%3600)/60);
+    const sec = s%60;
+    if (h >= 24) { const d = Math.floor(h/24); return d+"d "+(h%24)+"h "+m+"m"; }
+    return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");
+  }
+  function fmtResume(target){
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    return "Reopens "+days[target.getUTCDay()]+" 9:15 AM IST";
+  }
+  let countdownTimer = null;
+  let cachedTarget = null;
+  function tickCountdown(){
+    if (!cachedTarget) return;
+    const ms = cachedTarget - nowIST();
+    const cd = document.getElementById("mh-countdown");
+    if (cd) cd.textContent = fmtCountdown(ms);
+    if (ms <= 0) cachedTarget = nextOpenIST();
+  }
+  function applyClosedMode(isClosed){
+    document.body.classList.toggle("market-closed", isClosed);
+    const hero = document.getElementById("market-hero");
+    if (!hero) return;
+    if (isClosed) {
+      hero.hidden = false;
+      cachedTarget = nextOpenIST();
+      const r = document.getElementById("mh-resume");
+      if (r) r.textContent = fmtResume(cachedTarget);
+      tickCountdown();
+      if (!countdownTimer) countdownTimer = setInterval(tickCountdown, 1000);
+      const botVal = document.getElementById("bot-status");
       if (botVal && botVal.textContent.trim() === "INACTIVE") {
         botVal.textContent = "RESTING";
-        botVal.style.color = "#94a3b8";
-        const sub = botVal.parentElement.querySelector(".sub, .kpi-sub, .mono, .muted");
-        if (sub) sub.textContent = "Market closed · resumes 09:15 Mon";
+        botVal.style.color = "#60a5fa";
       }
-      const stale = document.getElementById("ltp-sub");
-      if (stale && stale.textContent.includes("stale")) {
-        stale.textContent = "🌙 market closed -- resumes Mon 09:15 IST";
-      }
-    }).catch(()=>{});
+      const botSub = document.getElementById("bot-sub");
+      if (botSub) botSub.textContent = "Auto-resume at open";
+    } else {
+      hero.hidden = true;
+      cachedTarget = null;
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    }
   }
-  setTimeout(fix, 1500);
-  setInterval(fix, 30000);
+  function check(){
+    fetch("/api/market-status", {credentials:"same-origin"})
+      .then(r => r.json())
+      .then(ms => {
+        if (!ms) return;
+        const isClosed = ms.status !== "open" && ms.status !== "pre_open";
+        applyClosedMode(isClosed);
+      })
+      .catch(()=>{});
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => setTimeout(check, 300));
+  } else { setTimeout(check, 300); }
+  setInterval(check, 30000);
 })();
 
 // Phase 8g.6: per-symbol cards polling
