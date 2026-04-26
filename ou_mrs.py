@@ -20,6 +20,16 @@ log = logging.getLogger("ou_mrs")
 
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
 CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
+
+# --- Phase 8g: multi-instrument config ---
+INSTRUMENT_CFG = {
+    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": 1.5, "exchange": "NFO"},
+    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"),     "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": 1.5, "exchange": "NFO"},
+    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"),  "lot_size": 60, "margin_per_lot": 60_000, "atr_mult": 1.5, "exchange": "NFO"},
+}
+INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
+assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMENT_CFG keys"
+# --- end Phase 8g ---
 LOT_SIZE      = 15
 
 # Phase 8f: capital-aware lot caps and tier labels
