@@ -386,3 +386,108 @@ body.market-closed .panel:has(#pos-body) {
   .symbols-grid { grid-template-columns: 1fr; }
   .sc-spark { height: 60px; }
 }
+
+/* ===== Phase 8m.3: color cohesion + accent propagation + light-theme polish ===== */
+
+/* Stronger muted contrast (AAA) + accent-soft helper tokens */
+:root {
+  --muted: #9aa3b7;
+  --accent-soft: rgba(99, 102, 241, 0.12);
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --green-soft: rgba(16, 185, 129, 0.14);
+  --green-glow: rgba(16, 185, 129, 0.30);
+  --red-soft:   rgba(239, 68, 68, 0.14);
+  --red-glow:   rgba(239, 68, 68, 0.30);
+  --amber-soft: rgba(245, 158, 11, 0.14);
+}
+[data-theme="light"] {
+  --muted: #4b5566;
+  --accent-soft: rgba(99, 102, 241, 0.09);
+  --accent-glow: rgba(99, 102, 241, 0.22);
+}
+
+/* 8m.1 market-hero: align to accent token (was hardcoded blue, broke in light theme) */
+.market-hero {
+  background: linear-gradient(135deg, var(--accent-soft), var(--panel)) !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: 0 8px 32px var(--accent-glow), var(--card-shadow) !important;
+}
+.mh-title { color: var(--text) !important; }
+.mh-countdown, .mh-resume-time { color: var(--accent) !important; }
+.mh-status-dot { background: var(--accent) !important; }
+
+/* 8m.2 symbol cards: state-driven glow halos using semantic tokens */
+.symbol-card {
+  background: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  transition: border-color .2s, box-shadow .2s, transform .15s !important;
+}
+.symbol-card.sc-in_trade {
+  border-color: var(--green) !important;
+  background: linear-gradient(180deg, var(--green-soft), var(--panel)) !important;
+  box-shadow: 0 0 0 1px var(--green), 0 12px 28px var(--green-glow) !important;
+}
+.symbol-card.sc-cooldown {
+  border-color: var(--red) !important;
+  background: linear-gradient(180deg, var(--red-soft), var(--panel)) !important;
+  box-shadow: 0 0 0 1px var(--red), 0 12px 28px var(--red-glow) !important;
+}
+.symbol-card.sc-warming_up {
+  border-color: var(--amber) !important;
+  background: linear-gradient(180deg, var(--amber-soft), var(--panel)) !important;
+}
+.symbol-card.sc-idle { border-color: var(--border) !important; }
+.symbol-card.sc-offline { opacity: 0.55; border-style: dashed !important; }
+.symbol-card:hover { transform: translateY(-2px); }
+
+/* sc-* text colors: strong primary for values, muted for labels */
+.sc-sym  { color: var(--text) !important; font-weight: 700; letter-spacing: 1.5px; }
+.sc-name { color: var(--muted) !important; font-size: 10px; letter-spacing: 0.5px; margin-top: 2px; }
+.sc-ltp  { color: var(--text) !important; }
+.sc-chg.pnl-pos { color: var(--green) !important; }
+.sc-chg.pnl-neg { color: var(--red) !important; }
+.sc-chg.pnl-flat { color: var(--muted) !important; }
+.sc-meta-lbl { color: var(--muted) !important; font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; }
+.sc-meta-val { color: var(--text) !important; font-weight: 600; }
+.symbols-grid .sc-pnl.pnl-pos { color: var(--green) !important; }
+.symbols-grid .sc-pnl.pnl-neg { color: var(--red) !important; }
+.symbols-grid .sc-pnl.pnl-flat { color: var(--muted) !important; }
+
+/* state badge background tints (work in both themes) */
+.sc-state {
+  background: rgba(155, 163, 183, 0.12) !important;
+  color: var(--muted) !important;
+}
+.sc-in_trade .sc-state   { background: var(--green-soft) !important; color: var(--green) !important; }
+.sc-cooldown .sc-state   { background: var(--red-soft) !important; color: var(--red) !important; }
+.sc-warming_up .sc-state { background: var(--amber-soft) !important; color: var(--amber) !important; }
+
+/* keyboard accessibility: visible focus rings using accent */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* panel headers get a subtle accent underline for brand cohesion */
+.panel h2 {
+  display: inline-block;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--accent-soft);
+}
+
+/* KPI hover lifts with accent border + glow (was rgba indigo hardcode) */
+.kpi:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 12px 32px var(--accent-glow), var(--card-shadow) !important;
+}
+
+/* sparkline empty-state text contrast bump */
+.sc-spark { background: rgba(155, 163, 183, 0.04); border-radius: 6px; }
+
+/* light theme: panel + log + sparkline tweaks */
+[data-theme="light"] .symbol-card { background: #fff !important; }
+[data-theme="light"] .market-hero {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), #fff) !important;
+}
+[data-theme="light"] .sc-spark { background: rgba(15, 23, 42, 0.03); }
