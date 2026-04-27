@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=14"/>
+<link rel="stylesheet" href="/static/style.css?v=15"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -129,9 +129,21 @@
     <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
     <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
   </section>
-  <section class="panel">
-    <div class="panel-header"><div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
-    <div class="panel-actions"><label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label><label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label></div></div>
+  <section class="panel" id="panel-log">
+    <div class="panel-header">
+      <div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
+      <div class="panel-actions">
+        <select id="log-file" class="log-ctl"><option value="">Latest</option></select>
+        <select id="log-level" class="log-ctl"><option value="">All levels</option><option value="INFO">INFO</option><option value="WARNING">WARN</option><option value="ERROR">ERROR</option></select>
+        <select id="log-symbol" class="log-ctl"><option value="">All symbols</option><option value="BNF">BNF</option><option value="NF">NF</option><option value="FNF">FNF</option><option value="pfm">pfm</option></select>
+        <input id="log-search" class="log-ctl log-search" type="text" placeholder="search / regex"/>
+        <label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label>
+        <label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label>
+        <button id="log-copy" class="btn-icon" type="button">Copy</button>
+        <a id="log-download" href="#" class="btn-icon" download>Download</a>
+      </div>
+    </div>
+    <div id="log-sticky" class="log-sticky" style="display:none"></div>
     <pre id="log-view"></pre>
   </section>
   <footer class="footer"><span class="ft-tag">OU-MRS</span><span class="ft-ver">v1.0</span><span class="ft-sep">·</span><span class="ft-lbl">last sync</span><span id="last-update">--</span><span class="ft-sep">·</span><span class="ft-lbl">server</span><span id="server-time">--</span></footer>
@@ -203,6 +215,6 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=14"></script>
+<script src="/static/app.js?v=15"></script>
 </body>
 </html>

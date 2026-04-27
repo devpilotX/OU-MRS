@@ -3,7 +3,7 @@ import os, json, subprocess, time, secrets, sys
 from pathlib import Path
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Form, Cookie, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 import bcrypt
 from itsdangerous import URLSafeSerializer, BadSignature
@@ -161,28 +161,83 @@ def api_trades():
             "total_pnl": cum, "win_rate": wins/len(trades) if trades else 0}
 
 @app.get("/api/log", dependencies=[Depends(need_auth)])
-def api_log(n: int = 120):
-    # LOG_PATH_v2 — auto-pick latest dated log in logs/
+def api_log(n: int = 200, q: str = "", level: str = "", symbol: str = "", file: str = ""):
+    import re as _re
     logs_dir = BOT_DIR / "logs"
     log_path = None
-    if logs_dir.exists():
+    if file:
+        safe = _re.sub(r"[^A-Za-z0-9_.-]", "", file)
+        cand = logs_dir / safe
+        if cand.exists() and cand.is_file():
+            log_path = cand
+    if log_path is None and logs_dir.exists():
         cands = sorted(logs_dir.glob("ou_mrs_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
         if cands:
             log_path = cands[0]
     if log_path is None:
         log_path = BOT_DIR / "ou_mrs.log"
     if not log_path.exists():
-        return {"lines": [], "source": log_path.name}
+        return {"lines": [], "source": log_path.name, "total": 0, "filtered": 0, "sticky_errors": []}
     try:
         with log_path.open("rb") as f:
             f.seek(0, 2); size = f.tell()
-            read = min(size, 64 * 1024)
+            read = min(size, 256 * 1024)
             f.seek(size - read)
             data = f.read().decode("utf-8", errors="replace")
-        return {"lines": data.splitlines()[-n:], "source": log_path.name}
+        all_lines = data.splitlines()
+        lines = all_lines
+        if level:
+            lev_re = _re.compile(r"\[" + _re.escape(level.upper()) + r"\]")
+            lines = [l for l in lines if lev_re.search(l)]
+        if symbol:
+            sym_re = _re.compile(r"\[" + _re.escape(symbol) + r"\]")
+            lines = [l for l in lines if sym_re.search(l)]
+        if q:
+            try:
+                q_re = _re.compile(q, _re.I)
+                lines = [l for l in lines if q_re.search(l)]
+            except _re.error:
+                ql = q.lower()
+                lines = [l for l in lines if ql in l.lower()]
+        err_re = _re.compile(r"\[(ERROR|CRITICAL)\]|Traceback|Exception", _re.I)
+        sticky = [l for l in all_lines if err_re.search(l)][-5:]
+        return {
+            "lines": lines[-n:],
+            "source": log_path.name,
+            "total": len(all_lines),
+            "filtered": len(lines),
+            "sticky_errors": sticky,
+        }
     except Exception as e:
-        return {"lines": [f"[log read error] {e}"], "source": log_path.name}
+        return {"lines": [f"[log read error] {e}"], "source": log_path.name, "total": 0, "filtered": 0, "sticky_errors": []}
 
+@app.get("/api/logs/list", dependencies=[Depends(need_auth)])
+def api_logs_list():
+    from datetime import datetime as _dt
+    logs_dir = BOT_DIR / "logs"
+    if not logs_dir.exists():
+        return {"files": []}
+    files = []
+    for p in sorted(logs_dir.glob("ou_mrs_*.log"), key=lambda p: p.stat().st_mtime, reverse=True):
+        st = p.stat()
+        files.append({
+            "name": p.name,
+            "size": st.st_size,
+            "mtime": st.st_mtime,
+            "mtime_iso": _dt.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        })
+    return {"files": files}
+
+@app.get("/api/logs/download", dependencies=[Depends(need_auth)])
+def api_logs_download(file: str):
+    import re as _re
+    safe = _re.sub(r"[^A-Za-z0-9_.-]", "", file)
+    if not safe.startswith("ou_mrs_") or not safe.endswith(".log"):
+        raise HTTPException(status_code=400, detail="invalid filename")
+    p = (BOT_DIR / "logs" / safe)
+    if not p.exists() or not p.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    return PlainTextResponse(content=p.read_text(errors="replace"), headers={"Content-Disposition": f'attachment; filename="{safe}"'})
 @app.get("/api/metrics", dependencies=[Depends(need_auth)])
 def api_metrics():
     path = BOT_DIR / "bt_out" / "metrics.json"

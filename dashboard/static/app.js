@@ -130,13 +130,67 @@ function renderTradeTable(trades){
 }
 
 async function refreshLog(){
-  const d=await fetchJSON("/api/log?n=120");if(!d)return;
-  const pre=$("#log-view");const errOnly=$("#log-errors-only").checked;
-  let lines=d.lines||[];
-  if(errOnly)lines=lines.filter(l=>/error|exception|traceback|failed/i.test(l));
-  pre.innerHTML=lines.map(l=>{let cls="log-info";if(/error|exception|traceback|failed/i.test(l))cls="log-err";else if(/warn/i.test(l))cls="log-warn";else if(/heartbeat/i.test(l))cls="log-hb";return `<span class="${cls}">${escHtml(l)}</span>`;}).join("\n");
-  if(d.source)$("#log-source").textContent="file: "+d.source;
-  if($("#log-autoscroll").checked)pre.scrollTop=pre.scrollHeight;
+  const fileSel = $("#log-file");
+  const file = fileSel ? fileSel.value : "";
+  const q = ($("#log-search") && $("#log-search").value) || "";
+  const level = ($("#log-level") && $("#log-level").value) || "";
+  const symbol = ($("#log-symbol") && $("#log-symbol").value) || "";
+  const errOnly = $("#log-errors-only") && $("#log-errors-only").checked;
+  const params = new URLSearchParams({n: "200"});
+  if(file) params.set("file", file);
+  if(q) params.set("q", q);
+  if(level || errOnly) params.set("level", errOnly ? "ERROR" : level);
+  if(symbol) params.set("symbol", symbol);
+  const d = await fetchJSON("/api/log?" + params.toString());
+  if(!d) return;
+  const pre = $("#log-view");
+  let lines = d.lines || [];
+  pre.innerHTML = lines.map(l => {
+    let cls = "log-info";
+    if(/\[ERROR\]|\[CRITICAL\]|exception|traceback|failed/i.test(l)) cls = "log-err";
+    else if(/\[WARN/i.test(l)) cls = "log-warn";
+    else if(/heartbeat/i.test(l)) cls = "log-hb";
+    return `<span class="${cls}">${escHtml(l)}</span>`;
+  }).join("\n");
+  if(d.source) $("#log-source").textContent = `${d.source} - ${d.filtered}/${d.total} lines`;
+  const sticky = $("#log-sticky");
+  if(sticky){
+    const errs = d.sticky_errors || [];
+    if(!errs.length){ sticky.style.display = "none"; sticky.innerHTML = ""; }
+    else {
+      sticky.style.display = "block";
+      sticky.innerHTML = `<div class="log-sticky-hdr">Recent errors (${errs.length})</div>` + errs.map(l => `<div class="log-sticky-line">${escHtml(l)}</div>`).join("");
+    }
+  }
+  const dl = $("#log-download");
+  if(dl && d.source) dl.href = "/api/logs/download?file=" + encodeURIComponent(d.source);
+  if($("#log-autoscroll").checked) pre.scrollTop = pre.scrollHeight;
+}
+
+async function initLogControls(){
+  const sel = $("#log-file");
+  if(sel){
+    const d = await fetchJSON("/api/logs/list");
+    if(d && d.files){
+      sel.innerHTML = '<option value="">Latest</option>' + d.files.map(f => `<option value="${escHtml(f.name)}">${escHtml(f.name)} (${(f.size/1024).toFixed(1)} KB)</option>`).join("");
+    }
+    sel.onchange = () => refreshLog();
+  }
+  const q = $("#log-search");
+  if(q){
+    let t = null;
+    q.oninput = () => { clearTimeout(t); t = setTimeout(refreshLog, 250); };
+  }
+  const lev = $("#log-level"); if(lev) lev.onchange = () => refreshLog();
+  const sym = $("#log-symbol"); if(sym) sym.onchange = () => refreshLog();
+  const cp = $("#log-copy");
+  if(cp) cp.onclick = () => {
+    const txt = $("#log-view").innerText;
+    navigator.clipboard.writeText(txt).then(() => {
+      cp.textContent = "Copied";
+      setTimeout(() => { cp.textContent = "Copy"; }, 1500);
+    });
+  };
 }
 
 async function refreshMetrics(){
@@ -243,7 +297,7 @@ function initTheme(){
 }
 function initFilters(){$("#trade-filter").onchange=()=>refreshTrades();$("#log-errors-only").onchange=()=>refreshLog();}
 
-initTheme();initFilters();refreshFast();refreshSlow();
+initTheme();initFilters();initLogControls();refreshFast();refreshSlow();
 setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
 // ===== v6 -- chart subtitles + info tooltips =====
