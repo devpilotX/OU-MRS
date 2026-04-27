@@ -16,45 +16,109 @@
     <div><div class="brand-name">OU-MRS</div><div class="brand-sub">Pro Trading Dashboard</div></div>
   </div>
   <div class="topbar-chips">
-    <span id="market-chip" class="chip">Market: —</span>
-    <span id="mode-chip" class="chip">Mode: —</span>
-    <span id="health-chip" class="chip">— · — · —</span>
+    <span id="market-chip" class="chip">Market: --</span>
+    <span id="mode-chip" class="chip">Mode: --</span>
+    <span id="health-chip" class="chip">-- · -- · --</span>
     <button id="theme-toggle" class="btn-icon">☀️</button>
     <a href="/logout" class="btn-logout">Logout</a>
   </div>
 </header>
 <main>
+  <section class="market-hero" id="market-hero" hidden>
+    <div class="mh-left"><div class="mh-pulse"></div><div class="mh-icon">🌙</div></div>
+    <div class="mh-content">
+      <div class="mh-eyebrow">INDIAN EQUITY F&amp;O · NSE</div>
+      <div class="mh-title">MARKETS CLOSED</div>
+      <div class="mh-countdown" id="mh-countdown">--</div>
+      <div class="mh-resume" id="mh-resume">Reopens Mon 9:15 AM IST</div>
+    </div>
+    <div class="mh-status">
+      <div class="mh-status-row"><span class="mh-dot ok"></span>Bot armed</div>
+      <div class="mh-status-row"><span class="mh-dot ok"></span>Strategy loaded</div>
+      <div class="mh-status-row"><span class="mh-dot ok"></span>Auto-start scheduled</div>
+    </div>
+  </section>
   <section class="kpi-grid">
-    <div class="kpi"><span class="kpi-label">BOT</span><span id="bot-status" class="kpi-value">—</span><span id="bot-sub" class="kpi-sub">—</span></div>
-    <div class="kpi"><span class="kpi-label">CAPITAL</span><span id="capital" class="kpi-value">—</span><span id="mode-label" class="kpi-sub">—</span></div>
-    <div class="kpi"><span class="kpi-label">TOTAL P&L</span><span id="total-pnl" class="kpi-value">—</span><span id="pnl-pct" class="kpi-sub">—</span></div>
-    <div class="kpi"><span class="kpi-label">TRADES</span><span id="trade-count" class="kpi-value">—</span><span id="win-rate" class="kpi-sub">—</span></div>
-    <div class="kpi"><span class="kpi-label">UPTIME</span><span id="uptime-val" class="kpi-value">—</span><span id="uptime-sub" class="kpi-sub">—</span></div>
-    <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">—</div></div>
+    <div class="kpi"><span class="kpi-label">BOT</span><span id="bot-status" class="kpi-value">--</span><span id="bot-sub" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">CAPITAL</span><span id="capital" class="kpi-value">--</span><span id="mode-label" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">TOTAL P&L · ALL-TIME</span><span id="total-pnl" class="kpi-value">--</span><span id="pnl-pct" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">TRADES · ALL-TIME</span><span id="trade-count" class="kpi-value">--</span><span id="win-rate" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">UPTIME</span><span id="uptime-val" class="kpi-value">--</span><span id="uptime-sub" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">--</div></div>
+  </section>
+  <section class="symbols-grid">
+    <div class="symbol-card sc-offline" id="card-BNF">
+      <div class="sc-row1">
+        <div class="sc-id"><div class="sc-sym">BNF</div><div class="sc-name">BANKNIFTY · 26MAY26</div></div>
+        <div class="sc-state" id="bnf-state">OFFLINE</div>
+      </div>
+      <div class="sc-row2">
+        <div class="sc-ltp" id="bnf-ltp">--</div>
+        <div class="sc-chg" id="bnf-chg">--</div>
+      </div>
+      <canvas class="sc-spark" id="spark-BNF"></canvas>
+      <div class="sc-row3">
+        <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="bnf-pnl">--</div></div>
+        <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="bnf-trades">0</div></div>
+        <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="bnf-pos">--</div></div>
+      </div>
+    </div>
+    <div class="symbol-card sc-offline" id="card-NF">
+      <div class="sc-row1">
+        <div class="sc-id"><div class="sc-sym">NF</div><div class="sc-name">NIFTY · 26MAY26</div></div>
+        <div class="sc-state" id="nf-state">OFFLINE</div>
+      </div>
+      <div class="sc-row2">
+        <div class="sc-ltp" id="nf-ltp">--</div>
+        <div class="sc-chg" id="nf-chg">--</div>
+      </div>
+      <canvas class="sc-spark" id="spark-NF"></canvas>
+      <div class="sc-row3">
+        <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="nf-pnl">--</div></div>
+        <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="nf-trades">0</div></div>
+        <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="nf-pos">--</div></div>
+      </div>
+    </div>
+    <div class="symbol-card sc-offline" id="card-FNF">
+      <div class="sc-row1">
+        <div class="sc-id"><div class="sc-sym">FNF</div><div class="sc-name">FINNIFTY · 26MAY26</div></div>
+        <div class="sc-state" id="fnf-state">OFFLINE</div>
+      </div>
+      <div class="sc-row2">
+        <div class="sc-ltp" id="fnf-ltp">--</div>
+        <div class="sc-chg" id="fnf-chg">--</div>
+      </div>
+      <canvas class="sc-spark" id="spark-FNF"></canvas>
+      <div class="sc-row3">
+        <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="fnf-pnl">--</div></div>
+        <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="fnf-trades">0</div></div>
+        <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="fnf-pos">--</div></div>
+      </div>
+    </div>
   </section>
   <section class="panel">
-    <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">—</span></div><span class="panel-badge">BACKTEST · 121d</span></div>
+    <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">--</span></div><span class="panel-badge">BACKTEST · 121d</span></div>
     <div id="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
   </section>
   <section class="grid-2">
     <div class="panel"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
-    <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">—</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
+    <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
   </section>
   <section class="grid-2">
     <div class="panel"><div class="panel-header"><h2>Backtest Metrics</h2></div><div id="metrics-view" class="metrics-grid"></div></div>
-    <div class="panel"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">—</span></div><div id="portfolio-view">—</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">—</div><div id="heartbeat-info" class="muted">—</div></div>
+    <div class="panel"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
   </section>
   <section class="panel">
-    <div class="panel-header"><div><h2>Trade History</h2><span id="trade-summary" class="muted">—</span></div>
+    <div class="panel-header"><div><h2>Trade History</h2><span id="trade-summary" class="muted">--</span></div>
     <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
     <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
   </section>
   <section class="panel">
-    <div class="panel-header"><div><h2>Live Bot Log</h2><span class="muted" id="log-source">—</span></div>
+    <div class="panel-header"><div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
     <div class="panel-actions"><label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label><label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label></div></div>
     <pre id="log-view"></pre>
   </section>
-  <footer class="footer"><span>Updated <span id="last-update">—</span></span><span>Server <span id="server-time">—</span></span><span>DevPilotX · OU-MRS v1.0</span></footer>
+  <footer class="footer"><span>Updated <span id="last-update">--</span></span><span>Server <span id="server-time">--</span></span><span>DevPilotX · OU-MRS v1.0</span></footer>
 </main>
 <script src="/static/app.js?v=8"></script>
 </body>

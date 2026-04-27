@@ -13,6 +13,7 @@ APP_DIR = Path(__file__).parent
 BOT_DIR = APP_DIR.parent
 load_dotenv(BOT_DIR / ".env")
 sys.path.insert(0, str(BOT_DIR))
+import signal_publisher  # Phase 8f.5
 
 SECRET_KEY = os.environ.get("DASHBOARD_SECRET") or secrets.token_hex(32)
 ADMIN_USER = os.environ.get("DASHBOARD_USER", "admin")
@@ -250,7 +251,23 @@ def api_drawdown():
 
 @app.get("/api/strategy", dependencies=[Depends(need_auth)])
 def api_strategy():
-    return {"symbol": _os_pv1.getenv("BANKNIFTY_FUT_SYMBOL", ""), "capital": float(_os_pv1.getenv("CAPITAL", 150000)), "lot_size": int(_os_pv1.getenv("LOT_SIZE", 15)), "z_entry": float(_os_pv1.getenv("Z_ENTRY", 1.5)), "z_stop": float(_os_pv1.getenv("Z_STOP", 3.5)), "window": int(_os_pv1.getenv("WINDOW", 40)), "live_mode": _os_pv1.getenv("LIVE", "false").lower() == "true"}
+    # 8o.3a: multi-symbol return (cfg duplicated locally to avoid ou_mrs import)
+    _CFG = {
+        "BNF": {"env": "BANKNIFTY_FUT_SYMBOL", "default": "BANKNIFTY26MAY26FUT", "lot_size": 30, "margin": 75000},
+        "NF":  {"env": "NIFTY_FUT_SYMBOL",    "default": "NIFTY26MAY26FUT",    "lot_size": 65, "margin": 50000},
+        "FNF": {"env": "FINNIFTY_FUT_SYMBOL", "default": "FINNIFTY26MAY26FUT", "lot_size": 60, "margin": 60000},
+    }
+    _capital = float(_os_pv1.getenv("CAPITAL", 150000))
+    _inst = [s.strip().upper() for s in _os_pv1.getenv("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in _CFG] or ["BNF"]
+    def _max_lots(cap, k): return max(1, min(50, int(cap) // _CFG[k]["margin"]))
+    def _tier(cap):
+        if cap < 200000: return "TINY"
+        if cap < 1500000: return "PAPER"
+        if cap < 2500000: return "FTMO_STARTER"
+        if cap < 5000000: return "FTMO_PRO"
+        return "FTMO_ELITE"
+    _symbols = [{"key": k, "symbol": _os_pv1.getenv(_CFG[k]["env"], _CFG[k]["default"]), "lot_size": _CFG[k]["lot_size"], "margin_per_lot": _CFG[k]["margin"], "max_lots": _max_lots(_capital, k)} for k in _inst]
+    return {"symbols": _symbols, "capital": _capital, "capital_tier": _tier(_capital), "z_entry": float(_os_pv1.getenv("Z_ENTRY", 1.5)), "z_stop": float(_os_pv1.getenv("Z_STOP", 3.5)), "window": int(_os_pv1.getenv("WINDOW", 40)), "live_mode": _os_pv1.getenv("LIVE", "false").lower() == "true", "symbol": _symbols[0]["symbol"] if _symbols else "", "lot_size": _symbols[0]["lot_size"] if _symbols else 15}
 
 @app.get("/api/export/trades", dependencies=[Depends(need_auth)])
 def api_export_trades():
@@ -277,3 +294,36 @@ def api_live_state():
         return data
     except Exception as e:
         return {"ok": False, "reason": "parse_error", "error": str(e)[:200]}
+
+# Phase 8f.5: Tradetron-compatible signal feed
+@app.get("/api/signals.json")
+def api_signals_json(token: str = ""):
+    expected = os.environ.get("SIGNAL_API_TOKEN", "")
+    if expected and token != expected:
+        raise HTTPException(status_code=401, detail="invalid token")
+    return signal_publisher.read_signal()
+
+
+# Phase 8g.6: per-symbol state for dashboard cards
+@app.get("/api/symbols", dependencies=[Depends(need_auth)])
+def api_symbols():
+    """Returns {symbols: {BNF,NF,FNF: {...}}, aggregate: {...}}."""
+    state_dir = BOT_DIR / "state"
+    out = {"symbols": {}, "aggregate": {"trades_today": 0, "pnl_today": 0.0, "live_positions": 0, "any_kill": False, "ts": int(time.time())}}
+    if not state_dir.exists():
+        return out
+    for sym_file in sorted(state_dir.glob("live_*.json")):
+        sym = sym_file.stem.replace("live_", "")
+        try:
+            data = json.loads(sym_file.read_text())
+            out["symbols"][sym] = data
+            out["aggregate"]["trades_today"] += int(data.get("trades_today") or 0)
+            out["aggregate"]["pnl_today"] += float(data.get("pnl_today") or 0.0)
+            if data.get("position"):
+                out["aggregate"]["live_positions"] += 1
+            if data.get("kill"):
+                out["aggregate"]["any_kill"] = True
+        except Exception:
+            pass
+    out["aggregate"]["pnl_today"] = round(out["aggregate"]["pnl_today"], 2)
+    return out

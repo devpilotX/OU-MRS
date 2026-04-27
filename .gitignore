@@ -36,3 +36,10 @@ data/*.parquet
 *.swp
 *.swo
 *~
+
+# Phase 8f.4: generated tear-sheets
+reports/
+
+# 8o.3a: catch-all patcher backups
+*.bak.*
+*.bak_*
