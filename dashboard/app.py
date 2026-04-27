@@ -261,8 +261,8 @@ def api_strategy():
     _inst = [s.strip().upper() for s in _os_pv1.getenv("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in _CFG] or ["BNF"]
     def _max_lots(cap, k): return max(1, min(50, int(cap) // _CFG[k]["margin"]))
     def _tier(cap):
-        if cap < 200000: return "TINY"
-        if cap < 1500000: return "PAPER"
+        if cap < 200000: return "SEED"
+        if cap < 1500000: return "GROWTH"
         if cap < 2500000: return "INSTITUTIONAL"
         if cap < 5000000: return "HEDGE_FUND"
         return "QUANT_ELITE"
