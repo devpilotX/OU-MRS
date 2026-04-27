@@ -40,11 +40,12 @@ def max_lots_for_capital(capital: int, instrument: str = "BNF") -> int:
     return max(1, min(50, capital // per_lot))
 
 def capital_tier(capital: int) -> str:
-    if capital < 200_000:    return "TINY"
-    if capital < 1_500_000:  return "PAPER"
-    if capital < 2_500_000:  return "FTMO_STARTER"
-    if capital < 5_000_000:  return "FTMO_PRO"
-    return "FTMO_ELITE"
+    # 8p.0: asset-management tier labels (no retail prop-firm vocab)
+    if capital < 200_000:    return "SEED"
+    if capital < 1_500_000:  return "GROWTH"
+    if capital < 2_500_000:  return "INSTITUTIONAL"
+    if capital < 5_000_000:  return "HEDGE_FUND"
+    return "QUANT_ELITE"
 
 MAX_LOTS_BNF  = max_lots_for_capital(CAPITAL, "BNF")  # Phase 8g.4.a: legacy startup log only
 CAPITAL_TIER  = capital_tier(CAPITAL)

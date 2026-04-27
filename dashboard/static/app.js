@@ -126,7 +126,7 @@ async function refreshMetrics(){
     { label: "SORTINO",       value: fmt(m.sortino,          "ratio"), target: "Target >= 4.0",     grade: grade(m.sortino,          4.0,  2.0,  true),  sub: "downside-adjusted" },
     { label: "PROFIT FACTOR", value: fmt(m.profit_factor,    "x"),     target: "Target >= 1.5",     grade: grade(m.profit_factor,    1.5,  1.2,  true),  sub: "gross win / gross loss" },
     { label: "WIN RATE",      value: fmt(m.win_rate,         "wr"),    target: "Benchmark 60%",     grade: grade(m.win_rate,         0.60, 0.50, true),  sub: (m.trades||0) + " trades" },
-    { label: "MAX DRAWDOWN",  value: fmt(m.max_drawdown_pct, "pct"),   target: "FTMO ceiling -10%", grade: grade(m.max_drawdown_pct, -5, -10, true), sub: "peak to trough" },
+    { label: "MAX DRAWDOWN",  value: fmt(m.max_drawdown_pct, "pct"),   target: "ELITE ceiling -10%", grade: grade(m.max_drawdown_pct, -5, -10, true), sub: "peak to trough" },
     { label: "TOTAL RETURN",  value: fmt(m.return_pct,       "pct"),   target: (m.trading_days||0) + " trading days", grade: grade(m.return_pct, 0, -2, true), sub: fmt(m.total_pnl, "money") },
   ];
   el.className = "metric-cards-grid";

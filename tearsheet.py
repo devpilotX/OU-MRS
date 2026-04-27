@@ -19,9 +19,9 @@ DASH = "—"
 def _tier(c):
     if c < 200_000: return "TINY"
     if c < 1_500_000: return "PAPER"
-    if c < 2_500_000: return "FTMO_STARTER"
-    if c < 5_000_000: return "FTMO_PRO"
-    return "FTMO_ELITE"
+    if c < 2_500_000: return "INSTITUTIONAL"
+    if c < 5_000_000: return "HEDGE_FUND"
+    return "QUANT_ELITE"
 
 
 def _inr(n):

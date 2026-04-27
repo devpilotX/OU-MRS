@@ -122,8 +122,8 @@ def main():
     print(f"  P(max DD ≤ 5%)               = {p_dd5:>5.1f}%")
     print(f"  P(max DD ≤ 8%)               = {p_dd8:>5.1f}%")
     print(f"  P(max DD ≤ 10%)              = {p_dd10:>5.1f}%")
-    print(f"  P(PASS FTMO 1-step: +8/-5%)  = {p_ftmo1:>5.1f}%")
-    print(f"  P(PASS FTMO 2-step P1: +10/-5%) = {p_ftmo2p1:>5.1f}%")
+    print(f"  P(PASS ELITE 1-step: +8/-5%)  = {p_ftmo1:>5.1f}%")
+    print(f"  P(PASS ELITE 2-step P1: +10/-5%) = {p_ftmo2p1:>5.1f}%")
     print(f"  P(PASS TopStep 50k: +6/-3%)  = {p_topstep:>5.1f}%")
     print(f"  P(PASS Hola Prime:  +8/-6%)  = {p_hola:>5.1f}%")
 

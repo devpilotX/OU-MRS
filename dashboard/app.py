@@ -263,9 +263,9 @@ def api_strategy():
     def _tier(cap):
         if cap < 200000: return "TINY"
         if cap < 1500000: return "PAPER"
-        if cap < 2500000: return "FTMO_STARTER"
-        if cap < 5000000: return "FTMO_PRO"
-        return "FTMO_ELITE"
+        if cap < 2500000: return "INSTITUTIONAL"
+        if cap < 5000000: return "HEDGE_FUND"
+        return "QUANT_ELITE"
     _symbols = [{"key": k, "symbol": _os_pv1.getenv(_CFG[k]["env"], _CFG[k]["default"]), "lot_size": _CFG[k]["lot_size"], "margin_per_lot": _CFG[k]["margin"], "max_lots": _max_lots(_capital, k)} for k in _inst]
     return {"symbols": _symbols, "capital": _capital, "capital_tier": _tier(_capital), "z_entry": float(_os_pv1.getenv("Z_ENTRY", 1.5)), "z_stop": float(_os_pv1.getenv("Z_STOP", 3.5)), "window": int(_os_pv1.getenv("WINDOW", 40)), "live_mode": _os_pv1.getenv("LIVE", "false").lower() == "true", "symbol": _symbols[0]["symbol"] if _symbols else "", "lot_size": _symbols[0]["lot_size"] if _symbols else 15}
 

@@ -8,9 +8,9 @@ import numpy as np
 OUT_DIR        = Path("bt_out")
 CAPITAL        = 150_000
 N_SIMS         = 10_000
-FTMO_DAYS      = 30
+ELITE_DAYS      = 30
 TRADES_PER_DAY = 0.76
-SIMS_TRADES    = int(round(FTMO_DAYS * TRADES_PER_DAY))  # ~23
+SIMS_TRADES    = int(round(ELITE_DAYS * TRADES_PER_DAY))  # ~23
 RNG            = np.random.default_rng(42)
 
 def load_pnls():
@@ -54,14 +54,14 @@ def eval_scale(pnls, scale, n_trades, n_sims, rng):
 def main():
     pnls = load_pnls()
     print(f"Loaded {len(pnls)} trades  mean_pnl=Rs{pnls.mean():+.0f}  std=Rs{pnls.std():.0f}")
-    print(f"Simulating FTMO challenge window: {FTMO_DAYS} days ≈ {SIMS_TRADES} trades/sim")
+    print(f"Simulating ELITE challenge window: {ELITE_DAYS} days ≈ {SIMS_TRADES} trades/sim")
     print(f"Each scale bootstrapped {N_SIMS:,} times\n")
 
     scales = [0.25, 0.35, 0.50, 0.65, 0.75, 1.00, 1.25, 1.50, 2.00]
     results = []
     hdr = (f"{'Size':>5}  {'RetMed':>8} {'RetP5':>8} {'RetP95':>8}   "
            f"{'DDmed':>7} {'DDp5':>7}   {'Shp50':>6}   "
-           f"{'FTMO1':>6} {'FTMO2P1':>7} {'TopS':>6} {'Hola':>6}   {'Loss':>5}")
+           f"{'ELITE1':>6} {'ELITE2P1':>7} {'TopS':>6} {'Hola':>6}   {'Loss':>5}")
     print(hdr)
     print("-" * len(hdr))
     for s in scales:
@@ -79,8 +79,8 @@ def main():
     best_ftmo2p1 = max(results, key=lambda r: r['p_ftmo_2p1'])
     best_topstep = max(results, key=lambda r: r['p_topstep'])
     best_hola    = max(results, key=lambda r: r['p_hola'])
-    print(f"  FTMO 1-step    (+8/-5%):  best at {best_ftmo1['scale']:.2f}x  → P={best_ftmo1['p_ftmo_1']:.1f}%")
-    print(f"  FTMO 2-step P1 (+10/-5%): best at {best_ftmo2p1['scale']:.2f}x  → P={best_ftmo2p1['p_ftmo_2p1']:.1f}%")
+    print(f"  ELITE 1-step    (+8/-5%):  best at {best_ftmo1['scale']:.2f}x  → P={best_ftmo1['p_ftmo_1']:.1f}%")
+    print(f"  ELITE 2-step P1 (+10/-5%): best at {best_ftmo2p1['scale']:.2f}x  → P={best_ftmo2p1['p_ftmo_2p1']:.1f}%")
     print(f"  TopStep 50k    (+6/-3%):  best at {best_topstep['scale']:.2f}x  → P={best_topstep['p_topstep']:.1f}%")
     print(f"  Hola Prime     (+8/-6%):  best at {best_hola['scale']:.2f}x  → P={best_hola['p_hola']:.1f}%")
 

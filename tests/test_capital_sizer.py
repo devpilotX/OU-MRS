@@ -2,9 +2,9 @@ def test_capital_tiers():
     from ou_mrs import capital_tier
     assert capital_tier(150_000)    == "TINY"
     assert capital_tier(1_000_000)  == "PAPER"
-    assert capital_tier(2_000_000)  == "FTMO_STARTER"
-    assert capital_tier(3_000_000)  == "FTMO_PRO"
-    assert capital_tier(10_000_000) == "FTMO_ELITE"
+    assert capital_tier(2_000_000)  == "INSTITUTIONAL"
+    assert capital_tier(3_000_000)  == "HEDGE_FUND"
+    assert capital_tier(10_000_000) == "QUANT_ELITE"
 
 def test_max_lots_scaling():
     from ou_mrs import max_lots_for_capital

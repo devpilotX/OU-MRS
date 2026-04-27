@@ -1,4 +1,4 @@
-"""Phase 8e: Prop-firm (FTMO-style) rule monitor for live paper validation."""
+"""Phase 8e: Prop-firm (ELITE-style) rule monitor for live paper validation."""
 import json
 from datetime import date
 from pathlib import Path
