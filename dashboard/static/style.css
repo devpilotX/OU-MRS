@@ -597,3 +597,65 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 }
 .deep-dive-notice.visible { display: block; }
 body.lite-symbol .live-card { opacity: 0.55; }
+
+/* Phase 8q — Premium heatmap (GitHub-contrib style) */
+.hm-wrap{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin-top:12px}
+.hm-cal{flex:1;min-width:520px;max-width:820px;display:flex;flex-direction:column;gap:6px}
+.hm-months{display:grid;grid-template-columns:32px repeat(13,1fr);height:14px;gap:3px;font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace}
+.hm-months span{display:flex;align-items:flex-end}
+.hm-body{display:grid;grid-template-columns:32px 1fr;gap:6px}
+.hm-days{display:grid;grid-template-rows:repeat(7,1fr);gap:3px;font-size:9px;font-weight:500;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.hm-days span{display:flex;align-items:center;height:100%;line-height:1}
+.heatmap-grid{display:grid;grid-template-columns:repeat(13,1fr);grid-template-rows:repeat(7,1fr);gap:3px;aspect-ratio:13/7}
+.heatmap-cell{aspect-ratio:1;border-radius:2.5px;background:rgba(139,148,168,.06);border:1px solid transparent;cursor:pointer;transition:transform .1s,outline .1s}
+.heatmap-cell:hover{transform:scale(1.35);outline:1.5px solid var(--accent);z-index:2;position:relative;border-radius:2px}
+.heatmap-cell.empty{background:rgba(139,148,168,.05)}
+.heatmap-cell.win-1{background:#0d4a36}
+.heatmap-cell.win-2{background:#0e6f4d}
+.heatmap-cell.win-3{background:#10a06b}
+.heatmap-cell.win-4{background:#10dd84;box-shadow:0 0 8px rgba(16,221,132,.4)}
+.heatmap-cell.loss-1{background:#4a0d18}
+.heatmap-cell.loss-2{background:#741420}
+.heatmap-cell.loss-3{background:#a91d2c}
+.heatmap-cell.loss-4{background:#ef4458;box-shadow:0 0 8px rgba(239,68,88,.4)}
+[data-theme="light"] .heatmap-cell.empty{background:rgba(15,23,42,.04)}
+[data-theme="light"] .heatmap-cell.win-1{background:#bbf3da}
+[data-theme="light"] .heatmap-cell.win-2{background:#5fcfa3}
+[data-theme="light"] .heatmap-cell.win-3{background:#10a06b}
+[data-theme="light"] .heatmap-cell.win-4{background:#067548}
+[data-theme="light"] .heatmap-cell.loss-1{background:#fbcfd5}
+[data-theme="light"] .heatmap-cell.loss-2{background:#f08594}
+[data-theme="light"] .heatmap-cell.loss-3{background:#cf2c43}
+[data-theme="light"] .heatmap-cell.loss-4{background:#7e1422}
+.hm-monthbar{display:grid;grid-template-columns:32px 1fr;gap:6px;margin-top:6px}
+.hm-monthbar-inner{display:grid;grid-template-columns:repeat(13,1fr);gap:3px;height:14px}
+.hm-monthbar-cell{border-radius:2px;background:rgba(99,102,241,.12);position:relative}
+.hm-monthbar-cell.pos{background:linear-gradient(90deg,rgba(16,221,132,.25),rgba(16,221,132,.55))}
+.hm-monthbar-cell.neg{background:linear-gradient(90deg,rgba(239,68,88,.25),rgba(239,68,88,.55))}
+.hm-side{display:flex;flex-direction:column;gap:18px;min-width:200px;flex:0 0 200px}
+.hm-stat{display:flex;flex-direction:column;gap:2px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.hm-stat:last-of-type{border-bottom:0;padding-bottom:0}
+.hm-stat-lbl{font-size:9px;letter-spacing:.12em;font-weight:700;color:var(--muted);text-transform:uppercase}
+.hm-stat-val{font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-.02em;color:var(--text);line-height:1.1;margin-top:2px}
+.hm-stat-val.pos{color:var(--green)}
+.hm-stat-val.neg{color:var(--red)}
+.hm-stat-sub{font-size:10px;color:var(--muted);font-weight:500;font-family:'JetBrains Mono',monospace}
+.hm-legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:6px;font-family:'JetBrains Mono',monospace;font-weight:700}
+.hm-legend-cells{display:flex;gap:2px}
+.hm-legend-cells .heatmap-cell{width:11px;aspect-ratio:1;cursor:default}
+.hm-legend-cells .heatmap-cell:hover{transform:none;outline:none}
+.heatmap-tooltip{position:fixed;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;pointer-events:none;z-index:1000;box-shadow:0 12px 32px rgba(0,0,0,.5);display:none;line-height:1.7;min-width:160px}
+.heatmap-tooltip.show{display:block}
+.heatmap-tooltip .ht-date{font-weight:700;color:var(--text);margin-bottom:6px;font-size:12px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.heatmap-tooltip .ht-pnl{font-size:14px;font-weight:700;letter-spacing:-.01em;margin:2px 0}
+.heatmap-tooltip .ht-pnl.pos{color:var(--green)}
+.heatmap-tooltip .ht-pnl.neg{color:var(--red)}
+.heatmap-tooltip .ht-row{color:var(--muted);font-size:10px}
+.heatmap-tooltip .ht-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:.05em;margin-right:4px}
+.heatmap-tooltip .ht-tag.live{background:rgba(239,68,68,.15);color:var(--red)}
+.heatmap-tooltip .ht-tag.bt{background:rgba(99,102,241,.15);color:var(--accent)}
+
+/* Phase 8q — Latency chip */
+.chip.lat-fast{color:var(--green);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08)}
+.chip.lat-mid{color:var(--amber);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.08)}
+.chip.lat-slow{color:var(--red);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08)}

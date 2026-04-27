@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=7"/>
+<link rel="stylesheet" href="/static/style.css?v=11"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -19,6 +19,7 @@
     <span id="market-chip" class="chip">Market: --</span>
     <span id="mode-chip" class="chip">Mode: --</span>
     <span id="health-chip" class="chip">-- · -- · --</span>
+    <span id="latency-chip" class="chip">--</span>
     <button id="theme-toggle" class="btn-icon">☀️</button>
     <a href="/logout" class="btn-logout">Logout</a>
   </div>
@@ -121,6 +122,73 @@
   </section>
   <footer class="footer"><span>Updated <span id="last-update">--</span></span><span>Server <span id="server-time">--</span></span><span>DevPilotX · OU-MRS v1.0</span></footer>
 </main>
-<script src="/static/app.js?v=8"></script>
+<section class="panel" id="heatmap-panel" style="margin-top:24px">
+  <div class="panel-header">
+    <div>
+      <h2>Daily P&amp;L Heatmap</h2>
+      <h3 class="panel-sub">Last 13 weeks · backtest + live · hover any cell</h3>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="panel-badge" id="hm-source-badge">BT + LIVE</span>
+      <span class="panel-badge" style="background:rgba(16,185,129,.1);color:var(--green)">CALENDAR</span>
+    </div>
+  </div>
+  <div class="hm-wrap">
+    <div class="hm-cal">
+      <div class="hm-months" id="hm-months"></div>
+      <div class="hm-body">
+        <div class="hm-days" id="hm-days-axis">
+          <span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span>
+        </div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+      </div>
+      <div class="hm-monthbar" id="hm-monthbar"></div>
+    </div>
+    <div class="hm-side">
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Trading days</span>
+        <span class="hm-stat-val" id="hm-tdays">--</span>
+        <span class="hm-stat-sub" id="hm-tdays-sub">--</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Win rate</span>
+        <span class="hm-stat-val" id="hm-winpct">--</span>
+        <span class="hm-stat-sub" id="hm-winpct-sub">--</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Avg / day</span>
+        <span class="hm-stat-val" id="hm-avg">--</span>
+        <span class="hm-stat-sub">arithmetic mean</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Best · Worst</span>
+        <span class="hm-stat-val" id="hm-extremes" style="font-size:15px">--</span>
+        <span class="hm-stat-sub" id="hm-extremes-sub">--</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Current streak</span>
+        <span class="hm-stat-val" id="hm-streak">--</span>
+        <span class="hm-stat-sub" id="hm-streak-sub">consecutive</span>
+      </div>
+      <div class="hm-legend">
+        <span>−</span>
+        <div class="hm-legend-cells">
+          <div class="heatmap-cell loss-4"></div>
+          <div class="heatmap-cell loss-3"></div>
+          <div class="heatmap-cell loss-2"></div>
+          <div class="heatmap-cell loss-1"></div>
+          <div class="heatmap-cell empty"></div>
+          <div class="heatmap-cell win-1"></div>
+          <div class="heatmap-cell win-2"></div>
+          <div class="heatmap-cell win-3"></div>
+          <div class="heatmap-cell win-4"></div>
+        </div>
+        <span>+</span>
+      </div>
+    </div>
+  </div>
+  <div class="heatmap-tooltip" id="hm-tooltip"></div>
+</section>
+<script src="/static/app.js?v=11"></script>
 </body>
 </html>

@@ -219,20 +219,33 @@ def api_market_status():
 
 @app.get("/api/daily-pnl", dependencies=[Depends(need_auth)])
 def api_daily_pnl():
-    import csv
+    # Phase 8n.2: merge backtest history + live trades.jsonl for unified heatmap
+    import csv, json
     from collections import defaultdict
-    path = BOT_DIR / "bt_out" / "trades.csv"
-    if not path.exists(): return {"rows": []}
-    days = defaultdict(lambda: {"pnl": 0.0, "trades": 0, "wins": 0})
-    with path.open() as f:
-        for row in csv.DictReader(f):
-            d = (row.get("exit_ts") or row.get("entry_ts") or "")[:10]
-            if not d: continue
-            try: p = float(row.get("pnl") or 0)
-            except: p = 0
-            days[d]["pnl"] += p; days[d]["trades"] += 1
-            if p > 0: days[d]["wins"] += 1
-    return {"rows": [{"date": d, **v} for d, v in sorted(days.items())]}
+    days = defaultdict(lambda: {"pnl": 0.0, "trades": 0, "wins": 0, "live": 0, "bt": 0})
+    bt_path = BOT_DIR / "bt_out" / "trades.csv"
+    if bt_path.exists():
+        with bt_path.open() as f:
+            for row in csv.DictReader(f):
+                d = (row.get("exit_ts") or row.get("entry_ts") or "")[:10]
+                if not d: continue
+                try: p = float(row.get("pnl") or 0)
+                except: p = 0
+                days[d]["pnl"] += p; days[d]["trades"] += 1; days[d]["bt"] += 1
+                if p > 0: days[d]["wins"] += 1
+    live_path = BOT_DIR / "trades.jsonl"
+    if live_path.exists():
+        with live_path.open() as f:
+            for line in f:
+                try: row = json.loads(line)
+                except: continue
+                d = (row.get("exit_ts") or row.get("entry_ts") or "")[:10]
+                if not d: continue
+                try: p = float(row.get("pnl") or 0)
+                except: p = 0
+                days[d]["pnl"] += p; days[d]["trades"] += 1; days[d]["live"] += 1
+                if p > 0: days[d]["wins"] += 1
+    return {"rows": [{"date": d, **v, "pnl": round(v["pnl"], 2)} for d, v in sorted(days.items())]}
 
 @app.get("/api/drawdown", dependencies=[Depends(need_auth)])
 def api_drawdown():

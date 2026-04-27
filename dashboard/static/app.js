@@ -43,9 +43,12 @@ async function refreshHealth(){
 }
 
 async function refreshMarket(){
+  const t0=performance.now();
   const m=await fetchJSON("/api/market-status");if(!m)return;
+  recordLatency("market-status", performance.now()-t0);
   const c=$("#market-chip");c.textContent="Market: "+m.status.toUpperCase().replace("_"," ");
   c.className="chip "+(m.status==="open"?"ok":m.status==="pre_open"?"warn":"");
+  applyCadence(m.status === "open" || m.status === "pre_open");
 }
 
 async function refreshStrategy(){
@@ -187,7 +190,7 @@ async function refreshPortfolio(){
 }
 
 async function refreshFast(){await Promise.all([refreshStatus(),refreshHealth(),refreshMarket(),refreshTrades(),refreshLog()]);$("#last-update").textContent=new Date().toLocaleTimeString();}
-async function refreshSlow(){await Promise.all([refreshMetrics(),refreshEquity(),refreshDailyPnl(),refreshDrawdown(),refreshStrategy(),refreshPortfolio()]);}
+async function refreshSlow(){await Promise.all([refreshMetrics(),refreshEquity(),refreshDailyPnl(),refreshDrawdown(),refreshStrategy(),refreshPortfolio(),refreshHeatmap()]);}
 
 function initTheme(){
   const saved=localStorage.getItem("theme")||"dark";
@@ -642,3 +645,177 @@ async function refreshSymbols() {
 }
 setInterval(refreshSymbols, 5000);
 refreshSymbols();
+
+// Phase 8q — Premium daily P&L heatmap (GitHub-contrib style)
+async function refreshHeatmap(){
+  const t0 = performance.now();
+  const d = await fetchJSON("/api/daily-pnl"); if(!d) return;
+  recordLatency("daily-pnl", performance.now() - t0);
+  const rows = d.rows || [];
+  const byDate = {}; rows.forEach(r => { byDate[r.date] = r; });
+  const grid = document.getElementById("heatmap-grid"); if(!grid) return;
+  grid.innerHTML = "";
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = 91;
+  const start = new Date(today); start.setDate(today.getDate() - (days - 1));
+  while(start.getDay() !== 0) start.setDate(start.getDate() - 1);
+  let maxAbs = 0; rows.forEach(r => { const a = Math.abs(r.pnl||0); if(a>maxAbs) maxAbs = a; });
+  if(maxAbs <= 0) maxAbs = 1;
+
+  // Build month labels: scan each week for boundary
+  const monthsRow = document.getElementById("hm-months");
+  monthsRow.innerHTML = '<span></span>';  // empty corner
+  const monthSpans = {}; const monthCounts = {};
+  for(let w=0; w<13; w++){
+    const wkStart = new Date(start); wkStart.setDate(start.getDate() + w*7);
+    const monKey = wkStart.getFullYear() + "-" + wkStart.getMonth();
+    if(!(monKey in monthSpans)){
+      monthSpans[monKey] = { label: wkStart.toLocaleString("en-US", {month:"short"}).toUpperCase(), startWeek: w };
+      monthCounts[monKey] = 1;
+    } else { monthCounts[monKey]++; }
+  }
+  Object.values(monthSpans).forEach(m => {
+    const sp = document.createElement("span");
+    const cnt = monthCounts[Object.keys(monthSpans).find(k => monthSpans[k] === m)];
+    sp.style.gridColumn = (m.startWeek + 2) + " / span " + cnt;
+    sp.textContent = (cnt >= 2) ? m.label : "";
+    monthsRow.appendChild(sp);
+  });
+
+  const cells = [];
+  for(let w=0; w<13; w++){
+    for(let dow=0; dow<7; dow++){
+      const dt = new Date(start); dt.setDate(start.getDate() + w*7 + dow);
+      const key = dt.toISOString().slice(0,10);
+      const rec = byDate[key];
+      const pnl = rec ? (rec.pnl||0) : null;
+      const cell = document.createElement("div");
+      cell.className = "heatmap-cell";
+      cell.style.gridColumn = (w+1);
+      cell.style.gridRow = (dow+1);
+      if(dt > today){ cell.style.visibility = "hidden"; }
+      else if(pnl == null || rec.trades === 0){ cell.classList.add("empty"); }
+      else {
+        const ratio = Math.abs(pnl) / maxAbs;
+        const tier = ratio >= 0.75 ? 4 : ratio >= 0.45 ? 3 : ratio >= 0.18 ? 2 : 1;
+        cell.classList.add(pnl >= 0 ? "win-"+tier : "loss-"+tier);
+      }
+      cell.dataset.date = key;
+      cell.dataset.pnl = pnl != null ? pnl : "";
+      cell.dataset.trades = rec ? rec.trades : 0;
+      cell.dataset.wins = rec ? rec.wins : 0;
+      cell.dataset.live = rec ? (rec.live||0) : 0;
+      cell.dataset.bt = rec ? (rec.bt||0) : 0;
+      cells.push(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  // Stats
+  const past = rows.filter(r => new Date(r.date) <= today);
+  const winDays = past.filter(r => (r.pnl||0) > 0).length;
+  const lossDays = past.filter(r => (r.pnl||0) < 0).length;
+  const tradingDays = past.length;
+  const totalPnl = past.reduce((s, r) => s + (r.pnl||0), 0);
+  const avg = tradingDays ? totalPnl / tradingDays : 0;
+  const liveTotal = past.reduce((s, r) => s + (r.live||0), 0);
+  const btTotal = past.reduce((s, r) => s + (r.bt||0), 0);
+
+  setText("hm-tdays", tradingDays);
+  setText("hm-tdays-sub", btTotal + " bt · " + liveTotal + " live");
+  setText("hm-winpct", tradingDays ? (winDays/tradingDays*100).toFixed(1) + "%" : "--");
+  setText("hm-winpct-sub", winDays + "W / " + lossDays + "L");
+  const avgEl = document.getElementById("hm-avg");
+  if(avgEl){
+    avgEl.textContent = (avg >= 0 ? "+" : "") + "Rs " + Math.round(avg).toLocaleString("en-IN");
+    avgEl.className = "hm-stat-val " + (avg > 0 ? "pos" : avg < 0 ? "neg" : "");
+  }
+  if(past.length){
+    const best = past.reduce((a,b) => (b.pnl||0) > (a.pnl||0) ? b : a);
+    const worst = past.reduce((a,b) => (b.pnl||0) < (a.pnl||0) ? b : a);
+    document.getElementById("hm-extremes").innerHTML =
+      '<span style="color:var(--green)">+' + Math.round(best.pnl).toLocaleString("en-IN") + '</span> / <span style="color:var(--red)">' + Math.round(worst.pnl).toLocaleString("en-IN") + '</span>';
+    setText("hm-extremes-sub", best.date.slice(5) + " · " + worst.date.slice(5));
+  }
+  // Streak
+  const sorted = past.slice().sort((a,b) => a.date.localeCompare(b.date));
+  let streak = 0; let streakSign = 0;
+  for(let i = sorted.length - 1; i >= 0; i--){
+    const p = sorted[i].pnl || 0;
+    const sign = p > 0 ? 1 : p < 0 ? -1 : 0;
+    if(sign === 0) continue;
+    if(streak === 0){ streakSign = sign; streak = 1; }
+    else if(sign === streakSign){ streak++; }
+    else break;
+  }
+  const stEl = document.getElementById("hm-streak");
+  if(stEl){
+    if(streak === 0){ stEl.textContent = "--"; stEl.className = "hm-stat-val"; }
+    else {
+      stEl.textContent = (streakSign > 0 ? "+" : "−") + streak;
+      stEl.className = "hm-stat-val " + (streakSign > 0 ? "pos" : "neg");
+    }
+  }
+  setText("hm-streak-sub", streak === 0 ? "no streak" : (streak === 1 ? "1 day" : streak + " days"));
+
+  // Tooltip
+  const tip = document.getElementById("hm-tooltip");
+  cells.forEach(cell => {
+    cell.addEventListener("mouseenter", () => {
+      const date = cell.dataset.date;
+      const pnl = cell.dataset.pnl;
+      const trades = cell.dataset.trades;
+      const wins = cell.dataset.wins;
+      const live = parseInt(cell.dataset.live)||0;
+      const bt = parseInt(cell.dataset.bt)||0;
+      let html = '<div class="ht-date">' + date + '</div>';
+      if(pnl === ""){ html += '<div class="ht-row">no trades</div>'; }
+      else {
+        const p = parseFloat(pnl);
+        html += '<div class="ht-pnl ' + (p>=0?"pos":"neg") + '">' + (p>=0?"+":"") + "Rs " + Math.round(p).toLocaleString("en-IN") + '</div>';
+        html += '<div class="ht-row">' + trades + ' trade' + (trades==1?"":"s") + ' · ' + wins + ' win' + (wins==1?"":"s") + '</div>';
+        if(live > 0) html += '<span class="ht-tag live">LIVE ' + live + '</span>';
+        if(bt > 0) html += '<span class="ht-tag bt">BT ' + bt + '</span>';
+      }
+      tip.innerHTML = html;
+      tip.classList.add("show");
+    });
+    cell.addEventListener("mousemove", (e) => {
+      tip.style.left = Math.min(window.innerWidth - 200, e.clientX + 14) + "px";
+      tip.style.top = (e.clientY + 14) + "px";
+    });
+    cell.addEventListener("mouseleave", () => { tip.classList.remove("show"); });
+  });
+}
+
+function setText(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
+
+// Phase 8q — Latency tracking
+const _latencies = [];
+function recordLatency(endpoint, ms){
+  _latencies.push({ endpoint, ms, t: Date.now() });
+  if(_latencies.length > 30) _latencies.shift();
+  const recent = _latencies.slice(-10);
+  const avg = recent.reduce((s,x) => s + x.ms, 0) / recent.length;
+  const chip = document.getElementById("latency-chip");
+  if(chip){
+    chip.textContent = "API " + Math.round(avg) + "ms";
+    chip.className = "chip " + (avg < 50 ? "lat-fast" : avg < 200 ? "lat-mid" : "lat-slow");
+  }
+}
+
+// Phase 8q — Adaptive cadence (1s/5s during market hours, 5s/30s when closed)
+let _fastInterval = null, _slowInterval = null;
+let _currentCadence = "closed";
+function applyCadence(marketOpen){
+  const target = marketOpen ? "open" : "closed";
+  if(target === _currentCadence) return;
+  _currentCadence = target;
+  if(_fastInterval) clearInterval(_fastInterval);
+  if(_slowInterval) clearInterval(_slowInterval);
+  const fastMs = marketOpen ? 1000 : 5000;
+  const slowMs = marketOpen ? 5000 : 30000;
+  _fastInterval = setInterval(() => refreshFast(), fastMs);
+  _slowInterval = setInterval(() => refreshSlow(), slowMs);
+  console.log("[cadence] applied " + target + ": fast=" + fastMs + "ms slow=" + slowMs + "ms");
+}
