@@ -22,11 +22,15 @@ log = logging.getLogger("ou_mrs")
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
 CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
 
+# 8p.2: tier-aware parameter regime auto-applied by capital
+from tier_policy import get_policy as _get_policy
+_TIER_NAME, _POLICY = _get_policy(CAPITAL)
+
 # --- Phase 8g: multi-instrument config ---
 INSTRUMENT_CFG = {
-    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": 1.5, "exchange": "NFO"},
-    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"),     "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": 1.5, "exchange": "NFO"},
-    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"),  "lot_size": 60, "margin_per_lot": 60_000, "atr_mult": 1.5, "exchange": "NFO"},
+    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"),     "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"),  "lot_size": 60, "margin_per_lot": 60_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
 }
 INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
 assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMENT_CFG keys"
@@ -50,12 +54,17 @@ def capital_tier(capital: int) -> str:
 MAX_LOTS_BNF  = max_lots_for_capital(CAPITAL, "BNF")  # Phase 8g.4.a: legacy startup log only
 CAPITAL_TIER  = capital_tier(CAPITAL)
 MAX_TRADES    = 8           # Phase 8g.5: now AGGREGATE cap across runners (was per-symbol)
-MAX_CONCURRENT_POSITIONS = int(os.environ.get("MAX_CONCURRENT_POSITIONS", 2))  # Phase 8g.5: corr cap
-DAILY_LOSS    = 0.02
+MAX_CONCURRENT_POSITIONS = int(os.environ.get("MAX_CONCURRENT_POSITIONS", _POLICY["max_concurrent_positions"]))  # Phase 8g.5: corr cap
+DAILY_LOSS    = _POLICY["daily_loss_cap_pct"]  # 8p.2: tier-aware
 SESSION_START = dtime(9, 30)
 SESSION_END   = dtime(14, 45)
 SQUAREOFF     = dtime(15, 15)
 PARAMS        = Params()
+try:
+    PARAMS.z_entry = _POLICY["z_entry"]  # 8p.2: tier-aware
+    PARAMS.z_stop  = _POLICY["z_stop"]   # 8p.2: tier-aware
+except Exception as _e:
+    log.warning(f"8p.2 policy override on PARAMS skipped: {_e}")
 
 HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
