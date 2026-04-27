@@ -658,4 +658,15 @@ body.lite-symbol .live-card { opacity: 0.55; }
 /* Phase 8q — Latency chip */
 .chip.lat-fast{color:var(--green);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08)}
 .chip.lat-mid{color:var(--amber);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.08)}
-.chip.lat-slow{color:var(--red);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08)}
+.chip.lat-slow{color:var(--red);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08)}n
+/ Phase 8q.5 — Footer + bot status severity /
+.footer{display:flex;align-items:center;justify-content:center;gap:8px;padding:32px 32px 24px;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;font-weight:500}
+.footer .ft-tag{padding:2px 8px;background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--text);font-weight:700;letter-spacing:.1em}
+.footer .ft-ver{color:var(--muted);font-weight:600}
+.footer .ft-sep{opacity:.35}
+.footer .ft-lbl{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600;opacity:.75}
+.footer #last-update,.footer #server-time{color:var(--text);font-weight:500}
+.kpi-value.bot-sev-ok{color:var(--green)}
+.kpi-value.bot-sev-warn{color:var(--amber)}
+.kpi-value.bot-sev-err{color:var(--red)}
+.kpi-value.bot-sev-info{color:var(--accent)}
