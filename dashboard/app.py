@@ -506,16 +506,22 @@ def api_risk():
     pt_pct = (cum_pnl / (effective_capital * monthly_target_pct)) if effective_capital > 0 else 0.0
     dt_pct = min(1.0, days_traded / float(min_days)) if min_days > 0 else 1.0
     cs_pct = cons_frac
-    sevs = [_sev_u(dl_pct), _sev_u(dd_pct), _sev_p(max(0.0, min(1.0, pt_pct))), _sev_p(dt_pct), _sev_u(cs_pct)]
-    if 'err' in sevs: status = 'BREACHED'
-    elif 'warn' in sevs: status = 'AT-RISK'
+    # Phase 8r.2: split breach (DL+DD only) from progress (monthly target only)
+    breach_sevs = [_sev_u(dl_pct), _sev_u(dd_pct)]
+    if 'err' in breach_sevs: status = 'BREACHED'
+    elif 'warn' in breach_sevs: status = 'AT-RISK'
     else: status = 'HEALTHY'
+    if pt_pct >= 1.0: progress_label = 'AHEAD'
+    elif pt_pct >= 0.4: progress_label = 'ON-TRACK'
+    else: progress_label = 'BEHIND'
     return {
         'tier': tier,
         'capital': effective_capital,
         'base_capital': base_capital,
         'cumulative_pnl': round(cum_pnl, 2),
         'status': status,
+        'breach_status': status,
+        'progress_label': progress_label,
         'daily_loss': {'used': round(today_loss, 2), 'limit': round(daily_loss_lim, 2), 'pct': round(dl_pct, 4), 'limit_pct': daily_loss_pct, 'sev': _sev_u(dl_pct)},
         'max_dd': {'used': round(max_dd, 2), 'limit': round(max_dd_lim, 2), 'pct': round(dd_pct, 4), 'limit_pct': max_dd_pct, 'sev': _sev_u(dd_pct)},
         'monthly_target': {'progress': round(cum_pnl, 2), 'target': round(effective_capital * monthly_target_pct, 2), 'pct': round(pt_pct, 4), 'target_pct': monthly_target_pct, 'sev': _sev_p(max(0.0, min(1.0, pt_pct)))},

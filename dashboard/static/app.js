@@ -80,6 +80,15 @@ async function refreshRisk(){
     else if(r.status === 'AT-RISK') cls = 'at-risk';
     sEl.className = 'panel-badge ' + cls;
   }
+  const pEl = document.getElementById('rc-progress');
+  if(pEl){
+    var pl = r.progress_label || 'ON-TRACK';
+    pEl.textContent = pl;
+    var pcls = 'on-track';
+    if(pl === 'AHEAD') pcls = 'ahead';
+    else if(pl === 'BEHIND') pcls = 'behind';
+    pEl.className = 'panel-badge ' + pcls;
+  }
 }
 async function refreshChallenge(){ return refreshRisk(); }
 async function refreshHealth(){

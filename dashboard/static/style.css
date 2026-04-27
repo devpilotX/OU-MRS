@@ -706,3 +706,8 @@ body.lite-symbol .live-card { opacity: 0.55; }
 .panel-badge.healthy { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
 .panel-badge.at-risk { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
 .panel-badge.breached { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); font-weight: 600; }
+
+/* Phase 8r.2 - progress label badges */
+.panel-badge.behind { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+.panel-badge.on-track { background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid rgba(99,102,241,0.3); }
+.panel-badge.ahead { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); font-weight: 600; }
