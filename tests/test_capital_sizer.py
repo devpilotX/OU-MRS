@@ -1,7 +1,7 @@
 def test_capital_tiers():
     from ou_mrs import capital_tier
-    assert capital_tier(150_000)    == "TINY"
-    assert capital_tier(1_000_000)  == "PAPER"
+    assert capital_tier(150_000)    == "SEED"
+    assert capital_tier(1_000_000)  == "GROWTH"
     assert capital_tier(2_000_000)  == "INSTITUTIONAL"
     assert capital_tier(3_000_000)  == "HEDGE_FUND"
     assert capital_tier(10_000_000) == "QUANT_ELITE"
