@@ -50,7 +50,10 @@ async function refreshMarket(){
 
 async function refreshStrategy(){
   const s=await fetchJSON("/api/strategy");if(!s)return;
-  $("#strategy-detail").innerHTML=`<div>📊 <b>${s.symbol||"--"}</b></div><div>💰 ₹${(s.capital||0).toLocaleString("en-IN")} · lot ${s.lot_size}</div><div>📏 z_e ${s.z_entry} · z_s ${s.z_stop} · w ${s.window}</div>`;
+  // 8o.3a: multi-symbol render + capital tier chip
+  const symList=(s.symbols||[]).map(x=>`<span class="strat-sym">${x.key}</span><span class="strat-lot">${x.lot_size}L · max ${x.max_lots}</span>`).join("&nbsp;&nbsp;");
+  const tierChip=s.capital_tier?`<span class="strat-tier">${s.capital_tier}</span>`:"";
+  $("#strategy-detail").innerHTML=`<div>📊 ${symList||s.symbol||"--"}</div><div>💰 Rs ${(s.capital||0).toLocaleString("en-IN")} ${tierChip}</div><div>📏 z_e ${s.z_entry} · z_s ${s.z_stop} · w ${s.window}</div>`;
 }
 
 async function refreshTrades(){

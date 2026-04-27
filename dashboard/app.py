@@ -251,7 +251,23 @@ def api_drawdown():
 
 @app.get("/api/strategy", dependencies=[Depends(need_auth)])
 def api_strategy():
-    return {"symbol": _os_pv1.getenv("BANKNIFTY_FUT_SYMBOL", ""), "capital": float(_os_pv1.getenv("CAPITAL", 150000)), "lot_size": int(_os_pv1.getenv("LOT_SIZE", 15)), "z_entry": float(_os_pv1.getenv("Z_ENTRY", 1.5)), "z_stop": float(_os_pv1.getenv("Z_STOP", 3.5)), "window": int(_os_pv1.getenv("WINDOW", 40)), "live_mode": _os_pv1.getenv("LIVE", "false").lower() == "true"}
+    # 8o.3a: multi-symbol return (cfg duplicated locally to avoid ou_mrs import)
+    _CFG = {
+        "BNF": {"env": "BANKNIFTY_FUT_SYMBOL", "default": "BANKNIFTY26MAY26FUT", "lot_size": 30, "margin": 75000},
+        "NF":  {"env": "NIFTY_FUT_SYMBOL",    "default": "NIFTY26MAY26FUT",    "lot_size": 65, "margin": 50000},
+        "FNF": {"env": "FINNIFTY_FUT_SYMBOL", "default": "FINNIFTY26MAY26FUT", "lot_size": 60, "margin": 60000},
+    }
+    _capital = float(_os_pv1.getenv("CAPITAL", 150000))
+    _inst = [s.strip().upper() for s in _os_pv1.getenv("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in _CFG] or ["BNF"]
+    def _max_lots(cap, k): return max(1, min(50, int(cap) // _CFG[k]["margin"]))
+    def _tier(cap):
+        if cap < 200000: return "TINY"
+        if cap < 1500000: return "PAPER"
+        if cap < 2500000: return "FTMO_STARTER"
+        if cap < 5000000: return "FTMO_PRO"
+        return "FTMO_ELITE"
+    _symbols = [{"key": k, "symbol": _os_pv1.getenv(_CFG[k]["env"], _CFG[k]["default"]), "lot_size": _CFG[k]["lot_size"], "margin_per_lot": _CFG[k]["margin"], "max_lots": _max_lots(_capital, k)} for k in _inst]
+    return {"symbols": _symbols, "capital": _capital, "capital_tier": _tier(_capital), "z_entry": float(_os_pv1.getenv("Z_ENTRY", 1.5)), "z_stop": float(_os_pv1.getenv("Z_STOP", 3.5)), "window": int(_os_pv1.getenv("WINDOW", 40)), "live_mode": _os_pv1.getenv("LIVE", "false").lower() == "true", "symbol": _symbols[0]["symbol"] if _symbols else "", "lot_size": _symbols[0]["lot_size"] if _symbols else 15}
 
 @app.get("/api/export/trades", dependencies=[Depends(need_auth)])
 def api_export_trades():
