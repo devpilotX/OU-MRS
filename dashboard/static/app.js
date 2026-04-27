@@ -61,8 +61,10 @@ function _ecGaugeUpdate(id, pct, sev, valStr){
 }
 
 async function refreshRisk(){
-  const r = await fetchJSON('/api/risk'); if(!r) return;
-  const tEl = document.getElementById('rc-tier'); if(tEl) tEl.textContent = r.tier;
+  const r = await fetchJSON('/api/risk');
+  if(!r) return;
+  const tEl = document.getElementById('rc-tier');
+  if(tEl) tEl.textContent = r.tier;
   if(typeof _ecGaugeUpdate === 'function'){
     _ecGaugeUpdate('daily-loss', r.daily_loss.pct, r.daily_loss.sev, (r.daily_loss.pct*100).toFixed(0)+'%');
     _ecGaugeUpdate('max-dd', r.max_dd.pct, r.max_dd.sev, (r.max_dd.pct*100).toFixed(0)+'%');
@@ -73,7 +75,10 @@ async function refreshRisk(){
   const sEl = document.getElementById('rc-status');
   if(sEl){
     sEl.textContent = r.status;
-    sEl.className = 'panel-badge ' + (r.status === 'HEALTHY' ? 'healthy' : r.status === 'AT-RISK' ? 'at-risk' : 'breached');
+    var cls = 'breached';
+    if(r.status === 'HEALTHY') cls = 'healthy';
+    else if(r.status === 'AT-RISK') cls = 'at-risk';
+    sEl.className = 'panel-badge ' + cls;
   }
 }
 async function refreshChallenge(){ return refreshRisk(); }
