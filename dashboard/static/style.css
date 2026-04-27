@@ -670,3 +670,24 @@ body.lite-symbol .live-card { opacity: 0.55; }
 .kpi-value.bot-sev-warn{color:var(--amber)}
 .kpi-value.bot-sev-err{color:var(--red)}
 .kpi-value.bot-sev-info{color:var(--accent)}
+
+/* Phase 8n.1 - Elite Challenge gauges */
+#panel-challenge .ec-meta { display: flex; gap: 8px; align-items: center; }
+#panel-challenge .ec-gauges { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; padding: 8px 4px 4px; }
+@media (max-width: 900px) { #panel-challenge .ec-gauges { grid-template-columns: repeat(2, 1fr); } }
+.ec-gauge { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: 12px; background: rgba(255,255,255,0.02); }
+.ec-gauge svg { width: 100%; max-width: 130px; height: auto; }
+.ec-gauge-bg { stroke: rgba(255,255,255,0.08); stroke-linecap: round; }
+.ec-gauge-fg { stroke-linecap: round; transition: stroke-dashoffset 600ms ease, stroke 200ms; }
+.ec-gauge-ok { stroke: var(--green); }
+.ec-gauge-warn { stroke: var(--amber); }
+.ec-gauge-err { stroke: var(--red); }
+.ec-gauge-info { stroke: var(--blue); }
+.ec-gauge-val { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 600; margin-top: -8px; }
+.ec-gauge-val.ec-ok { color: var(--green); }
+.ec-gauge-val.ec-warn { color: var(--amber); }
+.ec-gauge-val.ec-err { color: var(--red); }
+.ec-gauge-val.ec-info { color: var(--blue); }
+.ec-gauge-lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.panel-badge.ok { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+.panel-badge.info { background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid rgba(99,102,241,0.3); }

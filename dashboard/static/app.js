@@ -37,6 +37,44 @@ async function refreshStatus(){
   if(s.next_run_usec){ const us = parseInt(s.next_run_usec); if(us > 0){ const dt = new Date(us/1000); const sched = $('#schedule-time'); if(sched) sched.textContent = dt.toLocaleString('en-IN',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); } }
 }
 
+
+function _ecGaugeColor(pct, mode){
+  if (mode === 'progress') {
+    if (pct >= 0.80) return 'ok';
+    if (pct >= 0.40) return 'warn';
+    return 'err';
+  }
+  if (pct >= 0.80) return 'err';
+  if (pct >= 0.60) return 'warn';
+  return 'ok';
+}
+
+function _ecGaugeUpdate(id, pct, sev, valStr){
+  const fg = document.querySelector('#ec-gauge-' + id + ' .ec-gauge-fg');
+  const valEl = document.querySelector('#ec-gauge-' + id + ' .ec-gauge-val');
+  if (!fg || !valEl) return;
+  const C = 125.66;
+  fg.setAttribute('stroke-dashoffset', String(C * (1 - Math.max(0, Math.min(1, pct)))));
+  fg.setAttribute('class', 'ec-gauge-fg ec-gauge-' + sev);
+  valEl.textContent = valStr;
+  valEl.className = 'ec-gauge-val ec-' + sev;
+}
+
+async function refreshChallenge(){
+  const c = await fetchJSON('/api/challenge'); if(!c) return;
+  const tEl = document.getElementById('ec-tier'); if(tEl) tEl.textContent = c.tier;
+  _ecGaugeUpdate('daily-loss', c.daily_loss.pct, _ecGaugeColor(c.daily_loss.pct, 'usage'), (c.daily_loss.pct*100).toFixed(0) + '%');
+  _ecGaugeUpdate('max-dd', c.max_dd.pct, _ecGaugeColor(c.max_dd.pct, 'usage'), (c.max_dd.pct*100).toFixed(0) + '%');
+  _ecGaugeUpdate('profit-target', c.profit_target.pct, _ecGaugeColor(c.profit_target.pct, 'progress'), (c.profit_target.pct*100).toFixed(0) + '%');
+  _ecGaugeUpdate('days-traded', c.days_traded.pct, _ecGaugeColor(c.days_traded.pct, 'progress'), c.days_traded.current + '/' + c.days_traded.min);
+  _ecGaugeUpdate('consistency', c.consistency.pct, _ecGaugeColor(c.consistency.pct, 'usage'), (c.consistency.frac*100).toFixed(0) + '%');
+  const sEl = document.getElementById('ec-status');
+  if (sEl) {
+    const passing = c.profit_target.pct >= 1.0 && c.days_traded.current >= c.days_traded.min && c.daily_loss.pct < 1.0 && c.max_dd.pct < 1.0 && c.consistency.pass;
+    sEl.textContent = passing ? 'PASSING' : 'IN PROGRESS';
+    sEl.className = 'panel-badge ' + (passing ? 'ok' : 'info');
+  }
+}
 async function refreshHealth(){
   const h=await fetchJSON("/api/health");if(!h)return;
   const c=$("#health-chip");
@@ -827,3 +865,7 @@ function applyCadence(marketOpen){
   _slowInterval = setInterval(() => refreshSlow(), slowMs);
   console.log("[cadence] applied " + target + ": fast=" + fastMs + "ms slow=" + slowMs + "ms");
 }
+
+// Phase 8n.1: Elite Challenge polling (decoupled from refreshStatus)
+setTimeout(function(){ try { refreshChallenge(); } catch(e){} }, 800);
+setInterval(function(){ try { refreshChallenge(); } catch(e){} }, 7500);

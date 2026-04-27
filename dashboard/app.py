@@ -361,6 +361,120 @@ def api_live_state(symbol: str = "BNF"):
 
 
 # Phase 8f.5: Tradetron-compatible signal feed
+
+@app.get('/api/challenge', dependencies=[Depends(need_auth)])
+def api_challenge():
+    import sys, csv, json as _json
+    from collections import defaultdict
+    from datetime import datetime as _dt
+    sys.path.insert(0, str(BOT_DIR))
+    try:
+        from tier_policy import get_policy as _gp
+    except Exception:
+        _gp = None
+    capital = int(os.environ.get('CAPITAL', 150000))
+    if _gp:
+        tier, policy = _gp(capital)
+        daily_loss_pct = float(policy.get('daily_loss_cap_pct', 0.008))
+    else:
+        tier, daily_loss_pct = 'UNKNOWN', 0.008
+    max_dd_pct = 0.05
+    profit_target_pct = 0.10
+    consistency_max = 0.40
+    min_days = 4
+    daily_loss_lim = capital * daily_loss_pct
+    max_dd_lim = capital * max_dd_pct
+    profit_lim = capital * profit_target_pct
+    daily = defaultdict(float)
+    btc = BOT_DIR / 'bt_out' / 'trades.csv'
+    if btc.exists():
+        for row in csv.DictReader(btc.open()):
+            d = (row.get('exit_ts') or row.get('entry_ts') or '')[:10]
+            try: daily[d] += float(row.get('pnl', 0) or 0)
+            except Exception: pass
+    tj = BOT_DIR / 'trades.jsonl'
+    if tj.exists():
+        for line in tj.read_text().splitlines():
+            try:
+                r = _json.loads(line); d = (r.get('exit_ts') or r.get('ts') or '')[:10]
+                daily[d] += float(r.get('pnl', 0) or 0)
+            except Exception: pass
+    daily.pop('', None)
+    today = _dt.now().date().isoformat()
+    pnl_today = daily.get(today, 0.0)
+    cum = sum(daily.values())
+    days = len(daily)
+    running = capital; peak = capital; mdd = 0.0
+    for _d, p in sorted(daily.items()):
+        running += p; peak = max(peak, running); mdd = max(mdd, peak - running)
+    best = max(daily.values()) if daily else 0.0
+    consistency = (best / cum) if cum > 0 else 0.0
+    dl_used = max(0.0, -pnl_today)
+    return {
+        'tier': tier, 'capital': capital,
+        'daily_loss': {'used': dl_used, 'limit': daily_loss_lim, 'pct': min(1.0, dl_used/daily_loss_lim) if daily_loss_lim > 0 else 0.0, 'limit_pct': daily_loss_pct},
+        'max_dd': {'used': mdd, 'limit': max_dd_lim, 'pct': min(1.0, mdd/max_dd_lim) if max_dd_lim > 0 else 0.0, 'limit_pct': max_dd_pct},
+        'profit_target': {'current': cum, 'target': profit_lim, 'pct': max(0.0, min(1.0, cum/profit_lim)) if profit_lim > 0 else 0.0, 'target_pct': profit_target_pct},
+        'days_traded': {'current': days, 'min': min_days, 'pct': min(1.0, days/min_days) if min_days > 0 else 0.0},
+        'consistency': {'frac': consistency, 'max_share': consistency_max, 'pct': min(1.0, consistency/consistency_max) if consistency_max > 0 else 0.0, 'pass': consistency <= consistency_max if cum > 0 else True},
+    }
+
+@app.get('/api/challenge', dependencies=[Depends(need_auth)])
+def api_challenge():
+    import sys, csv, json as _json
+    from collections import defaultdict
+    from datetime import datetime as _dt
+    sys.path.insert(0, str(BOT_DIR))
+    try:
+        from tier_policy import get_policy as _gp
+    except Exception:
+        _gp = None
+    capital = int(os.environ.get('CAPITAL', 150000))
+    if _gp:
+        tier, policy = _gp(capital)
+        daily_loss_pct = float(policy.get('daily_loss_cap_pct', 0.008))
+    else:
+        tier, daily_loss_pct = 'UNKNOWN', 0.008
+    max_dd_pct = 0.05
+    profit_target_pct = 0.10
+    consistency_max = 0.40
+    min_days = 4
+    daily_loss_lim = capital * daily_loss_pct
+    max_dd_lim = capital * max_dd_pct
+    profit_lim = capital * profit_target_pct
+    daily = defaultdict(float)
+    btc = BOT_DIR / 'bt_out' / 'trades.csv'
+    if btc.exists():
+        for row in csv.DictReader(btc.open()):
+            d = (row.get('exit_ts') or row.get('entry_ts') or '')[:10]
+            try: daily[d] += float(row.get('pnl', 0) or 0)
+            except Exception: pass
+    tj = BOT_DIR / 'trades.jsonl'
+    if tj.exists():
+        for line in tj.read_text().splitlines():
+            try:
+                r = _json.loads(line); d = (r.get('exit_ts') or r.get('ts') or '')[:10]
+                daily[d] += float(r.get('pnl', 0) or 0)
+            except Exception: pass
+    daily.pop('', None)
+    today = _dt.now().date().isoformat()
+    pnl_today = daily.get(today, 0.0)
+    cum = sum(daily.values())
+    days = len(daily)
+    running = capital; peak = capital; mdd = 0.0
+    for _d, p in sorted(daily.items()):
+        running += p; peak = max(peak, running); mdd = max(mdd, peak - running)
+    best = max(daily.values()) if daily else 0.0
+    consistency = (best / cum) if cum > 0 else 0.0
+    dl_used = max(0.0, -pnl_today)
+    return {
+        'tier': tier, 'capital': capital,
+        'daily_loss': {'used': dl_used, 'limit': daily_loss_lim, 'pct': min(1.0, dl_used/daily_loss_lim) if daily_loss_lim > 0 else 0.0, 'limit_pct': daily_loss_pct},
+        'max_dd': {'used': mdd, 'limit': max_dd_lim, 'pct': min(1.0, mdd/max_dd_lim) if max_dd_lim > 0 else 0.0, 'limit_pct': max_dd_pct},
+        'profit_target': {'current': cum, 'target': profit_lim, 'pct': max(0.0, min(1.0, cum/profit_lim)) if profit_lim > 0 else 0.0, 'target_pct': profit_target_pct},
+        'days_traded': {'current': days, 'min': min_days, 'pct': min(1.0, days/min_days) if min_days > 0 else 0.0},
+        'consistency': {'frac': consistency, 'max_share': consistency_max, 'pct': min(1.0, consistency/consistency_max) if consistency_max > 0 else 0.0, 'pass': consistency <= consistency_max if cum > 0 else True},
+    }
 @app.get("/api/signals.json")
 def api_signals_json(token: str = ""):
     expected = os.environ.get("SIGNAL_API_TOKEN", "")
