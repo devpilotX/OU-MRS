@@ -20,16 +20,21 @@ function humanDur(s){if(!s)return"--";const h=Math.floor(s/3600),m=Math.floor((s
 function escHtml(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 async function refreshStatus(){
-  const s=await fetchJSON("/api/status");if(!s)return;
-  const el=$("#bot-status");el.textContent=(s.bot_state||"--").toUpperCase();
-  el.style.color=s.bot_state==="active"?"var(--green)":"var(--muted)";
-  $("#bot-sub").textContent="Timer: "+(s.timer_state||"--");
-  $("#capital").textContent=fmtMoney(s.capital);
-  $("#mode-label").textContent=s.live_mode?"🔴 LIVE":"📝 Paper";
-  const mc=$("#mode-chip");mc.textContent=s.live_mode?"🔴 LIVE":"📝 Paper";mc.className="chip "+(s.live_mode?"err":"info");
-  $("#heartbeat-info").textContent="Today heartbeats: "+(s.heartbeat_count_today||0);
-  $("#server-time").textContent=new Date(s.server_time).toLocaleTimeString();
-  if(s.next_run_usec){const us=parseInt(s.next_run_usec);if(us>0){const dt=new Date(us/1000);$("#schedule-time").textContent=dt.toLocaleString("en-IN",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});}}
+  const t0 = performance.now();
+  const s = await fetchJSON('/api/status'); if(!s) return;
+  if (typeof recordLatency === 'function') recordLatency('status', performance.now() - t0);
+  const lbl = s.bot_status || (s.bot_state || '--').toUpperCase();
+  const sev = s.bot_status_severity || (s.bot_state === 'active' ? 'ok' : '');
+  const el = $('#bot-status');
+  el.textContent = lbl;
+  el.className = 'kpi-value bot-sev-' + sev;
+  $('#bot-sub').textContent = s.bot_status_reason || ('Timer: ' + (s.timer_state || '--'));
+  $('#capital').textContent = fmtMoney(s.capital);
+  $('#mode-label').textContent = s.live_mode ? 'LIVE' : 'Paper';
+  const mc = $('#mode-chip'); mc.textContent = s.live_mode ? 'LIVE' : 'Paper'; mc.className = 'chip ' + (s.live_mode ? 'err' : 'info');
+  const hbi = $('#heartbeat-info'); if(hbi) hbi.textContent = 'Heartbeats today: ' + (s.heartbeat_count_today || 0);
+  const stEl = $('#server-time'); if(stEl) stEl.textContent = new Date(s.server_time).toLocaleTimeString();
+  if(s.next_run_usec){ const us = parseInt(s.next_run_usec); if(us > 0){ const dt = new Date(us/1000); const sched = $('#schedule-time'); if(sched) sched.textContent = dt.toLocaleString('en-IN',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); } }
 }
 
 async function refreshHealth(){
@@ -722,7 +727,10 @@ async function refreshHeatmap(){
   const btTotal = past.reduce((s, r) => s + (r.bt||0), 0);
 
   setText("hm-tdays", tradingDays);
-  setText("hm-tdays-sub", btTotal + " bt · " + liveTotal + " live");
+  const _dates = past.map(r => r.date).filter(Boolean).sort();
+  const _rangeStr = _dates.length ? (_dates[0].slice(5) + " to " + _dates[_dates.length-1].slice(5)) : "no data";
+  const _liveTag = liveTotal > 0 ? " · " + liveTotal + " live" : "";
+  setText("hm-tdays-sub", _rangeStr + _liveTag);
   setText("hm-winpct", tradingDays ? (winDays/tradingDays*100).toFixed(1) + "%" : "--");
   setText("hm-winpct-sub", winDays + "W / " + lossDays + "L");
   const avgEl = document.getElementById("hm-avg");

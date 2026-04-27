@@ -83,6 +83,36 @@ def sd_next(timer):
     except Exception:
         return ""
 
+
+def _heartbeat_age_seconds(h):
+    import re, datetime as d
+    if not h: return None
+    try:
+        m = re.match(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', h)
+        if not m: return None
+        return (d.datetime.now() - d.datetime.strptime(m.group(1), '%Y-%m-%d %H:%M:%S')).total_seconds()
+    except Exception:
+        return None
+
+def _market_status_now():
+    import datetime as d
+    n = d.datetime.now()
+    if n.weekday() >= 5: return 'closed'
+    mn = n.hour*60 + n.minute
+    if mn < 540: return 'closed'
+    if mn < 555: return 'pre_open'
+    if mn < 930: return 'open'
+    return 'closed'
+
+def _derive_bot_status(svc, tmr, hb_age, mkt):
+    if tmr != 'active': return ('DISABLED', 'Timer '+str(tmr), 'err')
+    if svc == 'active':
+        if hb_age is not None and hb_age > 90: return ('STALLED', 'No heartbeat for '+str(int(hb_age))+'s', 'warn')
+        return ('RUNNING', 'Live trading session', 'ok')
+    if mkt == 'open': return ('STALLED', 'Market open, bot not running', 'err')
+    if mkt == 'pre_open': return ('ARMING', 'Pre-market window', 'info')
+    return ('ARMED', 'Standing by until 9:15 IST', 'info')
+
 @app.get("/api/status", dependencies=[Depends(need_auth)])
 def api_status():
     # Find most recent dated log in logs/, fall back to root ou_mrs.log
@@ -94,6 +124,9 @@ def api_status():
         for line in log_path.read_text().splitlines():
             if "heartbeat" in line:
                 hb_count += 1; hb = line
+    _hb_age_s = _heartbeat_age_seconds(hb)
+    _market_status = _market_status_now()
+    _bs_lbl, _bs_rsn, _bs_sev = _derive_bot_status(sd_active('ou-mrs.service'), sd_active('ou-mrs.timer'), _hb_age_s, _market_status)
     return {
         "bot_state": sd_active("ou-mrs.service"),
         "timer_state": sd_active("ou-mrs.timer"),
@@ -103,6 +136,11 @@ def api_status():
         "server_time": datetime.now().isoformat(),
         "capital": int(os.environ.get("CAPITAL", 150000)),
         "live_mode": os.environ.get("LIVE","false").lower() == "true",
+        "bot_status": _bs_lbl,
+        "bot_status_reason": _bs_rsn,
+        "bot_status_severity": _bs_sev,
+        "heartbeat_age_s": _hb_age_s,
+        "market_status": _market_status,
     }
 
 @app.get("/api/trades", dependencies=[Depends(need_auth)])
