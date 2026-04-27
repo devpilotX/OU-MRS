@@ -91,12 +91,53 @@ async function refreshLog(){
 }
 
 async function refreshMetrics(){
-  const m=await fetchJSON("/api/metrics");if(!m)return;
-  const el=$("#metrics-view");
-  if(!m||Object.keys(m).length===0){el.innerHTML='<div class="muted">No backtest yet</div>';return;}
-  const fmt=(k,v)=>typeof v==="number"?(["win_rate","profit_factor"].includes(k)?v.toFixed(3):v.toFixed(2)):v;
-  el.innerHTML="";
-  for(const[k,v]of Object.entries(m)){if(typeof v==="object"&&v!==null)continue;const d=document.createElement("div");d.innerHTML=`<span class="mk">${k}</span><span>${fmt(k,v)}</span>`;el.appendChild(d);}
+  const m = await fetchJSON("/api/metrics");
+  if (!m) return;
+  const el = document.getElementById("metrics-view");
+  if (!el) return;
+  const fmt = (v, kind) => {
+    if (v == null || isNaN(Number(v))) return "--";
+    const n = Number(v);
+    if (kind === "pct")   return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+    if (kind === "money") return "Rs " + Math.round(n).toLocaleString("en-IN");
+    if (kind === "x")     return n.toFixed(2) + "x";
+    if (kind === "ratio") return n.toFixed(2);
+    if (kind === "wr")    return (n * 100).toFixed(1) + "%";
+    return String(n);
+  };
+  const grade = (val, passT, warnT, higherIsBetter) => {
+    if (val == null || isNaN(Number(val))) return "neutral";
+    const v = Number(val);
+    const hib = higherIsBetter !== false;
+    if (hib) {
+      if (v >= passT) return "pass";
+      if (v >= warnT) return "warn";
+      return "fail";
+    }
+    if (v <= passT) return "pass";
+    if (v <= warnT) return "warn";
+    return "fail";
+  };
+  const cards = [
+    { label: "SHARPE",        value: fmt(m.sharpe,           "ratio"), target: "Target >= 3.0",     grade: grade(m.sharpe,           3.0,  1.5,  true),  sub: "risk-adjusted return" },
+    { label: "SORTINO",       value: fmt(m.sortino,          "ratio"), target: "Target >= 4.0",     grade: grade(m.sortino,          4.0,  2.0,  true),  sub: "downside-adjusted" },
+    { label: "PROFIT FACTOR", value: fmt(m.profit_factor,    "x"),     target: "Target >= 1.5",     grade: grade(m.profit_factor,    1.5,  1.2,  true),  sub: "gross win / gross loss" },
+    { label: "WIN RATE",      value: fmt(m.win_rate,         "wr"),    target: "Benchmark 60%",     grade: grade(m.win_rate,         0.60, 0.50, true),  sub: (m.trades||0) + " trades" },
+    { label: "MAX DRAWDOWN",  value: fmt(m.max_drawdown_pct, "pct"),   target: "FTMO ceiling -10%", grade: grade(m.max_drawdown_pct, -5, -10, true), sub: "peak to trough" },
+    { label: "TOTAL RETURN",  value: fmt(m.return_pct,       "pct"),   target: (m.trading_days||0) + " trading days", grade: grade(m.return_pct, 0, -2, true), sub: fmt(m.total_pnl, "money") },
+  ];
+  el.className = "metric-cards-grid";
+  el.innerHTML = cards.map(c => (
+    '<div class="metric-card metric-' + c.grade + '">' +
+      '<div class="metric-label">' + c.label + '</div>' +
+      '<div class="metric-value">' + c.value + '</div>' +
+      '<div class="metric-target">' + c.target + '</div>' +
+      '<div class="metric-foot">' +
+        '<span class="metric-pill metric-pill-' + c.grade + '">' + c.grade.toUpperCase() + '</span>' +
+        '<span class="metric-sub">' + c.sub + '</span>' +
+      '</div>' +
+    '</div>'
+  )).join("");
 }
 
 function chartCommon(dark){const grid=dark?"rgba(139,148,158,0.08)":"rgba(100,116,139,0.08)";const axis=dark?"#8b94a8":"#64748b";return{grid,axis};}

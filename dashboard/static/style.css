@@ -494,3 +494,81 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 
 /* ===== Phase 8m.1.1 HOTFIX: respect [hidden] attribute on .market-hero ===== */
 .market-hero[hidden] { display: none !important; }
+
+/* ===== Phase 8m.4: backtest metrics card grid ===== */
+.metric-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1024px) { .metric-cards-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .metric-cards-grid { grid-template-columns: 1fr; } }
+.metric-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.metric-card.metric-pass    { border-left: 3px solid var(--green); }
+.metric-card.metric-warn    { border-left: 3px solid var(--amber); }
+.metric-card.metric-fail    { border-left: 3px solid var(--red); }
+.metric-card.metric-neutral { border-left: 3px solid var(--border); }
+.metric-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.metric-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.metric-value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.5px;
+  margin: 2px 0 4px;
+  line-height: 1.1;
+}
+.metric-card.metric-fail .metric-value { color: var(--red); }
+.metric-card.metric-warn .metric-value { color: var(--amber); }
+.metric-target {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.metric-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  gap: 8px;
+}
+.metric-pill {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  font-family: "JetBrains Mono", monospace;
+  flex: 0 0 auto;
+}
+.metric-pill-pass    { background: var(--green-soft); color: var(--green); }
+.metric-pill-warn    { background: var(--amber-soft); color: var(--amber); }
+.metric-pill-fail    { background: var(--red-soft);   color: var(--red); }
+.metric-pill-neutral { background: rgba(155, 163, 183, 0.15); color: var(--muted); }
+.metric-sub {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
