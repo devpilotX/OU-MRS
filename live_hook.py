@@ -37,3 +37,32 @@ def tick(*, ltp=None, z=None, mean=None, std=None, window=40,
         tmp.replace(_STATE)
     except Exception:
         pass  # never break the bot
+
+
+# Phase 8g.6: per-symbol state files for dashboard cards
+def tick_symbol(*, symbol, ltp=None, state="idle", state_reason="",
+                position=None, trades_today=0, pnl_today=0.0,
+                kill=False, max_lots=1, lot_size=15, reasons_log=None):
+    """Write state/live_{symbol}.json. Lightweight per-symbol state."""
+    try:
+        path = _STATE.parent / f"live_{symbol}.json"
+        data = {
+            "symbol": symbol,
+            "updated_at": datetime.now(_IST).isoformat(),
+            "updated_ts": int(time.time()),
+            "ltp": ltp,
+            "state": state,
+            "state_reason": state_reason,
+            "position": position,
+            "trades_today": trades_today,
+            "pnl_today": pnl_today,
+            "kill": kill,
+            "max_lots": max_lots,
+            "lot_size": lot_size,
+            "reasons_log": reasons_log or [],
+        }
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, default=str))
+        tmp.replace(path)
+    except Exception:
+        pass  # never break the bot
