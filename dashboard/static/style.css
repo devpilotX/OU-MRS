@@ -491,3 +491,6 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   background: linear-gradient(135deg, rgba(99,102,241,0.08), #fff) !important;
 }
 [data-theme="light"] .sc-spark { background: rgba(15, 23, 42, 0.03); }
+
+/* ===== Phase 8m.1.1 HOTFIX: respect [hidden] attribute on .market-hero ===== */
+.market-hero[hidden] { display: none !important; }
