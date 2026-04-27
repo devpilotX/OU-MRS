@@ -318,64 +318,64 @@ def main():
                     last_portfolio_ts = _t
 
                 # Phase 8g.4.b: live_hook for first symbol only (per-symbol panels = Step 6)
-                if sym == INSTRUMENTS[0]:
-                    # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
-                    try:
-                        _win = getattr(PARAMS, "window", 40)
-                        _closes = df["close"].tail(_win).tolist()
-                        _mean = (sum(_closes)/len(_closes)) if _closes else None
-                        _std = None
-                        if _closes and _mean is not None:
-                            _var = sum((x-_mean)**2 for x in _closes)/len(_closes)
-                            _std = _var**0.5
-                        if len(df) < _win:
-                            _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
-                        elif runner.position:
-                            _state = "in_trade"
-                            _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
-                        elif runner.kill:
-                            _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
-                        else:
-                            _state = "idle"
-                            _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
-                        _ohlc = {
-                            "o": float(df.iloc[0]["open"]),
-                            "h": float(df["high"].max()),
-                            "l": float(df["low"].min()),
-                            "c": float(bar["close"]),
-                            "vol": int(df["volume"].sum()) if "volume" in df.columns else 0,
+                # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
+                try:
+                    _win = getattr(PARAMS, "window", 40)
+                    _closes = df["close"].tail(_win).tolist()
+                    _mean = (sum(_closes)/len(_closes)) if _closes else None
+                    _std = None
+                    if _closes and _mean is not None:
+                        _var = sum((x-_mean)**2 for x in _closes)/len(_closes)
+                        _std = _var**0.5
+                    if len(df) < _win:
+                        _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
+                    elif runner.position:
+                        _state = "in_trade"
+                        _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
+                    elif runner.kill:
+                        _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
+                    else:
+                        _state = "idle"
+                        _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
+                    _ohlc = {
+                        "o": float(df.iloc[0]["open"]),
+                        "h": float(df["high"].max()),
+                        "l": float(df["low"].min()),
+                        "c": float(bar["close"]),
+                        "vol": int(df["volume"].sum()) if "volume" in df.columns else 0,
+                    }
+                    _candles = [[idx.strftime("%H:%M"),
+                                 float(r["open"]), float(r["high"]),
+                                 float(r["low"]),  float(r["close"])]
+                                for idx, r in df.tail(240).iterrows()]
+                    _pos = None
+                    if runner.position:
+                        _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
+                        _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
+                        _pos = {
+                            "side": runner.position["side"],
+                            "entry": float(runner.position["entry_px"]),
+                            "qty": runner.position["qty"],
+                            "entry_ts": str(runner.position.get("entry_ts","")),
+                            "bars_held": runner.position.get("bars_held", 0),
+                            "half_life": runner.position.get("half_life", 0),
+                            "unrealized_pnl": round(_upnl, 2),
                         }
-                        _candles = [[idx.strftime("%H:%M"),
-                                     float(r["open"]), float(r["high"]),
-                                     float(r["low"]),  float(r["close"])]
-                                    for idx, r in df.tail(240).iterrows()]
-                        _pos = None
-                        if runner.position:
-                            _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
-                            _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
-                            _pos = {
-                                "side": runner.position["side"],
-                                "entry": float(runner.position["entry_px"]),
-                                "qty": runner.position["qty"],
-                                "entry_ts": str(runner.position.get("entry_ts","")),
-                                "bars_held": runner.position.get("bars_held", 0),
-                                "half_life": runner.position.get("half_life", 0),
-                                "unrealized_pnl": round(_upnl, 2),
-                            }
-                        _depth = None
-                        try:
-                            _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
-                            _tok = runner.token
-                            if _smart and _tok and hasattr(_smart, "getMarketData"):
-                                _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
-                                if _md.get("status") and _md.get("data",{}).get("fetched"):
-                                    _d = _md["data"]["fetched"][0]
-                                    _depth = {
-                                        "bids": _d.get("depth",{}).get("buy",[])[:5],
-                                        "asks": _d.get("depth",{}).get("sell",[])[:5],
-                                    }
-                        except Exception:
-                            pass
+                    _depth = None
+                    try:
+                        _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
+                        _tok = runner.token
+                        if _smart and _tok and hasattr(_smart, "getMarketData"):
+                            _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
+                            if _md.get("status") and _md.get("data",{}).get("fetched"):
+                                _d = _md["data"]["fetched"][0]
+                                _depth = {
+                                    "bids": _d.get("depth",{}).get("buy",[])[:5],
+                                    "asks": _d.get("depth",{}).get("sell",[])[:5],
+                                }
+                    except Exception:
+                        pass
+                    if sym == INSTRUMENTS[0]:
                         live_hook.tick(
                             ltp=float(bar["close"]),
                             z=((_closes[-1] - _mean) / _std if (_closes and _mean is not None and _std) else getattr(sig, "z", None)),
@@ -395,9 +395,9 @@ def main():
                             trades_today=runner.trades_today,
                             pnl_today=round(runner.pnl_today, 2),
                         )
-                    except Exception as _e:
-                        log.debug(f"live_hook tick failed: {_e}")
-                    # --- /LIVE_HOOK_v1 ---
+                except Exception as _e:
+                    log.debug(f"live_hook tick failed: {_e}")
+                # --- /LIVE_HOOK_v1 ---
                 # Phase 8g.6: per-symbol dashboard state (all symbols)
                 try:
                     if runner.kill:
