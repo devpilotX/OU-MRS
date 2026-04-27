@@ -279,11 +279,20 @@ def api_export_trades():
 
 # ========== LIVE_STATE_v1 ==========
 @app.get("/api/live/state", dependencies=[Depends(need_auth)])
-def api_live_state():
+def api_live_state(symbol: str = "BNF"):
+    # 8o.3b: per-symbol routing -- primary BNF reads rich legacy live.json,
+    # NF/FNF read per-symbol lite live_<SYM>.json. Frontend shows banner when lite.
     import time, json
-    sp = BOT_DIR / "state" / "live.json"
+    sym = (symbol or "BNF").upper().strip()
+    if sym not in ("BNF", "NF", "FNF"):
+        sym = "BNF"
+    if sym == "BNF":
+        sp = BOT_DIR / "state" / "live.json"
+    else:
+        sp = BOT_DIR / "state" / f"live_{sym}.json"
     if not sp.exists():
         return {"ok": False, "reason": "waiting_for_bot",
+                "active_symbol": sym, "is_lite": (sym != "BNF"),
                 "message": "Add live_hook.tick(...) in ou_mrs.py main loop, then restart."}
     try:
         data = json.loads(sp.read_text())
@@ -291,9 +300,14 @@ def api_live_state():
         data["age_sec"] = round(age, 1)
         data["stale"] = age > 120
         data["ok"] = True
+        data["active_symbol"] = sym
+        data["is_lite"] = not bool(data.get("intraday_candles")) and not bool(data.get("depth"))
+        data["source_file"] = sp.name
         return data
     except Exception as e:
-        return {"ok": False, "reason": "parse_error", "error": str(e)[:200]}
+        return {"ok": False, "reason": "parse_error", "error": str(e)[:200],
+                "active_symbol": sym, "is_lite": (sym != "BNF")}
+
 
 # Phase 8f.5: Tradetron-compatible signal feed
 @app.get("/api/signals.json")

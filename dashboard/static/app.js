@@ -363,7 +363,9 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
   async function refreshLive(){
     try {
-      const r = await fetch("/api/live/state", { credentials:"same-origin" });
+      // 8o.3b: per-symbol routing
+      const __sym = (window.__ouActiveSymbol || localStorage.getItem("ou_mrs_active_symbol") || "BNF");
+      const r = await fetch("/api/live/state?symbol=" + encodeURIComponent(__sym), { credentials:"same-origin" });
       if (r.status === 401 || r.status === 303) return;
       const d = await r.json();
       if (!d.ok || d.stale) {
@@ -402,10 +404,41 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       if (d.intraday_candles && d.intraday_candles.length) renderIntraday(d.intraday_candles);
       if (d.depth) { renderDepth("bids", d.depth.bids || []); renderDepth("asks", d.depth.asks || []); }
       renderPosition(d.position);
+      // 8o.3b: lite-mode notice when non-primary symbol is active
+      const __isLite = !!d.is_lite;
+      const __notice = document.getElementById("deep-dive-notice");
+      if (__notice) {
+        __notice.textContent = __isLite ? ("Deep-dive (z · intraday · depth) is primary-symbol only. Showing lite state for " + (d.active_symbol||"--") + ".") : "";
+        __notice.classList.toggle("visible", __isLite);
+      }
+      document.body.classList.toggle("lite-symbol", __isLite);
     } catch(e) {}
   }
 
-  function boot(){ injectDOM(); refreshLive(); setInterval(refreshLive, 5000); }
+  // 8o.3b: symbol-card click-to-activate hero focus tabs
+  function initSymbolTabs(){
+    const stored = localStorage.getItem("ou_mrs_active_symbol") || "BNF";
+    window.__ouActiveSymbol = stored;
+    function applyActive(){
+      document.querySelectorAll(".symbol-card").forEach(c => {
+        const sym = (c.id||"").replace("card-","");
+        c.classList.toggle("active", sym === window.__ouActiveSymbol);
+      });
+    }
+    document.querySelectorAll(".symbol-card").forEach(c => {
+      c.style.cursor = "pointer";
+      c.addEventListener("click", () => {
+        const sym = (c.id||"").replace("card-","");
+        if (!sym) return;
+        window.__ouActiveSymbol = sym;
+        localStorage.setItem("ou_mrs_active_symbol", sym);
+        applyActive();
+        refreshLive();
+      });
+    });
+    applyActive();
+  }
+  function boot(){ injectDOM(); initSymbolTabs(); refreshLive(); setInterval(refreshLive, 5000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
