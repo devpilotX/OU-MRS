@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=15"/>
+<link rel="stylesheet" href="/static/style.css?v=16"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -99,10 +99,10 @@
     </div>
   </section>
   
-<section class="panel" id="panel-challenge">
+<section class="panel" id="panel-risk">
   <div class="panel-header">
-    <div><h2>Elite Challenge</h2><span class="muted">Daily Loss · Max DD · Profit Target · Days Traded · Consistency</span></div>
-    <div class="ec-meta"><span class="panel-badge" id="ec-tier">--</span><span id="ec-status" class="panel-badge info">IN PROGRESS</span></div>
+    <div><h2>Risk Cockpit</h2><span class="muted">Daily Loss · Max DD · Monthly Target · Days Traded · Consistency</span></div>
+    <div class="ec-meta"><span class="panel-badge" id="rc-tier">--</span><span id="rc-status" class="panel-badge healthy">HEALTHY</span></div>
   </div>
   <div class="ec-gauges">
     <div class="ec-gauge" id="ec-gauge-daily-loss"><svg viewBox="0 0 100 60"><path class="ec-gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" stroke-width="8" fill="none"/><path class="ec-gauge-fg ec-gauge-ok" d="M 10 50 A 40 40 0 0 1 90 50" stroke-width="8" fill="none" stroke-dasharray="125.66" stroke-dashoffset="125.66"/></svg><div class="ec-gauge-val ec-ok">--</div><div class="ec-gauge-lbl">Daily Loss</div></div>
@@ -215,6 +215,6 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=15"></script>
+<script src="/static/app.js?v=16"></script>
 </body>
 </html>

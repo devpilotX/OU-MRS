@@ -60,21 +60,23 @@ function _ecGaugeUpdate(id, pct, sev, valStr){
   valEl.className = 'ec-gauge-val ec-' + sev;
 }
 
-async function refreshChallenge(){
-  const c = await fetchJSON('/api/challenge'); if(!c) return;
-  const tEl = document.getElementById('ec-tier'); if(tEl) tEl.textContent = c.tier;
-  _ecGaugeUpdate('daily-loss', c.daily_loss.pct, _ecGaugeColor(c.daily_loss.pct, 'usage'), (c.daily_loss.pct*100).toFixed(0) + '%');
-  _ecGaugeUpdate('max-dd', c.max_dd.pct, _ecGaugeColor(c.max_dd.pct, 'usage'), (c.max_dd.pct*100).toFixed(0) + '%');
-  _ecGaugeUpdate('profit-target', c.profit_target.pct, _ecGaugeColor(c.profit_target.pct, 'progress'), (c.profit_target.pct*100).toFixed(0) + '%');
-  _ecGaugeUpdate('days-traded', c.days_traded.pct, _ecGaugeColor(c.days_traded.pct, 'progress'), c.days_traded.current + '/' + c.days_traded.min);
-  _ecGaugeUpdate('consistency', c.consistency.pct, _ecGaugeColor(c.consistency.pct, 'usage'), (c.consistency.frac*100).toFixed(0) + '%');
-  const sEl = document.getElementById('ec-status');
-  if (sEl) {
-    const passing = c.profit_target.pct >= 1.0 && c.days_traded.current >= c.days_traded.min && c.daily_loss.pct < 1.0 && c.max_dd.pct < 1.0 && c.consistency.pass;
-    sEl.textContent = passing ? 'PASSING' : 'IN PROGRESS';
-    sEl.className = 'panel-badge ' + (passing ? 'ok' : 'info');
+async function refreshRisk(){
+  const r = await fetchJSON('/api/risk'); if(!r) return;
+  const tEl = document.getElementById('rc-tier'); if(tEl) tEl.textContent = r.tier;
+  if(typeof _ecGaugeUpdate === 'function'){
+    _ecGaugeUpdate('daily-loss', r.daily_loss.pct, r.daily_loss.sev, (r.daily_loss.pct*100).toFixed(0)+'%');
+    _ecGaugeUpdate('max-dd', r.max_dd.pct, r.max_dd.sev, (r.max_dd.pct*100).toFixed(0)+'%');
+    _ecGaugeUpdate('profit-target', Math.max(0, Math.min(1, r.monthly_target.pct)), r.monthly_target.sev, (r.monthly_target.pct*100).toFixed(0)+'%');
+    _ecGaugeUpdate('days-traded', r.days_traded.pct, r.days_traded.sev, r.days_traded.current+'/'+r.days_traded.min);
+    _ecGaugeUpdate('consistency', r.consistency.pct, r.consistency.sev, (r.consistency.pct*100).toFixed(0)+'%');
+  }
+  const sEl = document.getElementById('rc-status');
+  if(sEl){
+    sEl.textContent = r.status;
+    sEl.className = 'panel-badge ' + (r.status === 'HEALTHY' ? 'healthy' : r.status === 'AT-RISK' ? 'at-risk' : 'breached');
   }
 }
+async function refreshChallenge(){ return refreshRisk(); }
 async function refreshHealth(){
   const h=await fetchJSON("/api/health");if(!h)return;
   const c=$("#health-chip");
