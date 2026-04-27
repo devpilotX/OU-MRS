@@ -413,7 +413,29 @@ def main():
                         _ps_pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
                         _ps_upnl = _ps_pts * runner.position["qty"] * runner.lot_size - 40
                         _ps_pos = {"side": runner.position["side"], "qty": runner.position["qty"], "entry": float(runner.position["entry_px"]), "unrealized_pnl": round(_ps_upnl, 2)}
-                    live_hook.tick_symbol(symbol=sym, ltp=float(bar["close"]), state=_ps_state, position=_ps_pos, trades_today=runner.trades_today, pnl_today=round(runner.pnl_today, 2), kill=runner.kill, max_lots=runner.max_lots, lot_size=runner.lot_size, reasons_log=runner.reasons_log[-5:])
+                    _ll_8o3c = locals()
+                    _ps_closes = _ll_8o3c.get("_closes") or []
+                    _ps_mean   = _ll_8o3c.get("_mean")
+                    _ps_std    = _ll_8o3c.get("_std")
+                    _ps_z      = ((_ps_closes[-1] - _ps_mean) / _ps_std) if (_ps_closes and _ps_mean is not None and _ps_std) else None
+                    live_hook.tick_symbol(
+                        symbol=sym, ltp=float(bar["close"]), state=_ps_state,
+                        state_reason=_ll_8o3c.get("_reason", ""),
+                        position=_ps_pos, trades_today=runner.trades_today,
+                        pnl_today=round(runner.pnl_today, 2),
+                        kill=runner.kill, max_lots=runner.max_lots, lot_size=runner.lot_size,
+                        reasons_log=runner.reasons_log[-5:],
+                        z=_ps_z, mean=_ps_mean, std=_ps_std,
+                        window=_ll_8o3c.get("_win", 40),
+                        z_entry=getattr(PARAMS, "z_entry", 1.5),
+                        z_stop=getattr(PARAMS, "z_stop", 3.5),
+                        candles_count=len(df) if "df" in _ll_8o3c else 0,
+                        intraday_candles=_ll_8o3c.get("_candles"),
+                        depth=_ll_8o3c.get("_depth"),
+                        ohlc_today=_ll_8o3c.get("_ohlc"),
+                        next_check_in_sec=max(1, 60 - datetime.now().second),
+                        portfolio=_ll_8o3c.get("cached_portfolio"),
+                    )
                 except Exception as _e:
                     log.debug(f"live_hook tick_symbol failed [{sym}]: {_e}")
 
