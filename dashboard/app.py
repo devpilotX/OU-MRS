@@ -21,6 +21,14 @@ _ph = os.environ.get("DASHBOARD_PASS_HASH", "")
 ADMIN_PASS_HASH = _ph.encode() if _ph else None
 
 signer = URLSafeSerializer(SECRET_KEY, salt="ou-mrs-session")
+
+# Phase 9.6a: route named loggers (p96, ws_pump) to journald via uvicorn stderr
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    force=True,
+)
 app = FastAPI(title="OU-MRS Dashboard", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
