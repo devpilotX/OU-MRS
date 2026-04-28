@@ -60,36 +60,6 @@ function _ecGaugeUpdate(id, pct, sev, valStr){
   valEl.className = 'ec-gauge-val ec-' + sev;
 }
 
-async function refreshRisk(){
-  const r = await fetchJSON('/api/risk');
-  if(!r) return;
-  const tEl = document.getElementById('rc-tier');
-  if(tEl) tEl.textContent = r.tier;
-  if(typeof _ecGaugeUpdate === 'function'){
-    _ecGaugeUpdate('daily-loss', r.daily_loss.pct, r.daily_loss.sev, (r.daily_loss.pct*100).toFixed(0)+'%');
-    _ecGaugeUpdate('max-dd', r.max_dd.pct, r.max_dd.sev, (r.max_dd.pct*100).toFixed(0)+'%');
-    _ecGaugeUpdate('profit-target', Math.max(0, Math.min(1, r.monthly_target.pct)), r.monthly_target.sev, (r.monthly_target.pct*100).toFixed(0)+'%');
-    _ecGaugeUpdate('days-traded', r.days_traded.pct, r.days_traded.sev, r.days_traded.current+'/'+r.days_traded.min);
-    _ecGaugeUpdate('consistency', r.consistency.pct, r.consistency.sev, (r.consistency.pct*100).toFixed(0)+'%');
-  }
-  const sEl = document.getElementById('rc-status');
-  if(sEl){
-    sEl.textContent = r.status;
-    var cls = 'breached';
-    if(r.status === 'HEALTHY') cls = 'healthy';
-    else if(r.status === 'AT-RISK') cls = 'at-risk';
-    sEl.className = 'panel-badge ' + cls;
-  }
-  const pEl = document.getElementById('rc-progress');
-  if(pEl){
-    var pl = r.progress_label || 'ON-TRACK';
-    pEl.textContent = pl;
-    var pcls = 'on-track';
-    if(pl === 'AHEAD') pcls = 'ahead';
-    else if(pl === 'BEHIND') pcls = 'behind';
-    pEl.className = 'panel-badge ' + pcls;
-  }
-}
 async function refreshChallenge(){ return refreshRisk(); }
 async function refreshHealth(){
   const h=await fetchJSON("/api/health");if(!h)return;
