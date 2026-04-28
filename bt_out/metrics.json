@@ -1,17 +1,18 @@
 {
-  "trades": 14,
-  "win_rate": 0.7857,
-  "avg_win": 2675.27,
-  "avg_loss": -1850.0,
-  "profit_factor": 5.302,
-  "total_pnl": 23878.0,
-  "return_pct": 15.92,
-  "sharpe": 5.858,
-  "sortino": 7.959,
-  "max_drawdown_pct": -2.13,
-  "trading_days": 37,
-  "trades_per_day": 0.38,
+  "trades": 26,
+  "win_rate": 0.6538,
+  "avg_win": 1727.79,
+  "avg_loss": -3805.33,
+  "profit_factor": 0.858,
+  "total_pnl": -4875.5,
+  "return_pct": -3.25,
+  "sharpe": -0.348,
+  "sortino": -0.119,
+  "max_drawdown_pct": -15.03,
+  "trading_days": 136,
+  "trades_per_day": 0.19,
   "reasons": {
-    "TIME": 14
+    "TIME": 16,
+    "TARGET": 10
   }
 }

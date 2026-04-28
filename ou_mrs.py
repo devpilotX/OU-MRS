@@ -63,6 +63,8 @@ PARAMS        = Params()
 try:
     PARAMS.z_entry = _POLICY["z_entry"]  # 8p.2: tier-aware
     PARAMS.z_stop  = _POLICY["z_stop"]   # 8p.2: tier-aware
+    PARAMS.adx_threshold = float(os.environ.get("OU_ADX_THRESHOLD", 30.0))  # Phase 9.7: sweep winner PF=1.24
+    PARAMS.z_entry = float(os.environ.get("OU_Z_ENTRY", PARAMS.z_entry))  # Phase 9.7b: live tunable
 except Exception as _e:
     log.warning(f"8p.2 policy override on PARAMS skipped: {_e}")
 
@@ -245,15 +247,18 @@ def main():
         return 0
 
     broker = AngelBroker().login()
-    try:
-        reconcile_sl_orders(broker, symbol=runner.symbol)   # Phase 8d.1
-    except Exception as _e:
-        log.warning(f"[reconcile] failed (non-fatal): {_e}")
+    # Phase 9.7: pre-init reconcile removed (referenced undefined `runner`); see post-init loop after runners dict
     pfm = PropFirmMonitor(capital=CAPITAL)  # Phase 8e
     log.info(f"[pfm] init: {pfm.status_summary()}")
     # Phase 8g.4.a: per-symbol runners dict; 4.b will add per-symbol loop
     runners = {sym: OuMrsRunner(sym, INSTRUMENT_CFG[sym], broker=broker, capital=CAPITAL, params=PARAMS, pfm=pfm) for sym in INSTRUMENTS}
     log.info(f"[runners] init: {len(runners)} symbol(s): " + ", ".join(f"{s}={r!r}" for s, r in runners.items()))
+    # Phase 9.7: post-init reconcile each runner's SL orders
+    for _sym, _r in runners.items():
+        try:
+            reconcile_sl_orders(broker, symbol=_r.symbol)
+        except Exception as _e:
+            log.warning(f"[reconcile] {_sym} failed (non-fatal): {_e}")
     last_minute = None
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b

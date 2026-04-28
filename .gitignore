@@ -43,3 +43,6 @@ reports/
 # 8o.3a: catch-all patcher backups
 *.bak.*
 *.bak_*
+trades.jsonl
+*.bak.p96.*
+*.bak.8n2

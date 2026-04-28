@@ -587,3 +587,69 @@ def api_symbols():
             pass
     out["aggregate"]["pnl_today"] = round(out["aggregate"]["pnl_today"], 2)
     return out
+
+
+# ============================================================
+# Phase 9.6: WebSocket tick pump + Server-Sent Events endpoint
+# ============================================================
+import asyncio as _p96_asyncio
+import json as _p96_json
+import logging as _p96_logging
+from fastapi.responses import StreamingResponse as _P96StreamingResponse
+
+from dashboard.tick_broker import broker as _p96_broker
+from dashboard.ws_tick_pump import pump as _p96_pump
+
+_p96_log = _p96_logging.getLogger("p96")
+
+
+@app.on_event("startup")
+async def _p96_startup():
+    try:
+        _p96_broker.attach_loop(_p96_asyncio.get_running_loop())
+        _p96_pump.start()
+        _p96_log.info("[p96] tick pump scheduled")
+    except Exception:
+        _p96_log.exception("[p96] startup failed (dashboard continues)")
+
+
+@app.on_event("shutdown")
+async def _p96_shutdown():
+    try:
+        _p96_pump.stop()
+    except Exception:
+        pass
+
+
+@app.get("/sse/ticks")
+async def sse_ticks(session: str = Cookie(default=None)):
+    if not is_authed(session):
+        raise HTTPException(status_code=401)
+    q = _p96_broker.subscribe()
+
+    async def event_gen():
+        try:
+            yield ": connected\n\n"
+            while True:
+                try:
+                    tick = await _p96_asyncio.wait_for(q.get(), timeout=15.0)
+                    yield f"data: {_p96_json.dumps(tick)}\n\n"
+                except _p96_asyncio.TimeoutError:
+                    yield ": ka\n\n"
+        finally:
+            _p96_broker.unsubscribe(q)
+
+    return _P96StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@app.get("/api/ticks/stats", dependencies=[Depends(need_auth)])
+def api_ticks_stats():
+    return _p96_broker.stats()

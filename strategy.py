@@ -76,15 +76,15 @@ def compute_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, n: int 
         highs[1:] - lows[1:],
         np.maximum(np.abs(highs[1:] - closes[:-1]), np.abs(lows[1:] - closes[:-1]))
     )
-    tr_s       = pd.Series(tr).rolling(n).mean()
-    plus_dm_s  = pd.Series(plus_dm).rolling(n).mean()
-    minus_dm_s = pd.Series(minus_dm).rolling(n).mean()
+    tr_s       = pd.Series(tr).ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder
+    plus_dm_s  = pd.Series(plus_dm).ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder
+    minus_dm_s = pd.Series(minus_dm).ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder
     tr_safe   = tr_s.replace(0, np.nan)
     plus_di   = 100.0 * plus_dm_s / tr_safe
     minus_di  = 100.0 * minus_dm_s / tr_safe
     di_sum    = (plus_di + minus_di).replace(0, np.nan)
     dx        = 100.0 * (plus_di - minus_di).abs() / di_sum
-    adx       = dx.rolling(n).mean().dropna()
+    adx       = dx.ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder.dropna()
     if adx.empty:
         return None
     return float(adx.iloc[-1])
@@ -99,6 +99,9 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     lows   = w["low"].to_numpy(dtype=float)
     vols   = w["volume"].to_numpy(dtype=float)
 
+    # Phase 9.1: TWAP fallback when volume is unavailable (e.g. INDEX backfill)
+    if vols.sum() <= 0.0:
+        vols = np.ones_like(vols, dtype=float)
     # Strict volume: futures data always has volume. No silent spot fallback.
     if vols.sum() <= 0:
         return None
