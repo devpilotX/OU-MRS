@@ -711,3 +711,16 @@ body.lite-symbol .live-card { opacity: 0.55; }
 .panel-badge.behind { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
 .panel-badge.on-track { background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid rgba(99,102,241,0.3); }
 .panel-badge.ahead { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); font-weight: 600; }
+
+/* Phase 8h.2 - Market Regime panel */
+.regime-grid { display: grid; grid-template-columns: 280px 1fr; gap: 24px; padding: 20px; align-items: center; }
+.regime-donut-wrap { height: 240px; position: relative; }
+.regime-stats { width: 100%; border-collapse: collapse; }
+.regime-stats th, .regime-stats td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+.regime-stats th { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; font-weight: 500; }
+.regime-stats td.num { font-family: 'JetBrains Mono', monospace; }
+.regime-pill { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; display: inline-block; }
+.regime-pill.regime-trend { background: rgba(239,68,68,0.15); color: var(--red); }
+.regime-pill.regime-range { background: rgba(16,185,129,0.15); color: var(--green); }
+.regime-pill.regime-chop { background: rgba(245,158,11,0.15); color: var(--amber); }
+@media (max-width: 768px) { .regime-grid { grid-template-columns: 1fr; } }

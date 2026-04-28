@@ -532,6 +532,30 @@ def api_risk():
 @app.get('/api/challenge', dependencies=[Depends(need_auth)])
 def api_challenge_alias():
     return api_risk()
+
+@app.get('/api/regime', dependencies=[Depends(need_auth)])
+def api_regime():
+    import sys, json as _json
+    rm_path = BOT_DIR / 'bt_out' / 'regime_metrics.json'
+    regimes = {}
+    if rm_path.exists():
+        try: regimes = _json.loads(rm_path.read_text())
+        except Exception: pass
+    current = 'UNKNOWN'
+    current_adx = None
+    try:
+        sys.path.insert(0, str(BOT_DIR))
+        from regime import classify_regime, wilder_adx
+        import pandas as pd
+        ppath = BOT_DIR / 'data' / 'BANKNIFTY_FUT_1min.parquet'
+        if ppath.exists():
+            df = pd.read_parquet(ppath).tail(200)
+            current = str(classify_regime(df).iloc[-1])
+            av = float(wilder_adx(df)['adx'].iloc[-1])
+            if av == av: current_adx = round(av, 2)
+    except Exception: pass
+    return {'regimes': regimes, 'current': current, 'current_adx': current_adx}
+
 @app.get("/api/signals.json")
 def api_signals_json(token: str = ""):
     expected = os.environ.get("SIGNAL_API_TOKEN", "")

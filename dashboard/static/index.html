@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=17"/>
+<link rel="stylesheet" href="/static/style.css?v=18"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -112,6 +112,19 @@
     <div class="ec-gauge" id="ec-gauge-consistency"><svg viewBox="0 0 100 60"><path class="ec-gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" stroke-width="8" fill="none"/><path class="ec-gauge-fg ec-gauge-ok" d="M 10 50 A 40 40 0 0 1 90 50" stroke-width="8" fill="none" stroke-dasharray="125.66" stroke-dashoffset="125.66"/></svg><div class="ec-gauge-val ec-ok">--</div><div class="ec-gauge-lbl">Consistency</div></div>
   </div>
 </section>
+<section class="panel" id="panel-regime">
+  <div class="panel-header">
+    <div><h2>Market Regime</h2><span class="muted">Where the edge actually lives - ADX-14 split TREND / RANGE / CHOP</span></div>
+    <div class="ec-meta">
+      <span class="panel-badge" id="regime-current">--</span>
+      <span class="panel-badge info" id="regime-adx">ADX --</span>
+    </div>
+  </div>
+  <div class="regime-grid">
+    <div class="regime-donut-wrap"><canvas id="regime-donut"></canvas></div>
+    <div class="regime-table" id="regime-table">--</div>
+  </div>
+</section>
   <section class="panel">
     <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">--</span></div><span class="panel-badge">BACKTEST · 121d</span></div>
     <div id="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
@@ -215,6 +228,6 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=17"></script>
+<script src="/static/app.js?v=18"></script>
 </body>
 </html>

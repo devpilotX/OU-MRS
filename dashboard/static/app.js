@@ -939,3 +939,54 @@ function applyCadence(marketOpen){
 // Phase 8n.1: Elite Challenge polling (decoupled from refreshStatus)
 setTimeout(function(){ try { refreshChallenge(); } catch(e){} }, 800);
 setInterval(function(){ try { refreshChallenge(); } catch(e){} }, 7500);
+
+// Phase 8h.2: Market Regime panel
+let _regimeChart = null;
+async function refreshRegime(){
+  const r = await fetchJSON('/api/regime');
+  if(!r) return;
+  const cEl = document.getElementById('regime-current');
+  if(cEl){
+    cEl.textContent = r.current || 'UNKNOWN';
+    var cls = 'info';
+    if(r.current === 'RANGE') cls = 'healthy';
+    else if(r.current === 'CHOP') cls = 'at-risk';
+    else if(r.current === 'TREND') cls = 'breached';
+    cEl.className = 'panel-badge ' + cls;
+  }
+  const aEl = document.getElementById('regime-adx');
+  if(aEl){ aEl.textContent = 'ADX ' + (r.current_adx != null ? r.current_adx.toFixed(1) : '--'); }
+  const regimes = r.regimes || {};
+  const keys = ['TREND', 'RANGE', 'CHOP'];
+  const trades = keys.map(function(k){ return (regimes[k] && regimes[k].trades) || 0; });
+  const ctx = document.getElementById('regime-donut');
+  if(ctx && typeof Chart !== 'undefined'){
+    if(_regimeChart) _regimeChart.destroy();
+    _regimeChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: keys, datasets: [{ data: trades, backgroundColor: ['#ef4444', '#10b981', '#f59e0b'], borderWidth: 0, hoverOffset: 8 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } },
+          tooltip: { callbacks: { label: function(c){ var k = c.label; var m = regimes[k] || {}; return k + ': ' + (m.trades || 0) + ' trades, Rs ' + Math.round(m.total_pnl || 0).toLocaleString(); } } }
+        }
+      }
+    });
+  }
+  const tEl = document.getElementById('regime-table');
+  if(tEl){
+    var html = '<table class="regime-stats"><thead><tr><th>Regime</th><th>Trades</th><th>WR</th><th>Total PnL</th><th>Avg</th><th>PF</th></tr></thead><tbody>';
+    keys.forEach(function(k){
+      var m = regimes[k] || {};
+      var pnlStr = m.total_pnl != null ? 'Rs ' + Math.round(m.total_pnl).toLocaleString() : '--';
+      var avgStr = m.avg_pnl != null ? 'Rs ' + Math.round(m.avg_pnl).toLocaleString() : '--';
+      var wrStr = m.win_rate != null ? (m.win_rate * 100).toFixed(0) + '%' : '--';
+      var pfStr = m.profit_factor != null ? (m.profit_factor >= 999 ? 'inf' : m.profit_factor.toFixed(2)) : '--';
+      html += '<tr><td><span class="regime-pill regime-' + k.toLowerCase() + '">' + k + '</span></td><td>' + (m.trades || 0) + '</td><td>' + wrStr + '</td><td class="num">' + pnlStr + '</td><td class="num">' + avgStr + '</td><td>' + pfStr + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    tEl.innerHTML = html;
+  }
+}
+setTimeout(function(){ try { refreshRegime(); } catch(e){} }, 1100);
+setInterval(function(){ try { refreshRegime(); } catch(e){} }, 30000);

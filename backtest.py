@@ -54,6 +54,7 @@ def _close(pos, fill_bar, fill_ts, reason):
         "entry": pos["entry_px"], "exit": exit_px,
         "pnl": net, "gross": gross, "reason": reason,
         "bars_held": pos["bars_held"],
+        "regime": pos.get("regime", "UNKNOWN"),
     }
 
 def _last_n_stops(trades, n):
@@ -62,6 +63,11 @@ def _last_n_stops(trades, n):
 def run():
     df = pd.read_parquet(DATA)
     log.info(f"Loaded {len(df):,} bars")
+
+    # Phase 8h.2: classify regime per bar (full df, smoothing across days)
+    from regime import classify_regime
+    regime_series = classify_regime(df)
+    log.info("Regime distribution: " + str(regime_series.value_counts().to_dict()))
     trades = []
     equity = []
     pnl_cum = 0.0
@@ -138,6 +144,7 @@ def run():
                 "entry_px": entry_px, "entry_ts": next_bar_ts,
                 "half_life": sig.half_life, "atr": sig.atr,
                 "bars_held": 0,
+                "regime": str(regime_series.get(next_bar_ts, "UNKNOWN")),
             }
             trades_today += 1
 
@@ -152,6 +159,12 @@ def run():
     with open(OUT / "metrics.json", "w") as f:
         json.dump(metrics, f, indent=2, default=str)
     log.info("METRICS:\n" + json.dumps(metrics, indent=2, default=str))
+
+    # Phase 8h.2: per-regime metrics
+    regime_metrics = compute_regime_metrics(tdf)
+    with open(OUT / "regime_metrics.json", "w") as f:
+        json.dump(regime_metrics, f, indent=2, default=str)
+    log.info("REGIME METRICS:\n" + json.dumps(regime_metrics, indent=2, default=str))
 
     if not edf.empty:
         plt.figure(figsize=(10, 5))
@@ -194,6 +207,38 @@ def compute_metrics(tdf: pd.DataFrame, edf: pd.DataFrame) -> dict:
         "trades_per_day": round(len(tdf) / max(len(edf), 1), 2),
         "reasons": tdf["reason"].value_counts().to_dict(),
     }
+
+def compute_regime_metrics(tdf):
+    """Phase 8h.2: split metrics by ADX regime (TREND/RANGE/CHOP).
+    Mean-reversion edge expected in RANGE, neutral CHOP, hostile TREND.
+    """
+    if tdf.empty or 'regime' not in tdf.columns:
+        return {}
+    out = {}
+    for regime in ['TREND', 'RANGE', 'CHOP', 'UNKNOWN']:
+        sub = tdf[tdf['regime'] == regime]
+        if len(sub) == 0:
+            out[regime] = {'trades': 0, 'win_rate': 0.0, 'total_pnl': 0.0, 'avg_pnl': 0.0, 'profit_factor': 0.0}
+            continue
+        wins = sub[sub['pnl'] > 0]
+        losses = sub[sub['pnl'] <= 0]
+        loss_sum = abs(float(losses['pnl'].sum())) if len(losses) else 0.0
+        win_sum = float(wins['pnl'].sum()) if len(wins) else 0.0
+        if loss_sum > 0:
+            pf = win_sum / loss_sum
+        elif win_sum > 0:
+            pf = 999.0
+        else:
+            pf = 0.0
+        out[regime] = {
+            'trades': int(len(sub)),
+            'win_rate': round(len(wins) / len(sub), 4),
+            'total_pnl': round(float(sub['pnl'].sum()), 2),
+            'avg_pnl': round(float(sub['pnl'].mean()), 2),
+            'profit_factor': round(float(pf), 3),
+        }
+    return out
+
 
 if __name__ == "__main__":
     run()
