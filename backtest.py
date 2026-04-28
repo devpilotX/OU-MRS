@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from strategy import compute_signal, Params
+from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
@@ -31,8 +31,8 @@ DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
 PARAMS = Params(
-    adx_threshold=float(os.environ.get("BT_ADX", 25.0)),
-    z_entry=float(os.environ.get("BT_ZENTRY", 1.5)),
+    adx_threshold=float(os.environ.get("BT_ADX", 30.0)),
+    z_entry=float(os.environ.get("BT_ZENTRY", 1.4)),
     min_r2=float(os.environ.get("BT_MINR2", 0.05)),
 )
 
@@ -111,6 +111,7 @@ def run():
                 reason = None
                 if sig:
                     z = sig.z
+                    position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
                     if   position["side"] == "BUY"  and z >= 0: reason = "TARGET"
                     elif position["side"] == "SELL" and z <= 0: reason = "TARGET"
                     elif abs(z) > PARAMS.z_stop and (
@@ -118,8 +119,10 @@ def run():
                          (position["side"] == "SELL" and z > 0)):
                         reason = "STOP"
                 position["bars_held"] += 1
-                if not reason and position["bars_held"] >= int(5 * position["half_life"]):
-                    reason = "TIME"
+                if not reason and should_time_stop_hl(position["bars_held"], position["half_life"]):  # Phase 9.5
+                    reason = "TIME_STOP_HL"
+                if not reason and should_velocity_stop(position.get("z_history", []), position["side"]):  # Phase 9.5
+                    reason = "Z_VEL_STALL"
                 if reason:
                     trades.append(_close(position, next_bar, next_bar_ts, reason))
                     pnl_today += trades[-1]["pnl"]
@@ -145,6 +148,7 @@ def run():
                 "half_life": sig.half_life, "atr": sig.atr,
                 "bars_held": 0,
                 "regime": str(regime_series.get(next_bar_ts, "UNKNOWN")),
+                "z_history": [sig.z],  # Phase 9.5: z_history seed
             }
             trades_today += 1
 

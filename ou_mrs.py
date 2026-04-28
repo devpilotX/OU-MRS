@@ -4,7 +4,7 @@ from datetime import datetime, time as dtime
 import pandas as pd
 from dotenv import load_dotenv
 from angel_adapter import AngelBroker
-from strategy import compute_signal, Params
+from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
 from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
@@ -482,8 +482,11 @@ def main():
                         (runner.position["side"] == "SELL" and z > 0)):
                         reason = "STOP"
                     runner.position["bars_held"] += 1
-                    if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
-                        reason = "TIME"
+                    runner.position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
+                    if not reason and should_time_stop_hl(runner.position["bars_held"], runner.position["half_life"]):  # Phase 9.5
+                        reason = "TIME_STOP_HL"
+                    if not reason and should_velocity_stop(runner.position.get("z_history", []), runner.position["side"]):  # Phase 9.5
+                        reason = "Z_VEL_STALL"
                     if reason:
                         p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol, lot_size=runner.lot_size)
                         runner.pnl_today += p
@@ -543,6 +546,7 @@ def main():
                     "sl_order_id": sl_oid,
                     "sl_trigger": _sl_trig,
                     "sl_limit": _sl_lim,
+                    "z_history": [sig.z],  # Phase 9.5: z_history seed
                 }
                 # Phase 8d: persist SL state for crash recovery
                 try:

@@ -161,3 +161,32 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         mu=float(mu), atr=atr, price=float(closes[-1]), r2=float(r2),
         adx=float(adx_val),
     )
+
+
+# === Phase 9.5: half-life time-stop + z-velocity stall ===
+import os as _os_p95
+HL_MULTIPLIER = float(_os_p95.environ.get("OU_HL_MULTIPLIER", "5.0"))
+Z_VEL_STALL_THRESHOLD = float(_os_p95.environ.get("OU_Z_VEL_STALL", "1.0"))
+VEL_STALL_BARS = int(_os_p95.environ.get("OU_VEL_STALL_BARS", "2"))
+
+
+def should_time_stop_hl(bars_held, half_life):
+    if half_life is None or half_life <= 0:
+        return False
+    return bars_held >= math.ceil(HL_MULTIPLIER * half_life)
+
+
+def should_velocity_stop(z_history, side):
+    needed = 3 + VEL_STALL_BARS
+    if z_history is None or len(z_history) < needed:
+        return False
+    velocities = []
+    for i in range(VEL_STALL_BARS):
+        cur = z_history[-1 - i]
+        prev = z_history[-1 - i - 3]
+        velocities.append((cur - prev) / 3.0)
+    if side == "SELL":
+        return all(v > -Z_VEL_STALL_THRESHOLD for v in velocities)
+    elif side == "BUY":
+        return all(v < +Z_VEL_STALL_THRESHOLD for v in velocities)
+    return False
