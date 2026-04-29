@@ -63,7 +63,7 @@ PARAMS        = Params()
 try:
     PARAMS.z_entry = _POLICY["z_entry"]  # 8p.2: tier-aware
     PARAMS.z_stop  = _POLICY["z_stop"]   # 8p.2: tier-aware
-    PARAMS.adx_threshold = float(os.environ.get("OU_ADX_THRESHOLD", 30.0))  # Phase 9.7: sweep winner PF=1.24
+    PARAMS.adx_threshold = float(os.environ.get("OU_ADX_THRESHOLD", 30.0))  # Phase 9.5c: realistic-cost sweep winner PF=1.277 (was 1.24 fee-illusion)
     PARAMS.z_entry = float(os.environ.get("OU_Z_ENTRY", PARAMS.z_entry))  # Phase 9.7b: live tunable
 except Exception as _e:
     log.warning(f"8p.2 policy override on PARAMS skipped: {_e}")
