@@ -93,3 +93,67 @@ class PropFirmMonitor:
                 "best_day_pnl": round(best, 2),
                 "consistency_frac": round(consistency, 3),
                 "consistency_flag": consistency > 0.45}
+
+
+# === Phase 9.5e: sticky halt persistence (append-only patch) ===
+from datetime import datetime as _datetime_p95e
+
+HALT_PATH = Path("/home/ubuntu/bots/ou-mrs/state/pfm_halt.json")
+
+def _today_iso():
+    return date.today().isoformat()
+
+def _pfm_load_halt_state(self):
+    if not HALT_PATH.exists():
+        return None
+    try:
+        rec = json.loads(HALT_PATH.read_text())
+        if rec.get("date") == _today_iso():
+            return rec
+    except Exception:
+        pass
+    return None
+
+def _pfm_persist_halt(self, reason, pnl_today, dd):
+    HALT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    rec = {"date": _today_iso(), "ts": _datetime_p95e.now().isoformat(),
+           "reason": reason, "pnl_today": float(pnl_today),
+           "dd": float(dd), "peak": float(self.peak_equity)}
+    try:
+        tmp = HALT_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(rec))
+        tmp.replace(HALT_PATH)
+    except Exception:
+        pass
+    self._sticky_halt = rec
+    return rec
+
+def _pfm_is_halted_today(self):
+    if not hasattr(self, "_sticky_halt"):
+        self._sticky_halt = None
+    if self._sticky_halt is None:
+        rec = self._load_halt_state()
+        if rec is not None:
+            self._sticky_halt = rec
+    if self._sticky_halt and self._sticky_halt.get("date") == _today_iso():
+        return True
+    return False
+
+PropFirmMonitor._load_halt_state = _pfm_load_halt_state
+PropFirmMonitor._persist_halt = _pfm_persist_halt
+PropFirmMonitor.is_halted_today = _pfm_is_halted_today
+
+_pfm_original_check = PropFirmMonitor.check
+def _pfm_check_wrapper(self, pnl_today):
+    if self.is_halted_today():
+        rec = getattr(self, "_sticky_halt", None) or {}
+        return {"state": "hard_halt",
+                "reason": rec.get("reason", "sticky_halt"),
+                "pnl_today": pnl_today,
+                "dd": rec.get("dd", 0.0),
+                "peak": rec.get("peak", self.peak_equity)}
+    result = _pfm_original_check(self, pnl_today)
+    if result.get("state") == "hard_halt":
+        self._persist_halt(result.get("reason", "hard_halt"), pnl_today, result.get("dd", 0.0))
+    return result
+PropFirmMonitor.check = _pfm_check_wrapper

@@ -452,6 +452,34 @@ def api_risk():
                 try: total_pnl += float(_json.loads(line).get('pnl', 0))
                 except Exception: pass
         except Exception: pass
+    # Phase 9.5f: aggregate unrealized PnL from state/live_*.json
+    import glob as _glob_p95f, time as _time_p95f
+    _now_ts_p95f = int(_time_p95f.time())
+    unrealized_pnl = 0.0
+    unrealized_today = 0.0
+    positions_open = 0
+    freshness_stale_count = 0
+    for _f in _glob_p95f.glob(str(BOT_DIR / "state" / "live_*.json")):
+        try:
+            d = _json.loads(open(_f).read())
+            pos = d.get("position") or {}
+            if not pos.get("side"): continue
+            ltp = float(d.get("ltp") or 0)
+            entry = float(pos.get("entry") or pos.get("entry_px") or 0)
+            qty = int(pos.get("qty") or 0)
+            lot = int(d.get("lot_size") or 1)
+            if ltp <= 0 or entry <= 0 or qty <= 0: continue
+            sign = 1 if pos.get("side") == "BUY" else -1
+            u = (ltp - entry) * sign * qty * lot
+            unrealized_pnl += u
+            unrealized_today += u
+            positions_open += 1
+            upd = int(d.get("updated_ts") or 0)
+            if upd and (_now_ts_p95f - upd) > 300: freshness_stale_count += 1
+        except Exception:
+            pass
+    realized_pnl = total_pnl
+    total_pnl = total_pnl + unrealized_pnl
     effective_capital = max(base_capital, int(base_capital + total_pnl))
     if _gp:
         tier, policy = _gp(effective_capital)
@@ -485,6 +513,10 @@ def api_risk():
                     _add(ts[:10], float(rec.get('pnl', 0)))
                 except Exception: pass
         except Exception: pass
+    # Phase 9.5f: include today unrealized in daily aggregates
+    if unrealized_today != 0:
+        _today_dk_p95f = _dt.now().strftime("%Y-%m-%d")
+        _add(_today_dk_p95f, unrealized_today)
     days_traded = sum(1 for v in daily.values() if v != 0)
     cum_pnl = sum(daily.values())
     sorted_days = sorted(daily.items())

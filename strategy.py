@@ -190,3 +190,29 @@ def should_velocity_stop(z_history, side):
     elif side == "BUY":
         return all(v < +Z_VEL_STALL_THRESHOLD for v in velocities)
     return False
+
+# Phase 9.5g: trail stop helper
+import os as _os_p95g
+
+def _env_float_p95g(name, default):
+    try:
+        v = _os_p95g.environ.get(name)
+        if v is None or v == "":
+            return float(default)
+        return float(v)
+    except Exception:
+        return float(default)
+
+OU_TRAIL_TRIGGER_ATR_MULT = _env_float_p95g("OU_TRAIL_TRIGGER_ATR_MULT", 0.0)
+OU_TRAIL_LOCK_PCT = _env_float_p95g("OU_TRAIL_LOCK_PCT", 0.0)
+
+def should_trail_stop(current_pnl_pts, peak_pnl_pts, atr):
+    if OU_TRAIL_TRIGGER_ATR_MULT <= 0 or OU_TRAIL_LOCK_PCT <= 0:
+        return False
+    if atr <= 0:
+        return False
+    activation_pts = OU_TRAIL_TRIGGER_ATR_MULT * atr
+    if peak_pnl_pts < activation_pts:
+        return False
+    lock_floor = peak_pnl_pts * (1.0 - OU_TRAIL_LOCK_PCT)
+    return current_pnl_pts <= lock_floor

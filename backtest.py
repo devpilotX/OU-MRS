@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
+from strategy import should_trail_stop  # Phase 9.5g
 from cost_model import compute_rt_cost  # Phase 9.5c
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -113,8 +114,11 @@ def run():
                 if sig:
                     z = sig.z
                     position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
-                    if   position["side"] == "BUY"  and z >= 0: reason = "TARGET"
-                    elif position["side"] == "SELL" and z <= 0: reason = "TARGET"
+                    # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
+                    _mtm = (bar["close"] - position["entry_px"]) * (1 if position["side"] == "BUY" else -1)
+                    _profitable = _mtm > 0
+                    if   position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
+                    elif position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
                     elif abs(z) > PARAMS.z_stop and (
                          (position["side"] == "BUY"  and z < 0) or
                          (position["side"] == "SELL" and z > 0)):
@@ -124,6 +128,12 @@ def run():
                     reason = "TIME_STOP_HL"
                 if not reason and should_velocity_stop(position.get("z_history", []), position["side"]):  # Phase 9.5
                     reason = "Z_VEL_STALL"
+                    # Phase 9.5g: trail stop check (last priority)
+                    if not reason:
+                        _ppts_p95g = max(position.get("peak_pnl_pts", 0.0), _mtm)
+                        position["peak_pnl_pts"] = _ppts_p95g
+                        if should_trail_stop(_mtm, _ppts_p95g, position["atr"]):
+                            reason = "TRAIL_STOP"
                 if reason:
                     trades.append(_close(position, next_bar, next_bar_ts, reason))
                     pnl_today += trades[-1]["pnl"]
@@ -144,6 +154,7 @@ def run():
             # Entry fills at NEXT bar's OPEN with slippage (no look-ahead)
             entry_px = next_bar["open"] + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
             position = {
+                "peak_pnl_pts": 0.0,
                 "side": sig.side, "qty": qty_lots,
                 "entry_px": entry_px, "entry_ts": next_bar_ts,
                 "half_life": sig.half_life, "atr": sig.atr,

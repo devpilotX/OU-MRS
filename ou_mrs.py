@@ -5,6 +5,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from angel_adapter import AngelBroker
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
+from strategy import should_trail_stop  # Phase 9.5g
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
 from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
@@ -475,8 +476,11 @@ def main():
                         continue
                     reason = None
                     z = sig.z
-                    if   runner.position["side"] == "BUY"  and z >= 0: reason = "TARGET"
-                    elif runner.position["side"] == "SELL" and z <= 0: reason = "TARGET"
+                    # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
+                    _mtm = (sig.price - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
+                    _profitable = _mtm > 0
+                    if   runner.position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
+                    elif runner.position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
                     elif abs(z) > PARAMS.z_stop and (
                         (runner.position["side"] == "BUY"  and z < 0) or
                         (runner.position["side"] == "SELL" and z > 0)):
@@ -487,6 +491,12 @@ def main():
                         reason = "TIME_STOP_HL"
                     if not reason and should_velocity_stop(runner.position.get("z_history", []), runner.position["side"]):  # Phase 9.5
                         reason = "Z_VEL_STALL"
+                    # Phase 9.5g: trail stop check (last priority)
+                    if not reason:
+                        _ppts_p95g = max(runner.position.get("peak_pnl_pts", 0.0), _mtm)
+                        runner.position["peak_pnl_pts"] = _ppts_p95g
+                        if should_trail_stop(_mtm, _ppts_p95g, runner.position["atr"]):
+                            reason = "TRAIL_STOP"
                     if reason:
                         p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol, lot_size=runner.lot_size)
                         runner.pnl_today += p
@@ -536,6 +546,7 @@ def main():
                 else:
                     log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
                 runner.position = {
+                    "peak_pnl_pts": 0.0,
                     "side": sig.side,
                     "qty": qty_lots,
                     "entry_px": sig.price,
