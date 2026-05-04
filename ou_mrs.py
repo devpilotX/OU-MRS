@@ -305,10 +305,14 @@ def main():
         for sym, runner in runners.items():
             _saved_tok = getattr(broker, "token", None)
             _saved_exch = getattr(broker, "exchange", None)
+            _saved_sym = getattr(broker, "symbol", None)
             broker.token = runner.token
             broker.exchange = runner.exchange
+            broker.symbol = runner.symbol_full
             try:
                 session_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
+                if now < session_open:
+                    continue
                 rows = broker.get_candles(session_open, now, "ONE_MINUTE")
                 if not rows:
                     continue
@@ -584,6 +588,7 @@ def main():
             finally:
                 if _saved_tok is not None: broker.token = _saved_tok
                 if _saved_exch is not None: broker.exchange = _saved_exch
+                if _saved_sym is not None: broker.symbol = _saved_sym
         time.sleep(2)
 
 if __name__ == "__main__":

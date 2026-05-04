@@ -59,21 +59,21 @@ class AngelBroker:
                 resp = self.smart.getCandleData(params)
                 if isinstance(resp, dict) and resp.get("status"):
                     return resp.get("data") or []
-                last_err = RuntimeError(f"bad response: resp")
+                last_err = RuntimeError(f"bad response: {resp}")
             except Exception as e:
                 last_err = e
             wait = 2 ** (attempt + 1)  # 2, 4, 8, 16 seconds
-            log.warning(f"get_candles attempt attempt+1/4 failed: last_err; retry in waits")
+            log.warning(f"get_candles attempt {attempt+1}/4 failed: {last_err}; retry in {wait}s")
             time.sleep(wait)
             if attempt >= 1:
                 for mname in ("login", "_login", "connect", "reauth"):
                     if hasattr(self, mname):
                         try:
                             getattr(self, mname)()
-                            log.info(f"re-authenticated via mname()")
+                            log.info(f"re-authenticated via {mname}()")
                             break
                         except Exception as le:
-                            log.warning(f"re-auth via mname failed: le")
+                            log.warning(f"re-auth via {mname} failed: {le}")
         raise last_err or RuntimeError("get_candles failed after 4 retries")
 
     # ---------- ORDERS ----------
