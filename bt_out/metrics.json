@@ -1,18 +1,19 @@
 {
-  "trades": 26,
-  "win_rate": 0.6538,
-  "avg_win": 1727.79,
-  "avg_loss": -3805.33,
-  "profit_factor": 0.858,
-  "total_pnl": -4875.5,
-  "return_pct": -3.25,
-  "sharpe": -0.348,
-  "sortino": -0.119,
-  "max_drawdown_pct": -15.03,
-  "trading_days": 136,
-  "trades_per_day": 0.19,
+  "trades": 30,
+  "win_rate": 0.4667,
+  "avg_win": 2169.7,
+  "avg_loss": -2014.94,
+  "profit_factor": 0.942,
+  "total_pnl": -1863.29,
+  "return_pct": -1.24,
+  "sharpe": -0.336,
+  "sortino": -0.359,
+  "max_drawdown_pct": -7.5,
+  "trading_days": 37,
+  "trades_per_day": 0.81,
   "reasons": {
-    "TIME": 16,
-    "TARGET": 10
+    "TIME_STOP_HL": 20,
+    "Z_VEL_STALL": 6,
+    "TARGET": 4
   }
 }
