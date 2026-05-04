@@ -1,6 +1,7 @@
 # ===== Secrets / environment =====
 .env
 .env.*
+!.env.example
 *.env
 .env.bak_*
 
