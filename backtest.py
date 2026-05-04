@@ -32,10 +32,14 @@ SQUAREOFF      = pd.Timestamp("15:15").time()
 DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
+# Phase 9.8: optional regime allow-list (e.g. BT_REGIME_FILTER=CHOP or CHOP,RANGE)
+_bt_rf_p98 = os.environ.get("BT_REGIME_FILTER", "").strip()
+_regime_allow_p98 = tuple(r.strip().upper() for r in _bt_rf_p98.split(",") if r.strip()) if _bt_rf_p98 else ()
 PARAMS = Params(
     adx_threshold=float(os.environ.get("BT_ADX", 30.0)),
     z_entry=float(os.environ.get("BT_ZENTRY", 1.4)),
     min_r2=float(os.environ.get("BT_MINR2", 0.05)),
+    regime_allow=_regime_allow_p98,
 )
 
 def size_lots(atr: float) -> int:

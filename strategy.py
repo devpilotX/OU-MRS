@@ -40,6 +40,7 @@ class Params:
     adx_n: int = 14                  # Phase 8c: ADX smoothing period
     adx_threshold: float = 25.0      # Phase 8c: reject entries when ADX above this
     adx_lookback_bars: int = 60      # Phase 8c: bars used for ADX estimation
+    regime_allow: tuple = ()         # Phase 9.8: regime allow-list (empty = permissive)
 
 
 def estimate_ou(x: np.ndarray):
@@ -145,6 +146,17 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         return None
     if adx_val > p.adx_threshold:
         return None  # trending regime - skip entries
+
+    # Phase 9.8: regime allow-list filter (CHOP-only, etc.)
+    if getattr(p, "regime_allow", None):
+        try:
+            from regime import classify_regime
+            _series_p98 = classify_regime(df)
+            _bar_regime_p98 = str(_series_p98.iloc[-1]) if len(_series_p98) else "UNKNOWN"
+        except Exception:
+            _bar_regime_p98 = "UNKNOWN"
+        if _bar_regime_p98 not in p.regime_allow:
+            return None
 
     z      = (x[-1] - mu) / max(sigma_eq, 1e-9)
     z_prev = (x[-2] - mu) / max(sigma_eq, 1e-9)
