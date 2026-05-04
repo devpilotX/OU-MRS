@@ -46,3 +46,6 @@ reports/
 trades.jsonl
 *.bak.p96.*
 *.bak.8n2
+
+# Phase 9.7b: sweep harness outputs
+bt_out/sweep_*/
