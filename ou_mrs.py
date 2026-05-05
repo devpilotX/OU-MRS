@@ -593,6 +593,8 @@ def main():
                 if _saved_tok is not None: broker.token = _saved_tok
                 if _saved_exch is not None: broker.exchange = _saved_exch
                 if _saved_sym is not None: broker.symbol = _saved_sym
+            # Phase 9.8g: stagger inter-symbol fetches to avoid Angel rate-limit burst
+            time.sleep(3)
         time.sleep(2)
 
 if __name__ == "__main__":

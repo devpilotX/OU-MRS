@@ -145,6 +145,8 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     if adx_val is None:
         return None
     if adx_val > p.adx_threshold:
+        import logging as _lg_p98h
+        _lg_p98h.getLogger("ou_mrs").info(f"[regime] skip: adx={adx_val:.2f} > {p.adx_threshold} (TREND)")
         return None  # trending regime - skip entries
 
     # Phase 9.8: regime allow-list filter (CHOP-only, etc.)
@@ -156,6 +158,8 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         except Exception:
             _bar_regime_p98 = "UNKNOWN"
         if _bar_regime_p98 not in p.regime_allow:
+            import logging as _lg_p98h2
+            _lg_p98h2.getLogger("ou_mrs").info(f"[regime] skip: regime={_bar_regime_p98} not in allow={p.regime_allow}")
             return None
 
     z      = (x[-1] - mu) / max(sigma_eq, 1e-9)
