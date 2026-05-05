@@ -41,3 +41,11 @@ select:focus, input:focus, button:focus, a:focus { outline: 2px solid var(--acce
 .kbd-foot { margin-top: 16px; font-size: 11px; padding-top: 12px; border-top: 1px solid var(--border); }
 @keyframes kbd-flash-pulse { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.55); } 100% { box-shadow: 0 0 0 12px rgba(99,102,241,0); } }
 .kbd-flash { animation: kbd-flash-pulse 1s ease; }
+
+/* Phase 9.8z: empty states */
+.empty-state-cell { padding: 32px 16px !important; text-align: center; border-bottom: none !important; }
+.empty-state { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; color: var(--muted); }
+.empty-state .empty-icon { font-size: 28px; opacity: 0.55; }
+.empty-state .empty-text { font-size: 13px; font-weight: 500; letter-spacing: 0.2px; }
+.empty-state .empty-sub { font-size: 11px; opacity: 0.7; font-family: "JetBrains Mono", monospace; }
+#log-view.is-empty { color: var(--muted); font-style: italic; }

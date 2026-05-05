@@ -1196,3 +1196,74 @@ setTimeout(refreshTickChip, 1500);
   });
   console.log("Phase 9.8y: keyboard shortcuts active. Press ? for help.");
 })();
+
+// Phase 9.8z: smart empty states
+(function _p98z_emptyStates(){
+  function getISTNow(){
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + 5.5 * 3600000);
+  }
+  function isMarketOpen(){
+    const ist = getISTNow();
+    const day = ist.getDay();
+    if (day === 0 || day === 6) return false;
+    const mins = ist.getHours() * 60 + ist.getMinutes();
+    return mins >= 555 && mins <= 930; // 09:15 - 15:30 IST
+  }
+  function nextMarketStart(){
+    const ist = getISTNow();
+    const next = new Date(ist);
+    next.setHours(9, 14, 0, 0);
+    if (next.getTime() <= ist.getTime()) next.setDate(next.getDate() + 1);
+    while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+    return next;
+  }
+  function fmtDelta(target){
+    const ms = target.getTime() - getISTNow().getTime();
+    if (ms <= 0) return "now";
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h > 0) return h + "h " + m + "m";
+    return m + "m";
+  }
+  function paintEmptyTrades(){
+    const tbody = document.querySelector("#trades-table tbody");
+    if (!tbody) return;
+    const realRows = Array.from(tbody.children).filter(r => !r.classList.contains("es-row"));
+    if (realRows.length > 0) return;
+    const open = isMarketOpen();
+    const next = nextMarketStart();
+    const heading = open
+      ? "Bot is watching for signals"
+      : "Market closed";
+    const subline = open
+      ? "Waiting for z-score >= 1.5 with ADX confirmation"
+      : "Next session opens in " + fmtDelta(next) + " (09:14 IST)";
+    tbody.innerHTML = '<tr class="es-row"><td colspan="11" class="empty-state-cell"><div class="empty-state"><span class="empty-icon">\ud83d\udcca</span><span class="empty-text">' + heading + '</span><span class="empty-sub">' + subline + '</span></div></td></tr>';
+  }
+  function paintEmptyLog(){
+    const lv = document.getElementById("log-view");
+    if (!lv) return;
+    const txt = (lv.textContent || "").trim();
+    if (!txt) {
+      lv.classList.add("is-empty");
+      const open = isMarketOpen();
+      lv.textContent = open
+        ? "No log entries yet - waiting for first heartbeat..."
+        : "Bot is offline - log will populate after market opens at 09:14 IST. Heartbeats appear every 30s when running.";
+    } else if (txt.length > 60 && lv.classList.contains("is-empty")) {
+      lv.classList.remove("is-empty");
+    }
+  }
+  function tick(){
+    try { paintEmptyTrades(); paintEmptyLog(); } catch(e) {}
+  }
+  // Observe trade table mutations to react fast after refreshTrades
+  const tbody = document.querySelector("#trades-table tbody");
+  if (tbody && typeof MutationObserver !== "undefined") {
+    new MutationObserver(() => setTimeout(paintEmptyTrades, 80)).observe(tbody, { childList: true });
+  }
+  setTimeout(tick, 1500);
+  setInterval(tick, 10000);
+})();
