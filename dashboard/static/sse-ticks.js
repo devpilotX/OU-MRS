@@ -27,9 +27,9 @@
       "gap:18px;justify-content:center;align-items:center;flex-wrap:wrap;";
     b.innerHTML =
       '<span style="opacity:.6">LIVE TICKS</span>' +
-      '<span data-sse-ltp="BNF">BNF —</span>' +
-      '<span data-sse-ltp="NF">NF —</span>' +
-      '<span data-sse-ltp="FNF">FNF —</span>' +
+      '<span data-sse-ltp="BNF">BNF -</span>' +
+      '<span data-sse-ltp="NF">NF -</span>' +
+      '<span data-sse-ltp="FNF">FNF -</span>' +
       '<span id="sse-state" style="opacity:.7">connecting…</span>';
     document.body.appendChild(b);
     var pad = parseInt(getComputedStyle(document.body).paddingTop, 10) || 0;

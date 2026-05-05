@@ -289,7 +289,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 // ===== v6 -- chart subtitles + info tooltips =====
 (function(){
   const labels = {
-    "Equity Curve":     { sub: "How ₹1,50,000 grew over 121 backtest days (Oct 2025 → Apr 2026)", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
+    "Equity Curve":     { sub: "Backtest replay · Oct 2025 → Apr 2026 · 121 days · base ₹1,50,000 (academic notional) · live capital ₹37,50,000 scales same return %", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
     "Daily P&L":        { sub: "Per-day realised profit/loss from closed trades",                    info: "Green bar = profitable day · Red bar = losing day · No bar = no trades that day. Height = ₹ amount." },
     "Drawdown":         { sub: "How far equity fell from its running peak (risk view)",              info: "0% = at all-time high. -3.65% = worst peak-to-trough loss. Small drawdown = stable strategy." },
     "Backtest Metrics": { sub: "Risk/return stats from 121-day historical simulation",               info: "Sharpe 3.25 = excellent risk-adj return. PF 2.35 = earned ₹2.35 for every ₹1 lost. 62.5% win rate." },
@@ -331,7 +331,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
     const html = `
       <section id="live-strip" class="live-strip">
         <div class="live-card main waiting" id="lc-ltp">
-          <div class="lbl">BANKNIFTY FUT · LTP</div>
+          <div class="lbl" id="ltp-label">BANKNIFTY FUT · LTP</div>
           <div class="ltp-val" id="ltp-val">--</div>
           <div class="sub" id="ltp-sub">waiting for bot...</div>
         </div>
@@ -450,7 +450,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
   async function refreshLive(){
     try {
       // 8o.3b: per-symbol routing
-      const __sym = (window.__ouActiveSymbol || localStorage.getItem("ou_mrs_active_symbol") || "BNF");
+      try{if(["FNF",null,""].indexOf(localStorage.getItem("ou_mrs_active_symbol"))>=0)localStorage.setItem("ou_mrs_active_symbol","BNF");}catch(_){} const __sym = (window.__ouActiveSymbol || localStorage.getItem("ou_mrs_active_symbol") || "BNF");
       const r = await fetch("/api/live/state?symbol=" + encodeURIComponent(__sym), { credentials:"same-origin" });
       if (r.status === 401 || r.status === 303) return;
       const d = await r.json();
@@ -464,7 +464,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       }
       document.querySelectorAll(".live-card").forEach(c => c.classList.remove("waiting"));
       if (d.ltp != null) {
-        document.getElementById("ltp-val").textContent = "₹" + Number(d.ltp).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+        document.getElementById("ltp-val").textContent = "₹" + Number(d.ltp).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); const _lbl_p98o = document.getElementById("ltp-label"); if (_lbl_p98o) _lbl_p98o.textContent = ({BNF:"BANKNIFTY",NF:"NIFTY",FNF:"FINNIFTY"}[__sym]||__sym) + " FUT · LTP";
         if (d.ohlc_today) {
           const o = d.ohlc_today.o || d.ltp;
           const chg = d.ltp - o;
@@ -729,7 +729,7 @@ async function refreshSymbols() {
 setInterval(refreshSymbols, 5000);
 refreshSymbols();
 
-// Phase 8q — Premium daily P&L heatmap (GitHub-contrib style)
+// Phase 8q · Premium daily P&L heatmap (GitHub-contrib style)
 async function refreshHeatmap(){
   const t0 = performance.now();
   const d = await fetchJSON("/api/daily-pnl"); if(!d) return;
@@ -876,7 +876,7 @@ async function refreshHeatmap(){
 
 function setText(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
 
-// Phase 8q — Latency tracking
+// Phase 8q · Latency tracking
 const _latencies = [];
 function recordLatency(endpoint, ms){
   _latencies.push({ endpoint, ms, t: Date.now() });
@@ -890,7 +890,7 @@ function recordLatency(endpoint, ms){
   }
 }
 
-// Phase 8q — Adaptive cadence (1s/5s during market hours, 5s/30s when closed)
+// Phase 8q · Adaptive cadence (1s/5s during market hours, 5s/30s when closed)
 let _fastInterval = null, _slowInterval = null;
 let _currentCadence = "closed";
 function applyCadence(marketOpen){
