@@ -289,12 +289,12 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 // ===== v6 -- chart subtitles + info tooltips =====
 (function(){
   const labels = {
-    "Equity Curve":     { sub: "Backtest replay · Oct 2025 → Apr 2026 · 121 days · base ₹1,50,000 (academic notional) · live capital ₹37,50,000 scales same return %", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
+    "Equity Curve":     { sub: "Backtest replay · 2026-02-25 → 2026-04-23 · 37 trading days · base ₹1,50,000 (academic notional) · live capital ₹37,50,000 scales same return %", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
     "Daily P&L":        { sub: "Per-day realised profit/loss from closed trades",                    info: "Green bar = profitable day · Red bar = losing day · No bar = no trades that day. Height = ₹ amount." },
     "Drawdown":         { sub: "How far equity fell from its running peak (risk view)",              info: "0% = at all-time high. -3.65% = worst peak-to-trough loss. Small drawdown = stable strategy." },
     "Backtest Metrics": { sub: "Risk/return stats from 121-day historical simulation",               info: "Sharpe 3.25 = excellent risk-adj return. PF 2.35 = earned ₹2.35 for every ₹1 lost. 62.5% win rate." },
     "Live Portfolio":   { sub: "Real-time Angel broker balance (paper mode = ₹0 used)",              info: "Available = deposit. Margin Used = locked for open positions. Paper mode uses zero margin." },
-    "Trade History":    { sub: "Every trade the bot has taken this session",                         info: "Empty = no signals fired yet today. Bot waits for z-score ≥ |1.5| after 40-bar warm-up (~09:55 AM)." },
+    "Trade History":    { sub: "All trades · backtest + paper · most recent first",                         info: "Empty = no signals fired yet today. Bot waits for z-score ≥ |1.5| after 40-bar warm-up (~09:55 AM)." },
     "Live Bot Log":     { sub: "Tail of the bot's runtime log (heartbeats + trades + errors)",       info: "Heartbeats every 30s = bot is alive. Errors shown in red. Toggle 'Errors only' to filter noise." },
   };
   function enhance(){
@@ -1329,5 +1329,97 @@ setTimeout(refreshTickChip, 1500);
     } catch(e) {}
   }
   setTimeout(refresh, 2000);
+  setInterval(refresh, 60000);
+})();
+
+// Phase 9.8ab Fix 6: schedule-time fallback when /api/status doesn't populate it
+(function _p98ab_schedFallback(){
+  setInterval(function(){
+    var el = document.getElementById('schedule-time');
+    if (!el) return;
+    var t = (el.textContent||'').trim();
+    if (t === '--' || t === '') {
+      var now = new Date();
+      var utc = now.getTime() + now.getTimezoneOffset()*60000;
+      var ist = new Date(utc + 5.5*3600000);
+      var next = new Date(ist);
+      next.setHours(9,14,0,0);
+      if (next.getTime() <= ist.getTime()) next.setDate(next.getDate()+1);
+      while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate()+1);
+      var pad = function(n){return n<10?'0'+n:n;};
+      el.textContent = next.toDateString().slice(0,10) + ' · ' + pad(next.getHours())+':'+pad(next.getMinutes())+' IST';
+    }
+  }, 5000);
+})();
+
+// Phase 9.8ab Fix 1: reason mix robust response parsing
+(function _p98ab_mixFix(){
+  const COLORS = { TARGET:'#10b981', STOP:'#ef4444', TIME:'#f59e0b', Z_VEL_STALL:'#8b5cf6', KILL:'#dc2626', EOD:'#3b82f6', OTHER:'#6b7280' };
+  const SYMBOLS = ['BNF','NF','FNF'];
+  function inferSymbolFromTrade(t){
+    var direct = t.symbol || t.sym || t.instrument || t.ticker;
+    if (direct) return String(direct).toUpperCase();
+    var entry = Number(t.entry || t.in || t.in_price || t.entryPrice || 0);
+    if (entry > 50000) return 'BNF';
+    if (entry > 22000 && entry < 30000) return 'NF';
+    if (entry > 18000 && entry < 28000) return 'FNF';
+    return null;
+  }
+  function flatten(d){
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.trades)) return d.trades;
+    if (d && Array.isArray(d.rows)) return d.rows;
+    if (d && typeof d === 'object'){
+      var out=[];
+      for (var k of Object.keys(d)){
+        if (Array.isArray(d[k])){
+          for (var t of d[k]) out.push(Object.assign({symbol:k}, t));
+        }
+      }
+      return out;
+    }
+    return [];
+  }
+  async function refresh(){
+    try {
+      const r = await fetch('/api/trades', { credentials:'same-origin' });
+      if (!r.ok) return;
+      const d = await r.json();
+      const trades = flatten(d);
+      const grouped = { BNF:{}, NF:{}, FNF:{} };
+      trades.forEach(t => {
+        var sym = inferSymbolFromTrade(t);
+        if (!sym || !SYMBOLS.includes(sym)) return;
+        var reasonRaw = t.reason || t.exit_reason || t.exit || 'OTHER';
+        var reason = String(reasonRaw).toUpperCase().replace(/\s+/g,'_');
+        grouped[sym][reason] = (grouped[sym][reason]||0)+1;
+      });
+      const body = document.getElementById('reason-mix-body');
+      if (!body) return;
+      var html='';
+      SYMBOLS.forEach(function(sym){
+        var counts = grouped[sym]||{};
+        var keys = Object.keys(counts);
+        var total = keys.reduce(function(a,k){return a+counts[k];},0);
+        if (total===0){
+          html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">'+sym+'</span> <span class="muted">(0 trades)</span></div><div class="rmix-bar"><div class="rmix-empty">no trades yet</div></div></div>';
+          return;
+        }
+        var sorted = keys.sort(function(a,b){return counts[b]-counts[a];});
+        var bars='', chips='';
+        sorted.forEach(function(re){
+          var c = counts[re];
+          var pct = c/total*100;
+          var color = COLORS[re]||COLORS.OTHER;
+          bars += '<div class="rmix-seg" style="width:'+pct.toFixed(2)+'%;background:'+color+'" title="'+re+': '+c+' ('+pct.toFixed(1)+'%)"></div>';
+          chips += '<span class="rmix-chip" style="--c:'+color+'">'+re+' '+c+'</span>';
+        });
+        var noun = total===1?'trade':'trades';
+        html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">'+sym+'</span> <span class="muted">('+total+' '+noun+')</span></div><div class="rmix-bar">'+bars+'</div><div class="rmix-chips">'+chips+'</div></div>';
+      });
+      body.innerHTML = html;
+    } catch(e){}
+  }
+  setTimeout(refresh, 2500);
   setInterval(refresh, 60000);
 })();

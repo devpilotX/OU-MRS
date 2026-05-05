@@ -4,9 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=26"/>
-  <link rel="stylesheet" href="/static/css/tokens.css?v=26"/>
-  <link rel="stylesheet" href="/static/css/polish.css?v=26"/>
+<link rel="stylesheet" href="/static/style.css?v=27"/>
+  <link rel="stylesheet" href="/static/css/tokens.css?v=27"/>
+  <link rel="stylesheet" href="/static/css/polish.css?v=27"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -117,7 +117,21 @@
     <div class="regime-table" id="regime-table">--</div>
   </div>
 </section>
-  <section class="panel">
+  <section class="panel" id="panel-pfm">
+        <div class="panel-header">
+          <div><h2>Risk &amp; Capital Status</h2><span class="muted">PropFirmMonitor live snapshot · updates every minute</span></div>
+          <span class="panel-badge" id="pfm-status-badge">--</span>
+        </div>
+        <div class="pfm-grid">
+          <div class="pfm-cell"><span class="pfm-lbl">Cumulative P&amp;L</span><span class="pfm-val" id="pfm-cum">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Peak Equity</span><span class="pfm-val" id="pfm-peak">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Days Traded</span><span class="pfm-val" id="pfm-days">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Best Day</span><span class="pfm-val" id="pfm-best">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Consistency</span><span class="pfm-val" id="pfm-cons">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Target Progress</span><span class="pfm-val" id="pfm-prog">--</span><div class="pfm-bar"><div class="pfm-bar-fill" id="pfm-prog-bar" style="width:0%"></div></div></div>
+        </div>
+      </section>
+      <section class="panel">
     <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">--</span></div><span class="panel-badge">BACKTEST · 121d</span></div>
     <div class="regime-legend">
             <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch TREND"></span>TREND</span>
@@ -131,7 +145,7 @@
     <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
   </section>
   <section class="grid-2">
-    <div class="panel"><div class="panel-header"><h2>Backtest Metrics</h2></div><div id="metrics-view" class="metrics-grid"></div></div>
+    <div class="panel"><div class="panel-header"><div><h2>Backtest Metrics</h2><span class="muted">24 trades · 37 days · historical only · not live</span></div><span class="panel-badge" style="background:rgba(245,158,11,.1);color:var(--amber)">BACKTEST</span></div><div id="metrics-view" class="metrics-grid"></div></div>
     <div class="panel"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
   </section>
   <section class="panel">
@@ -234,7 +248,7 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=26"></script>
+<script src="/static/app.js?v=27"></script>
     <script src="/static/sse-ticks.js"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>
