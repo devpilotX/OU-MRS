@@ -1423,3 +1423,91 @@ setTimeout(refreshTickChip, 1500);
   setTimeout(refresh, 2500);
   setInterval(refresh, 60000);
 })();
+
+// Phase 9.8ac: post-refresh fixers (defensive overrides for minified upstream code)
+(function _p98ac_finalFixers(){
+  function safeNum(v){
+    if (v == null) return 0;
+    if (typeof v === "number") return isFinite(v) ? v : 0;
+    if (typeof v === "string") return parseFloat(v) || 0;
+    if (typeof v === "object") {
+      if (v.value != null) return safeNum(v.value);
+      if (v.count != null) return safeNum(v.count);
+      if (v.days != null) return safeNum(v.days);
+      // numpy-serialized scalars sometimes look like { "0": 5 }
+      if (v["0"] != null) return safeNum(v["0"]);
+      return 0;
+    }
+    return 0;
+  }
+  function safeBool(v){
+    if (v === true || v === 1 || v === "True" || v === "true") return true;
+    if (typeof v === "object" && v !== null) {
+      if (v.value === true || v.value === "True") return true;
+    }
+    return false;
+  }
+
+  // Fix 5: Total P&L percent on Rs 37.5L live capital
+  setInterval(function(){
+    var totalEl = document.getElementById("total-pnl");
+    var pctEl = document.getElementById("pnl-pct");
+    if (!totalEl || !pctEl) return;
+    var txt = (totalEl.textContent || "").replace(/[^0-9.\-]/g, "");
+    var v = parseFloat(txt);
+    if (!isNaN(v) && v !== 0) {
+      var newTxt = (v >= 0 ? "+" : "") + (v / 3750000 * 100).toFixed(2) + "% on ₹37.5L";
+      if (pctEl.textContent !== newTxt) pctEl.textContent = newTxt;
+    }
+  }, 3000);
+
+  // Fix 7: Strategy KPI - replace verbose config dump with friendly summary
+  setInterval(function(){
+    var el = document.getElementById("strategy-detail");
+    if (!el) return;
+    var t = (el.textContent || "").trim();
+    if (t.length > 80 || t.indexOf("z_e") !== -1 || t.indexOf("max ") !== -1 || t.indexOf("HEDGE_FUND") !== -1) {
+      el.innerHTML = '<div style="font-size:11px;line-height:1.5"><div><strong>Mean Reversion</strong></div><div class="muted">z entry ±1.5 · stop ±3.5</div><div class="muted">BNF + NF · ₹37.5L · paper</div></div>';
+    }
+  }, 4000);
+
+  // PFM panel defensive: handle nested objects, numpy-serialized scalars, missing fields
+  async function refreshPfmStrong(){
+    try {
+      var r = await fetch("/api/risk", { credentials: "same-origin" });
+      if (!r.ok) return;
+      var d = await r.json();
+      if (!d) return;
+      var pnl = safeNum(d.cumulative_pnl);
+      var peak = safeNum(d.peak_equity);
+      var days = safeNum(d.days_traded);
+      var best = safeNum(d.best_day_pnl);
+      var cf = safeNum(d.consistency_frac);
+      var flag = safeBool(d.consistency_flag);
+      var prog = safeNum(d.profit_target_progress);
+      var cumEl = document.getElementById("pfm-cum");
+      if (cumEl) {
+        cumEl.textContent = (pnl >= 0 ? "+" : "") + "₹" + pnl.toLocaleString("en-IN",{maximumFractionDigits:0});
+        cumEl.className = "pfm-val " + (pnl >= 0 ? "profit" : "loss");
+      }
+      var peakEl = document.getElementById("pfm-peak");
+      if (peakEl) peakEl.textContent = "₹" + peak.toLocaleString("en-IN",{maximumFractionDigits:0});
+      var daysEl = document.getElementById("pfm-days");
+      if (daysEl) daysEl.textContent = String(days);
+      var bestEl = document.getElementById("pfm-best");
+      if (bestEl) bestEl.textContent = "₹" + best.toLocaleString("en-IN",{maximumFractionDigits:0});
+      var consEl = document.getElementById("pfm-cons");
+      if (consEl) consEl.textContent = (flag ? "✓ " : "⚠ ") + cf.toFixed(2);
+      var progEl = document.getElementById("pfm-prog");
+      var progBar = document.getElementById("pfm-prog-bar");
+      var pct = Math.max(0, Math.min(100, prog * 100));
+      if (progEl) progEl.textContent = pct.toFixed(0) + "%";
+      if (progBar) progBar.style.width = pct + "%";
+      var badge = document.getElementById("pfm-status-badge");
+      if (badge) badge.textContent = flag ? "CONSISTENT" : "REVIEW";
+    } catch(e) {}
+  }
+  setInterval(refreshPfmStrong, 30000);
+  setTimeout(refreshPfmStrong, 1500);
+  setTimeout(refreshPfmStrong, 4000);
+})();
