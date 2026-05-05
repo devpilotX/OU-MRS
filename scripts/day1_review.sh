@@ -29,7 +29,7 @@ echo ""
 echo "===== D. REGIME FILTER CONFIRMATION IN JOURNAL ====="
 # Search for signals that would have entered pre-filter but were rejected.
 # Look for explicit Phase 9.8 gate log lines if any, or count entry rejection signatures.
-sudo journalctl -u ou-mrs.service --since "09:14 today" --no-pager | tail -150 > /tmp/journal_today.txt
+sudo journalctl -u ou-mrs.service --since today --no-pager | tail -150 > /tmp/journal_today.txt
 echo "--- last 150 lines from journal (saved to /tmp/journal_today.txt) ---"
 tail -40 /tmp/journal_today.txt
 

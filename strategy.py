@@ -66,7 +66,7 @@ def estimate_ou(x: np.ndarray):
 
 
 def compute_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, n: int = 14) -> Optional[float]:
-    """ADX(n) via simple rolling means. Returns most recent ADX or None if insufficient bars."""
+    """ADX(n) via Wilder EMA smoothing. Returns most recent ADX or None if insufficient bars."""
     if len(highs) < 2 * n + 2:
         return None
     high_diff = highs[1:] - highs[:-1]
