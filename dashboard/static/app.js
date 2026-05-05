@@ -1110,3 +1110,89 @@ setTimeout(refreshTickChip, 1500);
     if (polled > 60) clearInterval(poller);
   }, 1000);
 })();
+
+// Phase 9.8y: keyboard shortcuts
+(function _p98y_keyboard(){
+  let chordMode = null;
+  let chordTimer = null;
+  function isTyping(){
+    const a = document.activeElement;
+    if (!a) return false;
+    const tag = (a.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return true;
+    if (a.isContentEditable) return true;
+    return false;
+  }
+  function flash(el){
+    if (!el) return;
+    el.classList.add("kbd-flash");
+    setTimeout(() => el.classList.remove("kbd-flash"), 1000);
+  }
+  function scrollTo(sel){
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    flash(el);
+    return true;
+  }
+  function showModal(){ const m = document.getElementById("kbd-modal"); if (m) m.hidden = false; }
+  function hideModal(){ const m = document.getElementById("kbd-modal"); if (m) m.hidden = true; }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      hideModal();
+      if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
+      chordMode = null;
+      return;
+    }
+    if (isTyping()) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (chordMode === "g") {
+      clearTimeout(chordTimer);
+      chordMode = null;
+      const targets = {
+        e: "#equity-chart-wrap",
+        r: "#panel-regime",
+        p: "#panel-pfm",
+        t: "#trades-table",
+        l: "#panel-log"
+      };
+      const sel = targets[e.key.toLowerCase()];
+      if (sel) { e.preventDefault(); scrollTo(sel); }
+      return;
+    }
+    switch (e.key) {
+      case "?":
+        e.preventDefault(); showModal(); break;
+      case "r":
+        e.preventDefault();
+        if (typeof refreshFast === "function") refreshFast();
+        if (typeof refreshSlow === "function") refreshSlow();
+        break;
+      case "t":
+        e.preventDefault();
+        const tt = document.getElementById("theme-toggle");
+        if (tt) tt.click();
+        break;
+      case "1":
+        e.preventDefault(); scrollTo("#card-BNF"); break;
+      case "2":
+        e.preventDefault(); scrollTo("#card-NF"); break;
+      case "3":
+        e.preventDefault(); scrollTo("#card-FNF"); break;
+      case "/":
+        e.preventDefault();
+        const s = document.getElementById("log-search");
+        if (s) { s.focus(); s.select(); }
+        break;
+      case "g":
+        chordMode = "g";
+        chordTimer = setTimeout(() => { chordMode = null; }, 1500);
+        break;
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains("kbd-close")) hideModal();
+    if (e.target && e.target.id === "kbd-modal") hideModal();
+  });
+  console.log("Phase 9.8y: keyboard shortcuts active. Press ? for help.");
+})();

@@ -25,3 +25,19 @@ select:focus, input:focus, button:focus, a:focus { outline: 2px solid var(--acce
 .regime-swatch.TREND { background: rgba(16,185,129,0.45); }
 .regime-swatch.RANGE { background: rgba(59,130,246,0.45); }
 .regime-swatch.CHOP  { background: rgba(245,158,11,0.45); }
+
+/* Phase 9.8y: keyboard shortcuts modal + flash */
+.kbd-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 9999; backdrop-filter: blur(8px); }
+.kbd-modal[hidden] { display: none !important; }
+.kbd-modal-inner { background: var(--bg-2, #0f1422); border: 1px solid var(--border, rgba(255,255,255,0.1)); border-radius: 14px; padding: 24px; max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.kbd-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.kbd-header h2 { font-size: 16px; font-weight: 700; margin: 0; }
+.kbd-close { background: none; border: none; color: var(--text, #e6edf3); font-size: 24px; cursor: pointer; line-height: 1; padding: 0 8px; }
+.kbd-close:hover { color: var(--accent, #6366f1); }
+.kbd-table { width: 100%; border-collapse: collapse; }
+.kbd-table td { padding: 8px 0; font-size: 13px; vertical-align: middle; }
+.kbd-table td:first-child { width: 160px; white-space: nowrap; }
+.kbd-table kbd { display: inline-block; padding: 2px 8px; background: var(--panel, rgba(255,255,255,0.04)); border: 1px solid var(--border, rgba(255,255,255,0.1)); border-bottom: 2px solid var(--border, rgba(255,255,255,0.15)); border-radius: 4px; font-family: "JetBrains Mono", monospace; font-size: 11px; margin-right: 4px; color: var(--text, #e6edf3); font-weight: 600; }
+.kbd-foot { margin-top: 16px; font-size: 11px; padding-top: 12px; border-top: 1px solid var(--border); }
+@keyframes kbd-flash-pulse { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.55); } 100% { box-shadow: 0 0 0 12px rgba(99,102,241,0); } }
+.kbd-flash { animation: kbd-flash-pulse 1s ease; }

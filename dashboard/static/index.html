@@ -4,9 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=23"/>
-  <link rel="stylesheet" href="/static/css/tokens.css?v=23"/>
-  <link rel="stylesheet" href="/static/css/polish.css?v=23"/>
+<link rel="stylesheet" href="/static/style.css?v=24"/>
+  <link rel="stylesheet" href="/static/css/tokens.css?v=24"/>
+  <link rel="stylesheet" href="/static/css/polish.css?v=24"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -225,7 +225,30 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=23"></script>
+<script src="/static/app.js?v=24"></script>
     <script src="/static/sse-ticks.js"></script>
+
+    <div class="kbd-modal" id="kbd-modal" hidden>
+      <div class="kbd-modal-inner">
+        <div class="kbd-header">
+          <h2>Keyboard shortcuts</h2>
+          <button class="kbd-close" type="button" aria-label="Close">×</button>
+        </div>
+        <table class="kbd-table">
+          <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+          <tr><td><kbd>r</kbd></td><td>Refresh dashboard now</td></tr>
+          <tr><td><kbd>t</kbd></td><td>Toggle theme (dark/light)</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / FNF symbol card</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Focus log search box</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>e</kbd></td><td>Go to Equity Curve</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>r</kbd></td><td>Go to Market Regime</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>p</kbd></td><td>Go to PFM Risk</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>t</kbd></td><td>Go to Trade History</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>l</kbd></td><td>Go to Live Bot Log</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close modal / unfocus</td></tr>
+        </table>
+        <div class="kbd-foot muted">Shortcuts ignored when typing in inputs · Press <kbd>?</kbd> any time</div>
+      </div>
+    </div>
   </body>
 </html>
