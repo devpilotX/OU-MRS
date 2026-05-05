@@ -1013,3 +1013,37 @@ setInterval(refreshPfm, 60000);
 setInterval(refreshTickChip, 5000);
 setTimeout(refreshPfm, 1500);
 setTimeout(refreshTickChip, 1500);
+
+// Phase 9.8w: latency monitor - wraps fetch to measure RTT, p50 over 20 samples
+(function _p98w_latency(){
+  const samples = [];
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function(...args){
+    const t0 = performance.now();
+    return _origFetch(...args).then(r => {
+      const dt = performance.now() - t0;
+      samples.push(dt);
+      if (samples.length > 20) samples.shift();
+      return r;
+    }).catch(e => {
+      samples.push(2000);
+      if (samples.length > 20) samples.shift();
+      throw e;
+    });
+  };
+  function p50(arr){
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a,b) => a-b);
+    return s[Math.floor(s.length/2)];
+  }
+  function update(){
+    const chip = document.getElementById("latency-chip");
+    if (!chip || !samples.length) return;
+    const v = Math.round(p50(samples));
+    chip.textContent = v + "ms";
+    chip.className = "chip " + (v < 200 ? "ok" : v < 500 ? "warn" : "err");
+    chip.title = "p50 round-trip over last " + samples.length + " API calls";
+  }
+  setInterval(update, 2000);
+  setTimeout(update, 2500);
+})();
