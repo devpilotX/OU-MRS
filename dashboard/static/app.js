@@ -1047,3 +1047,66 @@ setTimeout(refreshTickChip, 1500);
   setInterval(update, 2000);
   setTimeout(update, 2500);
 })();
+
+// Phase 9.8x: regime overlay plugin for equity chart
+(function _p98x_regimeOverlay(){
+  if (typeof Chart === 'undefined') return;
+  let regimeRows = null;
+  const colors = {
+    TREND:   'rgba(16,185,129,0.10)',
+    RANGE:   'rgba(59,130,246,0.10)',
+    CHOP:    'rgba(245,158,11,0.10)',
+    UNKNOWN: 'rgba(139,148,168,0.04)'
+  };
+  async function fetchRegime(){
+    try {
+      const r = await fetch('/api/regime/timeseries', { credentials:'same-origin' });
+      if (!r.ok) return;
+      const d = await r.json();
+      regimeRows = (d && d.rows) || [];
+      const inst = Chart.getChart && Chart.getChart('equity-chart');
+      if (inst) inst.update('none');
+    } catch(e) {}
+  }
+  function buildIndex(){
+    const idx = {};
+    if (!regimeRows) return idx;
+    for (const r of regimeRows) idx[r.date] = r.regime;
+    return idx;
+  }
+  const plugin = {
+    id: 'regimeOverlay',
+    beforeDatasetsDraw(chart){
+      if (!chart.canvas || chart.canvas.id !== 'equity-chart') return;
+      if (!regimeRows || !regimeRows.length) return;
+      const idx = buildIndex();
+      const labels = chart.data.labels || [];
+      const ctx = chart.ctx;
+      const area = chart.chartArea;
+      const xScale = chart.scales.x;
+      ctx.save();
+      labels.forEach((label, i) => {
+        const lblStr = String(label).slice(0,10);
+        const regime = idx[lblStr];
+        if (!regime) return;
+        const x0 = xScale.getPixelForValue(i);
+        const x1 = i + 1 < labels.length ? xScale.getPixelForValue(i+1) : area.right;
+        ctx.fillStyle = colors[regime] || colors.UNKNOWN;
+        ctx.fillRect(x0, area.top, Math.max(1, x1 - x0), area.bottom - area.top);
+      });
+      ctx.restore();
+    }
+  };
+  Chart.register(plugin);
+  // wait for equity chart to exist, then refresh
+  let polled = 0;
+  const poller = setInterval(() => {
+    polled++;
+    const inst = Chart.getChart && Chart.getChart('equity-chart');
+    if (inst) {
+      clearInterval(poller);
+      fetchRegime();
+    }
+    if (polled > 60) clearInterval(poller);
+  }, 1000);
+})();

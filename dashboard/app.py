@@ -596,6 +596,53 @@ def api_regime():
     except Exception: pass
     return {'regimes': regimes, 'current': current, 'current_adx': current_adx}
 
+
+@app.get('/api/regime/timeseries', dependencies=[Depends(need_auth)])
+def api_regime_timeseries():
+    # Phase 9.8x: per-day regime classification for equity curve overlay
+    import sys, json as _json
+    cache_path = BOT_DIR / 'bt_out' / 'regime_timeseries.json'
+    parquet_path = BOT_DIR / 'data' / 'BANKNIFTY_FUT_1min.parquet'
+    if not parquet_path.exists():
+        return {'rows': []}
+    if cache_path.exists():
+        try:
+            if cache_path.stat().st_mtime >= parquet_path.stat().st_mtime:
+                return _json.loads(cache_path.read_text())
+        except Exception:
+            pass
+    try:
+        sys.path.insert(0, str(BOT_DIR))
+        from regime import classify_regime, wilder_adx
+        import pandas as pd
+        df = pd.read_parquet(parquet_path)
+        for col in ['date', 'datetime', 'timestamp', 'time']:
+            if col in df.columns:
+                df = df.set_index(col)
+                break
+        try:
+            df.index = pd.to_datetime(df.index)
+        except Exception:
+            pass
+        regime_series = classify_regime(df)
+        adx_series = wilder_adx(df)['adx']
+        df_agg = pd.DataFrame({'regime': regime_series, 'adx': adx_series}, index=df.index)
+        if isinstance(df_agg.index, pd.DatetimeIndex):
+            daily = df_agg.groupby(df_agg.index.date).agg({'regime':'last', 'adx':'last'})
+        else:
+            return {'rows': [], 'error': 'index not datetime'}
+        rows = []
+        for d, r in daily.iterrows():
+            rg = str(r['regime']) if r['regime'] is not None else 'UNKNOWN'
+            ax = float(r['adx']) if r['adx'] == r['adx'] else None
+            rows.append({'date': str(d), 'regime': rg, 'adx': round(ax,2) if ax is not None else None})
+        out = {'rows': rows}
+        try: cache_path.write_text(_json.dumps(out))
+        except Exception: pass
+        return out
+    except Exception as e:
+        return {'rows': [], 'error': str(e)}
+
 @app.get("/api/signals.json")
 def api_signals_json(token: str = ""):
     expected = os.environ.get("SIGNAL_API_TOKEN", "")
