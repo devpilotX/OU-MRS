@@ -60,6 +60,11 @@ DAILY_LOSS    = _POLICY["daily_loss_cap_pct"]  # 8p.2: tier-aware
 SESSION_START = dtime(9, 30)
 SESSION_END   = dtime(14, 45)
 SQUAREOFF     = dtime(15, 15)
+# Phase 9.8i: per-symbol candle cache (incremental fetch, eliminates rate-limit bleed)
+import pandas as _pd_p98i
+from datetime import timedelta as _td_p98i
+_candle_cache_p98i = {}  # {sym: pd.DataFrame}
+
 PARAMS        = Params()
 try:
     PARAMS.z_entry = _POLICY["z_entry"]  # 8p.2: tier-aware
@@ -317,12 +322,28 @@ def main():
                 session_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
                 if now < session_open:
                     continue
-                rows = broker.get_candles(session_open, now, "ONE_MINUTE")
+                # Phase 9.8i: incremental fetch with 2-min overlap
+                _cached = _candle_cache_p98i.get(sym)
+                if _cached is None or _cached.empty:
+                    _fetch_start = session_open
+                else:
+                    _fetch_start = _cached.index[-1] - _td_p98i(minutes=2)
+                rows = broker.get_candles(_fetch_start, now, "ONE_MINUTE")
                 if not rows:
-                    continue
-                df = pd.DataFrame(rows, columns=["ts","open","high","low","close","volume"])
-                df["ts"] = pd.to_datetime(df["ts"])
-                df = df.set_index("ts")
+                    if _cached is not None and not _cached.empty:
+                        df = _cached  # use cache when fetch fails
+                    else:
+                        continue
+                else:
+                    _new_df = pd.DataFrame(rows, columns=["ts","open","high","low","close","volume"])
+                    _new_df["ts"] = pd.to_datetime(_new_df["ts"])
+                    _new_df = _new_df.set_index("ts")
+                    if _cached is not None and not _cached.empty:
+                        df = pd.concat([_cached, _new_df])
+                        df = df[~df.index.duplicated(keep="last")].sort_index()
+                    else:
+                        df = _new_df.sort_index()
+                    _candle_cache_p98i[sym] = df.tail(500)
                 bar = df.iloc[-1]
                 sig = compute_signal(df, PARAMS)
 
