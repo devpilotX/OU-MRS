@@ -49,3 +49,16 @@ select:focus, input:focus, button:focus, a:focus { outline: 2px solid var(--acce
 .empty-state .empty-text { font-size: 13px; font-weight: 500; letter-spacing: 0.2px; }
 .empty-state .empty-sub { font-size: 11px; opacity: 0.7; font-family: "JetBrains Mono", monospace; }
 #log-view.is-empty { color: var(--muted); font-style: italic; }
+
+/* Phase 9.8aa: trade exit reason mix */
+.rmix-body { display: flex; flex-direction: column; gap: 18px; padding: 4px 0; }
+.rmix-row { display: flex; flex-direction: column; gap: 6px; }
+.rmix-header { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.rmix-sym { font-family: "JetBrains Mono", monospace; font-weight: 800; letter-spacing: 0.5px; color: var(--text); }
+.rmix-bar { height: 22px; border-radius: 6px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--border); display: flex; }
+.rmix-seg { height: 100%; transition: opacity .15s; cursor: help; }
+.rmix-seg:hover { opacity: 0.78; }
+.rmix-empty { width: 100%; display: grid; place-items: center; color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; }
+.rmix-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rmix-chip { font-family: "JetBrains Mono", monospace; font-size: 10px; padding: 3px 9px; border-radius: 4px; background: rgba(0,0,0,0.18); color: var(--c, #fff); border: 1px solid var(--c, var(--border)); font-weight: 600; letter-spacing: 0.3px; }
+[data-theme="light"] .rmix-chip { background: rgba(255,255,255,0.6); }

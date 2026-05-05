@@ -1267,3 +1267,67 @@ setTimeout(refreshTickChip, 1500);
   setTimeout(tick, 1500);
   setInterval(tick, 10000);
 })();
+
+// Phase 9.8aa: trade exit reason mix
+(function _p98aa_reasonMix(){
+  const COLORS = {
+    TARGET: "#10b981",
+    STOP: "#ef4444",
+    TIME: "#f59e0b",
+    Z_VEL_STALL: "#8b5cf6",
+    KILL: "#dc2626",
+    EOD: "#3b82f6",
+    OTHER: "#6b7280"
+  };
+  const SYMBOLS = ["BNF", "NF", "FNF"];
+  function pickField(t, names){
+    for (const n of names) {
+      if (t[n] != null && t[n] !== "") return t[n];
+    }
+    return null;
+  }
+  async function refresh(){
+    try {
+      const r = await fetch("/api/trades", { credentials: "same-origin" });
+      if (!r.ok) return;
+      const d = await r.json();
+      const trades = Array.isArray(d) ? d : (d.trades || d.rows || []);
+      const grouped = {};
+      SYMBOLS.forEach(s => grouped[s] = {});
+      trades.forEach(t => {
+        const symRaw = pickField(t, ["symbol", "sym", "instrument"]) || "";
+        const sym = String(symRaw).toUpperCase();
+        if (!SYMBOLS.includes(sym)) return;
+        const reasonRaw = pickField(t, ["reason", "exit_reason", "exit"]) || "OTHER";
+        const reason = String(reasonRaw).toUpperCase().replace(/\s+/g, "_");
+        grouped[sym][reason] = (grouped[sym][reason] || 0) + 1;
+      });
+      const body = document.getElementById("reason-mix-body");
+      if (!body) return;
+      let html = "";
+      SYMBOLS.forEach(sym => {
+        const counts = grouped[sym] || {};
+        const reasonKeys = Object.keys(counts);
+        const total = reasonKeys.reduce((a, k) => a + counts[k], 0);
+        if (total === 0) {
+          html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">' + sym + '</span> <span class="muted">(0 trades)</span></div><div class="rmix-bar"><div class="rmix-empty">no trades yet</div></div></div>';
+          return;
+        }
+        const sorted = reasonKeys.sort((a,b) => counts[b] - counts[a]);
+        let bars = "", chips = "";
+        sorted.forEach(re => {
+          const c = counts[re];
+          const pct = (c / total * 100);
+          const color = COLORS[re] || COLORS.OTHER;
+          bars += '<div class="rmix-seg" style="width:' + pct.toFixed(2) + '%;background:' + color + '" title="' + re + ': ' + c + ' (' + pct.toFixed(1) + '%)"></div>';
+          chips += '<span class="rmix-chip" style="--c:' + color + '">' + re + ' ' + c + '</span>';
+        });
+        const noun = total === 1 ? "trade" : "trades";
+        html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">' + sym + '</span> <span class="muted">(' + total + ' ' + noun + ')</span></div><div class="rmix-bar">' + bars + '</div><div class="rmix-chips">' + chips + '</div></div>';
+      });
+      body.innerHTML = html;
+    } catch(e) {}
+  }
+  setTimeout(refresh, 2000);
+  setInterval(refresh, 60000);
+})();
