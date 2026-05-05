@@ -4,7 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=19"/>
+<link rel="stylesheet" href="/static/style.css?v=21"/>
+  <link rel="stylesheet" href="/static/css/tokens.css?v=21"/>
+  <link rel="stylesheet" href="/static/css/polish.css?v=21"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -20,7 +22,9 @@
     <span id="market-chip" class="chip">Market: --</span>
     <span id="mode-chip" class="chip">Mode: --</span>
     <span id="health-chip" class="chip">-- · -- · --</span>
-    <span id="latency-chip" class="chip">--</span>
+    <span id="tick-chip" class="chip tick-stale">Ticks: --</span>
+        <span id="pfm-chip" class="chip">PFM: --</span>
+        <span id="latency-chip" class="chip">--</span>
     <button id="theme-toggle" class="btn-icon">☀️</button>
     <a href="/logout" class="btn-logout">Logout</a>
   </div>
@@ -102,7 +106,7 @@
   
 <section class="panel" id="panel-regime">
   <div class="panel-header">
-    <div><h2>Market Regime</h2><span class="muted">Where the edge actually lives - ADX-14 split TREND / RANGE / CHOP</span></div>
+    <div><h2>Market Regime</h2><span class="muted">Where the edge actually lives · ADX-14 split TREND / RANGE / CHOP</span></div>
     <div class="ec-meta">
       <span class="panel-badge" id="regime-current">--</span>
       <span class="panel-badge info" id="regime-adx">ADX --</span>
@@ -216,7 +220,7 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=19"></script>
+<script src="/static/app.js?v=21"></script>
     <script src="/static/sse-ticks.js"></script>
   </body>
 </html>

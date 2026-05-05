@@ -1,0 +1,19 @@
+/* OU-MRS Dashboard polish v1 - Phase 9.8v */
+@keyframes ou-shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+.is-loading .kpi-value, .is-loading .kpi-sub { background: linear-gradient(90deg, var(--panel) 25%, var(--panel-hov) 50%, var(--panel) 75%); background-size: 200% 100%; animation: ou-shimmer 1.4s linear infinite; color: transparent !important; border-radius: 4px; }
+.kpi-value, .sc-ltp, .ltp-val { transition: color .3s ease; }
+.chip.pfm-ok { color: #10b981; border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.08); }
+.chip.pfm-soft { color: #f59e0b; border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.08); }
+.chip.pfm-hard { color: #ef4444; border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.08); animation: pulse 2s infinite; }
+.chip.tick-live { color: #06b6d4; border-color: rgba(6,182,212,.3); background: rgba(6,182,212,.08); }
+.chip.tick-stale { color: #8b94a8; border-color: rgba(139,148,168,.3); background: rgba(139,148,168,.06); }
+.pfm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 4px 0; }
+.pfm-cell { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.pfm-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.pfm-val { font-size: 18px; font-weight: 700; font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+.pfm-val.profit { color: var(--green); }
+.pfm-val.loss { color: var(--red); }
+.pfm-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.pfm-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .6s ease; }
+select:focus, input:focus, button:focus, a:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media print { .topbar, footer, #panel-log, .panel-actions { display: none !important; } body { background: white !important; color: black !important; } }

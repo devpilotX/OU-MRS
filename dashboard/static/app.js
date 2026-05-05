@@ -960,3 +960,56 @@ async function refreshRegime(){
 }
 setTimeout(function(){ try { refreshRegime(); } catch(e){} }, 1100);
 setInterval(function(){ try { refreshRegime(); } catch(e){} }, 30000);
+
+// Phase 9.8v: PFM panel + tick chip live updaters
+async function refreshPfm(){
+  try {
+    const r = await fetch("/api/risk", { credentials: "same-origin" });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || d.cumulative_pnl == null) return;
+    const pnl = Number(d.cumulative_pnl);
+    const peak = Number(d.peak_equity || 0);
+    const cumEl = document.getElementById("pfm-cum");
+    if (cumEl) { cumEl.textContent = (pnl >= 0 ? "+" : "") + "₹" + pnl.toLocaleString("en-IN",{maximumFractionDigits:0}); cumEl.className = "pfm-val " + (pnl >= 0 ? "profit" : "loss"); }
+    const peakEl = document.getElementById("pfm-peak");
+    if (peakEl) peakEl.textContent = "₹" + peak.toLocaleString("en-IN",{maximumFractionDigits:0});
+    const daysEl = document.getElementById("pfm-days");
+    if (daysEl) daysEl.textContent = String(d.days_traded || 0);
+    const bestEl = document.getElementById("pfm-best");
+    if (bestEl) bestEl.textContent = "₹" + Number(d.best_day_pnl || 0).toLocaleString("en-IN",{maximumFractionDigits:0});
+    const consEl = document.getElementById("pfm-cons");
+    if (consEl) consEl.textContent = (d.consistency_flag ? "✓ " : "⚠ ") + Number(d.consistency_frac || 0).toFixed(2);
+    const progEl = document.getElementById("pfm-prog");
+    const progBar = document.getElementById("pfm-prog-bar");
+    const pct = Math.max(0, Math.min(100, Number(d.profit_target_progress || 0) * 100));
+    if (progEl) progEl.textContent = pct.toFixed(0) + "%";
+    if (progBar) progBar.style.width = pct + "%";
+    const chip = document.getElementById("pfm-chip");
+    if (chip) { const s = d.consistency_flag ? "pfm-ok" : "pfm-soft"; chip.className = "chip " + s; chip.textContent = "PFM: " + (d.consistency_flag ? "OK" : "WARN"); }
+    const badge = document.getElementById("pfm-status-badge");
+    if (badge) badge.textContent = d.consistency_flag ? "CONSISTENT" : "REVIEW";
+  } catch(e) {}
+}
+
+async function refreshTickChip(){
+  try {
+    const r = await fetch("/api/ticks/stats", { credentials: "same-origin" });
+    if (!r.ok) return;
+    const d = await r.json();
+    const chip = document.getElementById("tick-chip");
+    if (!chip) return;
+    if (d && d.subscribers != null && d.subscribers > 0) {
+      chip.className = "chip tick-live";
+      chip.textContent = "Ticks: " + (d.last_tick_age_sec != null ? Math.round(d.last_tick_age_sec) + "s" : "live");
+    } else {
+      chip.className = "chip tick-stale";
+      chip.textContent = "Ticks: idle";
+    }
+  } catch(e) {}
+}
+
+setInterval(refreshPfm, 60000);
+setInterval(refreshTickChip, 5000);
+setTimeout(refreshPfm, 1500);
+setTimeout(refreshTickChip, 1500);
