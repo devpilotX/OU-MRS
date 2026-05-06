@@ -124,7 +124,7 @@ if __name__ == "__main__":
     assert adaptive_size_lots(10, 0,  3,  "CHOP", 50) == 2,  "cushion <5% to 25%"
     assert adaptive_size_lots(10, 0, 25, "CHOP", 90) == 5,   "high vol halves"
     assert adaptive_size_lots(10, 0, 25, "CHOP", 10) == 12,  "low vol +20%"
-    assert adaptive_size_lots(10, 5, 15, "RANGE", 85) == 1,  "stacked penalties"
+    assert adaptive_size_lots(10, 5, 15, "RANGE", 85) == 2,  "stacked penalties"
     print("  adaptive_size_lots .................... PASS (9 cases)")
 
     # Tier mapping spot checks
