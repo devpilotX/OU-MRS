@@ -35,7 +35,7 @@ DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
 # Phase 9.8: optional regime allow-list (e.g. BT_REGIME_FILTER=CHOP or CHOP,RANGE)
-_bt_rf_p98 = os.environ.get("BT_REGIME_FILTER", "").strip()
+_bt_rf_p98 = os.environ.get("BT_REGIME_FILTER", "CHOP,RANGE").strip()
 _regime_allow_p98 = tuple(r.strip().upper() for r in _bt_rf_p98.split(",") if r.strip()) if _bt_rf_p98 else ()
 PARAMS = Params(
     adx_threshold=float(os.environ.get("BT_ADX", 30.0)),
