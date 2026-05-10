@@ -64,12 +64,13 @@ def test_bootstrap_per_regime_handles_missing_column(tmp_path):
     assert "note" in out
 
 
-def test_psr_at_zero_threshold_around_half_for_zero_mean_series():
+def test_psr_at_zero_threshold_for_balanced_series():
+    """Deterministic: symmetric series with exactly zero mean -> PSR(0) ~ 0.5."""
     from validation.bootstrap import probabilistic_sharpe_ratio
-    rng = np.random.default_rng(101)
-    r = rng.normal(loc=0.0, scale=1.0, size=200)
+    r = np.array([1.0, -1.0, 2.0, -2.0, 0.5, -0.5, 1.5, -1.5] * 5, dtype=np.float64)
     out = probabilistic_sharpe_ratio(r, 0.0)
-    assert 0.30 <= out["psr"] <= 0.70  # close to coin-flip for zero-mean
+    # mean is exactly 0 so SR is exactly 0; PSR(0) = Phi(0) = 0.5 exactly
+    assert 0.49 <= out["psr"] <= 0.51
 
 
 def test_psr_high_for_strong_positive_series():
