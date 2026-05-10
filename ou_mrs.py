@@ -12,6 +12,8 @@ from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
 import signal_publisher  # Phase 8f.5
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
 from cost_model import compute_rt_cost  # Phase A1
+from pathlib import Path as _A3P  # Phase A3 (idempotent alias)
+TRADES_PATH = _A3P(__file__).resolve().parent / "trades.jsonl"  # Phase A3: CWD-independent
 
 load_dotenv()
 logging.basicConfig(
@@ -135,7 +137,7 @@ def _exit(broker, pos, bar, reason, symbol="BNF", lot_size=15):
     cost = compute_rt_cost(pos["entry_px"], float(bar["close"]), lot_size, pos["qty"], side=pos["side"])
     pnl = gross - cost  # Phase A1
     log.info(f"EXIT ({reason}) @ {bar['close']:.2f} pnl=Rs{pnl:.0f}")
-    with open("trades.jsonl", "a") as f:
+    with open(TRADES_PATH, "a") as f:
         f.write(json.dumps({
             "entry_ts": str(pos["entry_ts"]),
             "exit_ts": str(bar.name),

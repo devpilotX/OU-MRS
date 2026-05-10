@@ -5,7 +5,8 @@ import csv, json, subprocess, sys
 from pathlib import Path
 import numpy as np
 
-OUT_DIR = Path("bt_out")
+_HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
+OUT_DIR = _HERE / "bt_out"
 CAPITAL = 150_000
 N_SIMS  = 10_000
 RNG     = np.random.default_rng(42)
@@ -19,7 +20,7 @@ def find_trades():
     for p in candidates:
         if p.exists() and p.stat().st_size > 0:
             return p
-    p = Path("trades.jsonl")
+    p = (_HERE / "trades.jsonl")
     if p.exists() and p.stat().st_size > 0:
         print(f"WARNING: using live-bot file {p} (may mix paper + backtest)")
         return p
@@ -72,7 +73,7 @@ def main():
     if path is None:
         print("\nERROR: No trades file found. Checked:")
         for p in [OUT_DIR/"trades.jsonl", OUT_DIR/"trades.json",
-                  OUT_DIR/"trades.csv", Path("trades.jsonl")]:
+                  OUT_DIR/"trades.csv", (_HERE / "trades.jsonl")]:
             print(f"  - {p}: {'exists' if p.exists() else 'missing'}")
         print("\nNext: share the diagnostic output above and we'll patch backtest.py to export trades.")
         sys.exit(2)
