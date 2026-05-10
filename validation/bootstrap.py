@@ -319,3 +319,61 @@ def compute_b0c_report(equity_csv: Path, trades_csv: Path) -> dict:
                 "dsr_N10": deflated_sharpe_ratio(r, n_trials=10, ann_factor=1),
             }
     return out
+
+
+# -----------------------------------------------------------------------------
+# Phase B-0e: IID validation diagnostics
+# Ljung-Box autocorrelation test + Augmented Dickey-Fuller stationarity
+# -----------------------------------------------------------------------------
+
+def ljung_box_test(returns, lags: int = 10) -> dict:
+    """Ljung-Box Q test for autocorrelation. H0: IID. p<0.05 -> autocorrelated."""
+    from statsmodels.stats.diagnostic import acorr_ljungbox
+    r = np.asarray(returns, dtype=np.float64)
+    r = r[~np.isnan(r)]
+    if len(r) < lags + 5:
+        return {"T": int(len(r)), "lags": int(lags), "Q": float("nan"),
+                "p_value": float("nan"), "verdict": "insufficient_sample"}
+    res = acorr_ljungbox(r, lags=[lags], return_df=True)
+    Q = float(res["lb_stat"].iloc[0])
+    p = float(res["lb_pvalue"].iloc[0])
+    verdict = "IID_rejected_autocorrelated" if p < 0.05 else "IID_cannot_reject"
+    return {"T": int(len(r)), "lags": int(lags), "Q": Q, "p_value": p, "verdict": verdict}
+
+
+def adf_test(returns) -> dict:
+    """Augmented Dickey-Fuller. H0: unit root. p<0.05 -> stationary."""
+    from statsmodels.tsa.stattools import adfuller
+    r = np.asarray(returns, dtype=np.float64)
+    r = r[~np.isnan(r)]
+    if len(r) < 10:
+        return {"T": int(len(r)), "stat": float("nan"), "p_value": float("nan"),
+                "verdict": "insufficient_sample"}
+    stat, pval, _, _, crit, _ = adfuller(r, autolag="AIC")
+    verdict = "stationary" if pval < 0.05 else "non_stationary_cannot_reject_unit_root"
+    return {"T": int(len(r)), "stat": float(stat), "p_value": float(pval),
+            "crit_5pct": float(crit["5%"]), "verdict": verdict}
+
+
+def compute_b0e_report(equity_csv: str = "bt_out/equity.csv",
+                       trades_csv: str = "bt_out/trades.csv") -> dict:
+    """Run Ljung-Box + ADF on equity daily returns and trade pnl series."""
+    import pandas as pd
+    eq = pd.read_csv(equity_csv)
+    tr = pd.read_csv(trades_csv)
+    eq_col = _detect_col(eq, ["pnl_day", "ret", "return", "daily_return"])
+    eq_r = eq[eq_col].values if eq_col else eq.iloc[:, 1].values
+    return {
+        "equity_daily": {
+            "T": int(len(eq_r)),
+            "ljung_box_lag5": ljung_box_test(eq_r, lags=5),
+            "ljung_box_lag10": ljung_box_test(eq_r, lags=10),
+            "adf": adf_test(eq_r),
+        },
+        "trade_pnl": {
+            "T": int(len(tr)),
+            "ljung_box_lag5": ljung_box_test(tr["pnl"].values, lags=5),
+            "ljung_box_lag10": ljung_box_test(tr["pnl"].values, lags=10),
+            "adf": adf_test(tr["pnl"].values),
+        },
+    }

@@ -1,0 +1,50 @@
+{
+  "equity_daily": {
+    "T": 37,
+    "ljung_box_lag5": {
+      "T": 37,
+      "lags": 5,
+      "Q": 1.7910310835431422,
+      "p_value": 0.8772376864147654,
+      "verdict": "IID_cannot_reject"
+    },
+    "ljung_box_lag10": {
+      "T": 37,
+      "lags": 10,
+      "Q": 11.767142360581698,
+      "p_value": 0.3009430968224671,
+      "verdict": "IID_cannot_reject"
+    },
+    "adf": {
+      "T": 37,
+      "stat": -5.356474712303505,
+      "p_value": 4.178188269645503e-06,
+      "crit_5pct": -2.9459512825788754,
+      "verdict": "stationary"
+    }
+  },
+  "trade_pnl": {
+    "T": 24,
+    "ljung_box_lag5": {
+      "T": 24,
+      "lags": 5,
+      "Q": 8.405165610850688,
+      "p_value": 0.13527465165131972,
+      "verdict": "IID_cannot_reject"
+    },
+    "ljung_box_lag10": {
+      "T": 24,
+      "lags": 10,
+      "Q": 16.024185615018936,
+      "p_value": 0.09894214950600944,
+      "verdict": "IID_cannot_reject"
+    },
+    "adf": {
+      "T": 24,
+      "stat": -3.152343832664826,
+      "p_value": 0.02291430340090957,
+      "crit_5pct": -3.0420456927297668,
+      "verdict": "stationary"
+    }
+  }
+}

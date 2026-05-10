@@ -96,3 +96,30 @@ def test_dsr_below_psr_at_zero_threshold():
     psr = probabilistic_sharpe_ratio(r, 0.0)["psr"]
     dsr = deflated_sharpe_ratio(r, n_trials=20)["dsr"]
     assert dsr <= psr  # DSR is always more conservative than PSR-at-zero
+
+
+def test_ljung_box_white_noise_does_not_reject_iid():
+    from validation.bootstrap import ljung_box_test
+    rng = np.random.default_rng(seed=2026)
+    r = rng.normal(size=200)
+    out = ljung_box_test(r, lags=10)
+    assert out["p_value"] > 0.05
+
+
+def test_ljung_box_ar1_rejects_iid():
+    from validation.bootstrap import ljung_box_test
+    rng = np.random.default_rng(seed=2026)
+    e = rng.normal(size=300)
+    r = np.zeros_like(e)
+    for i in range(1, len(e)):
+        r[i] = 0.7 * r[i - 1] + e[i]
+    out = ljung_box_test(r, lags=10)
+    assert out["p_value"] < 0.05
+
+
+def test_adf_white_noise_is_stationary():
+    from validation.bootstrap import adf_test
+    rng = np.random.default_rng(seed=2026)
+    r = rng.normal(size=200)
+    out = adf_test(r)
+    assert out["p_value"] < 0.05
