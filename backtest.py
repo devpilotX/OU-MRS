@@ -165,7 +165,7 @@ def run():
                 "entry_px": entry_px, "entry_ts": next_bar_ts,
                 "half_life": sig.half_life, "atr": sig.atr,
                 "bars_held": 0,
-                "regime": str(regime_series.get(next_bar_ts, "UNKNOWN")),
+                "regime": str(regime_series.shift(1).get(next_bar_ts, "UNKNOWN")),  # B-0d.1: signal bar (filter-eval), not entry bar
                 "z_history": [sig.z],  # Phase 9.5: z_history seed
             }
             trades_today += 1
