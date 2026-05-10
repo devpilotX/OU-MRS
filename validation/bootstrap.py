@@ -193,3 +193,129 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# -----------------------------------------------------------------------------
+# Phase B-0c: Bailey-Lopez de Prado PSR / DSR
+# Reference: Bailey & Lopez de Prado (2012) "The Sharpe Ratio Efficient Frontier"
+# Reference: Bailey & Lopez de Prado (2014) "The Deflated Sharpe Ratio"
+# -----------------------------------------------------------------------------
+
+_GAMMA_EM = 0.5772156649015329  # Euler-Mascheroni
+
+
+def probabilistic_sharpe_ratio(
+    returns: np.ndarray,
+    sr_threshold_periodic: float = 0.0,
+) -> dict:
+    """Bailey-LdP PSR. P(true periodic SR > threshold | observed series).
+
+    Uses skewness/kurtosis-corrected variance of the SR estimator.
+    Caller annualizes the periodic SR for display.
+    """
+    from scipy.stats import norm
+    r = np.asarray(returns, dtype=np.float64)
+    T = int(len(r))
+    if T < 4:
+        raise ValueError(f"PSR needs T>=4, got {T}")
+    mu = float(r.mean())
+    sigma = float(r.std(ddof=1))
+    if sigma <= 1e-12:
+        return {"T": T, "sr_periodic": 0.0, "psr": float("nan"),
+                "skewness": 0.0, "kurtosis_raw": 3.0,
+                "note": "zero std"}
+    sr = mu / sigma  # periodic SR
+    centered = r - mu
+    m3 = float((centered**3).mean())
+    m4 = float((centered**4).mean())
+    gamma3 = m3 / sigma**3
+    gamma4_raw = m4 / sigma**4   # raw kurtosis: 3 for Gaussian
+    var_sr = (1.0 - gamma3 * sr + ((gamma4_raw - 1.0) / 4.0) * sr**2) / (T - 1)
+    if var_sr <= 0:
+        return {"T": T, "sr_periodic": float(sr), "psr": float("nan"),
+                "skewness": float(gamma3), "kurtosis_raw": float(gamma4_raw),
+                "note": "non-positive var_sr (heavy negative skew + high SR)"}
+    z = (sr - sr_threshold_periodic) / np.sqrt(var_sr)
+    return {
+        "T": T,
+        "sr_periodic": float(sr),
+        "sr_threshold_periodic": float(sr_threshold_periodic),
+        "skewness": float(gamma3),
+        "kurtosis_raw": float(gamma4_raw),
+        "var_sr_periodic": float(var_sr),
+        "z_stat": float(z),
+        "psr": float(norm.cdf(z)),
+    }
+
+
+def expected_max_sr_periodic(n_trials: int, T: int) -> float:
+    """E[max{SR_n}] under null SR=0, n_trials independent trials, T returns each."""
+    from scipy.stats import norm
+    if n_trials < 2 or T < 2:
+        return 0.0
+    var_null = 1.0 / (T - 1)
+    z1 = float(norm.ppf(1.0 - 1.0 / n_trials))
+    z2 = float(norm.ppf(1.0 - 1.0 / (n_trials * np.e)))
+    return float(np.sqrt(var_null) * ((1.0 - _GAMMA_EM) * z1 + _GAMMA_EM * z2))
+
+
+def deflated_sharpe_ratio(
+    returns: np.ndarray,
+    n_trials: int,
+    ann_factor: int = 252,
+) -> dict:
+    """DSR = PSR with threshold set to E[max{SR_n}] under null. Selection-bias corrected."""
+    T = int(len(returns))
+    sr_max_per = expected_max_sr_periodic(n_trials, T)
+    out = probabilistic_sharpe_ratio(returns, sr_threshold_periodic=sr_max_per)
+    out["n_trials"] = int(n_trials)
+    out["sr_max_periodic_under_null"] = float(sr_max_per)
+    out["sr_max_annualized_under_null"] = float(sr_max_per * np.sqrt(ann_factor))
+    out["sr_observed_annualized"] = float(out["sr_periodic"] * np.sqrt(ann_factor))
+    out["dsr"] = out.pop("psr")
+    out["ann_factor"] = int(ann_factor)
+    return out
+
+
+def compute_b0c_report(equity_csv: Path, trades_csv: Path) -> dict:
+    """Apply PSR + DSR(N=10,20) to (a) equity daily, (b) trade-level full, (c) per-regime."""
+    df_eq = pd.read_csv(equity_csv)
+    ts_col = _detect_col(df_eq.columns, ["ts", "timestamp", "date", "datetime", "time"])
+    eq_col = _detect_col(df_eq.columns, ["equity", "cum_pnl", "value", "balance"])
+    df_eq[ts_col] = pd.to_datetime(df_eq[ts_col])
+    daily_eq = df_eq.set_index(ts_col).sort_index()[eq_col].resample("1D").last().dropna()
+    daily_ret = daily_eq.diff().dropna().to_numpy(dtype=np.float64)
+
+    df_tr = pd.read_csv(trades_csv)
+    pnl_col = _detect_col(df_tr.columns, ["pnl", "net_pnl", "realized_pnl"])
+    reg_col = _detect_col(df_tr.columns, ["regime"])
+    trade_pnl = df_tr[pnl_col].to_numpy(dtype=np.float64)
+
+    out = {
+        "equity_daily_T36": {
+            "psr_at_threshold_0": probabilistic_sharpe_ratio(daily_ret, 0.0),
+            "dsr_N10": deflated_sharpe_ratio(daily_ret, n_trials=10, ann_factor=252),
+            "dsr_N20": deflated_sharpe_ratio(daily_ret, n_trials=20, ann_factor=252),
+        },
+        "trade_full_T24": {
+            "psr_at_threshold_0": probabilistic_sharpe_ratio(trade_pnl, 0.0),
+            "dsr_N10": deflated_sharpe_ratio(trade_pnl, n_trials=10, ann_factor=1),
+            "dsr_N20": deflated_sharpe_ratio(trade_pnl, n_trials=20, ann_factor=1),
+        },
+        "trade_per_regime": {},
+    }
+    if reg_col is not None:
+        for regime, sub in df_tr.groupby(reg_col):
+            n = len(sub)
+            if n < 4:
+                out["trade_per_regime"][str(regime)] = {
+                    "n_trades": int(n), "note": "n<4, PSR not applicable",
+                }
+                continue
+            r = sub[pnl_col].to_numpy(dtype=np.float64)
+            out["trade_per_regime"][str(regime)] = {
+                "n_trades": int(n),
+                "psr_at_threshold_0": probabilistic_sharpe_ratio(r, 0.0),
+                "dsr_N10": deflated_sharpe_ratio(r, n_trials=10, ann_factor=1),
+            }
+    return out

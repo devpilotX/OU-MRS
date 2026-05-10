@@ -62,3 +62,36 @@ def test_bootstrap_per_regime_handles_missing_column(tmp_path):
     out = bootstrap_per_regime(p)
     assert out["regime_col"] is None
     assert "note" in out
+
+
+def test_psr_at_zero_threshold_around_half_for_zero_mean_series():
+    from validation.bootstrap import probabilistic_sharpe_ratio
+    rng = np.random.default_rng(101)
+    r = rng.normal(loc=0.0, scale=1.0, size=200)
+    out = probabilistic_sharpe_ratio(r, 0.0)
+    assert 0.30 <= out["psr"] <= 0.70  # close to coin-flip for zero-mean
+
+
+def test_psr_high_for_strong_positive_series():
+    from validation.bootstrap import probabilistic_sharpe_ratio
+    rng = np.random.default_rng(7)
+    r = rng.normal(loc=0.5, scale=1.0, size=200)
+    out = probabilistic_sharpe_ratio(r, 0.0)
+    assert out["psr"] > 0.99
+
+
+def test_expected_max_sr_increases_with_n_trials():
+    from validation.bootstrap import expected_max_sr_periodic
+    a = expected_max_sr_periodic(2, 50)
+    b = expected_max_sr_periodic(20, 50)
+    c = expected_max_sr_periodic(200, 50)
+    assert a < b < c
+
+
+def test_dsr_below_psr_at_zero_threshold():
+    from validation.bootstrap import probabilistic_sharpe_ratio, deflated_sharpe_ratio
+    rng = np.random.default_rng(13)
+    r = rng.normal(loc=0.05, scale=1.0, size=100)
+    psr = probabilistic_sharpe_ratio(r, 0.0)["psr"]
+    dsr = deflated_sharpe_ratio(r, n_trials=20)["dsr"]
+    assert dsr <= psr  # DSR is always more conservative than PSR-at-zero
