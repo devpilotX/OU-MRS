@@ -45,3 +45,20 @@ def test_bootstrap_pure_win_series_p_value_low():
 def test_raises_on_too_few_trades():
     with pytest.raises(ValueError):
         bootstrap_trade_stats(np.array([1.0]))
+
+
+def test_detect_col_exact_and_substring():
+    from validation.bootstrap import _detect_col
+    assert _detect_col(["ts", "equity"], ["ts"]) == "ts"
+    assert _detect_col(["bar_ts", "cum_equity"], ["ts", "timestamp"]) == "bar_ts"
+    assert _detect_col(["foo", "bar"], ["baz"]) is None
+
+
+def test_bootstrap_per_regime_handles_missing_column(tmp_path):
+    import pandas as pd
+    from validation.bootstrap import bootstrap_per_regime
+    p = tmp_path / "trades_no_regime.csv"
+    pd.DataFrame({"pnl": [10.0, -5.0, 7.0]}).to_csv(p, index=False)
+    out = bootstrap_per_regime(p)
+    assert out["regime_col"] is None
+    assert "note" in out
