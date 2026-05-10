@@ -123,3 +123,33 @@ def test_adf_white_noise_is_stationary():
     r = rng.normal(size=200)
     out = adf_test(r)
     assert out["p_value"] < 0.05
+
+
+def test_walk_forward_window_count():
+    from validation.bootstrap import walk_forward_sharpe
+    r = np.arange(30, dtype=np.float64)
+    out = walk_forward_sharpe(r, window=10, step=1)
+    assert len(out) == 21  # 30 - 10 + 1
+    assert out[0]["start"] == 0 and out[0]["end"] == 9
+    assert out[-1]["start"] == 20 and out[-1]["end"] == 29
+
+
+def test_walk_forward_consistent_positive_returns():
+    """Strictly positive constant-mean returns -> consistency_rate == 1.0."""
+    from validation.bootstrap import walk_forward_sharpe, walk_forward_summary
+    rng = np.random.default_rng(seed=2026)
+    r = 1.0 + 0.1 * rng.normal(size=100)  # mean=1, sd~0.1, all positive on avg
+    windows = walk_forward_sharpe(r, window=20, step=1)
+    s = walk_forward_summary(windows)
+    assert s["consistency_rate"] == 1.0
+    assert s["sharpe_mean"] > 5.0  # very high for mean/sd ~ 10
+
+
+def test_walk_forward_zero_mean_noise_inconsistent():
+    """Zero-mean noise -> consistency_rate near 0.5, not 1.0."""
+    from validation.bootstrap import walk_forward_sharpe, walk_forward_summary
+    rng = np.random.default_rng(seed=2026)
+    r = rng.normal(size=200)
+    windows = walk_forward_sharpe(r, window=20, step=1)
+    s = walk_forward_summary(windows)
+    assert 0.25 < s["consistency_rate"] < 0.75
