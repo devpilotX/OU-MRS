@@ -11,6 +11,7 @@ from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
 from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
 import signal_publisher  # Phase 8f.5
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
+from cost_model import compute_rt_cost  # Phase A1
 
 load_dotenv()
 logging.basicConfig(
@@ -130,7 +131,9 @@ def _exit(broker, pos, bar, reason, symbol="BNF", lot_size=15):
     else:
         log.info(f"[PAPER] EXIT {side} {pos['qty']}l")
     pnl_pts = (bar["close"] - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
-    pnl = pnl_pts * pos["qty"] * lot_size - 40
+    gross = pnl_pts * pos["qty"] * lot_size
+    cost = compute_rt_cost(pos["entry_px"], float(bar["close"]), lot_size, pos["qty"])
+    pnl = gross - cost  # Phase A1
     log.info(f"EXIT ({reason}) @ {bar['close']:.2f} pnl=Rs{pnl:.0f}")
     with open("trades.jsonl", "a") as f:
         f.write(json.dumps({
@@ -174,7 +177,7 @@ def _snapshot_portfolio(broker):
         except Exception:
             pass
         try:
-            pos = broker.smart.runner.position().get("data")
+            pos = broker.smart.position().get("data")
         except Exception:
             pass
         return {"rms": rms, "position": pos, "ts": datetime.now().isoformat()}
@@ -386,7 +389,8 @@ def main():
                     _pos = None
                     if runner.position:
                         _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
-                        _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
+                        _upnl = (_pts * runner.position["qty"] * runner.lot_size
+                                 - compute_rt_cost(runner.position["entry_px"], float(bar["close"]), runner.lot_size, runner.position["qty"]))
                         _pos = {
                             "side": runner.position["side"],
                             "entry": float(runner.position["entry_px"]),
@@ -446,7 +450,8 @@ def main():
                     _ps_pos = None
                     if runner.position:
                         _ps_pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
-                        _ps_upnl = _ps_pts * runner.position["qty"] * runner.lot_size - 40
+                        _ps_upnl = (_ps_pts * runner.position["qty"] * runner.lot_size
+                                    - compute_rt_cost(runner.position["entry_px"], float(bar["close"]), runner.lot_size, runner.position["qty"]))
                         _ps_pos = {"side": runner.position["side"], "qty": runner.position["qty"], "entry": float(runner.position["entry_px"]), "unrealized_pnl": round(_ps_upnl, 2)}
                     _ll_8o3c = locals()
                     _ps_closes = _ll_8o3c.get("_closes") or []
