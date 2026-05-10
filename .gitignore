@@ -54,3 +54,9 @@ bt_out/sweep_*/
 *.pid
 *.backup_prehook
 dashboard.backup.*/
+
+# B-0h diagnostic artifacts (uncommitted, transient)
+bt_out_backup_*/
+bt_out_index*/
+bt_out_fut*/
+dashboard/static/preview.html
