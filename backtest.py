@@ -53,7 +53,7 @@ def _close(pos, fill_bar, fill_ts, reason):
     exit_px = fill_bar["open"] - (SLIPPAGE_TICKS * TICK) * (1 if pos["side"] == "BUY" else -1)
     pnl_pts = (exit_px - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
     gross   = pnl_pts * pos["qty"] * LOT_SIZE
-    net     = gross - compute_rt_cost(pos["entry_px"], exit_px, LOT_SIZE, pos["qty"])  # Phase 9.5c
+    net     = gross - compute_rt_cost(pos["entry_px"], exit_px, LOT_SIZE, pos["qty"], side=pos["side"])  # Phase 9.5c
     return {
         "entry_ts": pos["entry_ts"], "exit_ts": fill_ts,
         "side": pos["side"], "qty": pos["qty"],
