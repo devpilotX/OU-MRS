@@ -174,14 +174,15 @@ def _snapshot_portfolio(broker):
         rms = None; pos = None
         try:
             rms = broker.smart.rmsLimit().get("data")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug(f"_snapshot rmsLimit fetch failed: {_e}")
         try:
             pos = broker.smart.position().get("data")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug(f"_snapshot position fetch failed: {_e}")
         return {"rms": rms, "position": pos, "ts": datetime.now().isoformat()}
-    except Exception:
+    except Exception as _e:
+        log.debug(f"_snapshot_portfolio outer failed: {_e}")
         return None
 
 def reconcile_sl_orders(broker, symbol="BNF"):
@@ -203,7 +204,8 @@ def reconcile_sl_orders(broker, symbol="BNF"):
                     continue
                 try:
                     rec = json.loads(line)
-                except Exception:
+                except Exception as _e:
+                    log.debug(f"reconcile sl_state json parse failed: {_e}")
                     continue
                 oid = rec.get("sl_order_id")
                 if not oid:
@@ -412,8 +414,8 @@ def main():
                                     "bids": _d.get("depth",{}).get("buy",[])[:5],
                                     "asks": _d.get("depth",{}).get("sell",[])[:5],
                                 }
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        log.debug(f"live_hook payload build failed: {_e}")
                     if sym == INSTRUMENTS[0]:
                         live_hook.tick(
                             ltp=float(bar["close"]),
