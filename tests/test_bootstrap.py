@@ -187,6 +187,6 @@ def test_holdout_split_equity_constant_positive_returns_same_sign():
         r = holdout_split_equity(path, train_days=24, n_iter=1000)
         assert r["train"]["sharpe_ann"] > 0
         assert r["test"]["sharpe_ann"] > 0
-        assert r["decision"]["same_sign"] is True
+        assert bool(r["decision"]["same_sign"]) is True
     finally:
         os.unlink(path)
