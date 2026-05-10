@@ -458,3 +458,168 @@ def compute_b0f_report(equity_csv: str = "bt_out/equity.csv",
             "windows": tr_windows,
         },
     }
+
+
+# -----------------------------------------------------------------------------
+# Phase B-0g: hold-out 24-train / 13-test split (truly independent OOS test)
+# Splits T=37 equity sample at day 24 (66/34 train/test by days).
+# Splits 24-trade sample by entry day < 24 (time-disjoint train/test).
+# Reports point Sharpe + 10000-iter bootstrap 95% CI each side + flags.
+# Unlike B-0f rolling windows (effective independent ~ 2), this is ONE
+# fully independent OOS test against an in-sample CI envelope.
+# -----------------------------------------------------------------------------
+
+def _b0g_nan(x):
+    return isinstance(x, float) and np.isnan(x)
+
+
+def holdout_split_equity(equity_csv: str = "bt_out/equity.csv",
+                         train_days: int = 24,
+                         n_iter: int = 10000,
+                         seed: int = 42) -> dict:
+    """Split equity daily returns at day train_days. Bootstrap CI each side."""
+    import pandas as pd
+    df = pd.read_csv(equity_csv)
+    rcol = _detect_col(df.columns, ["daily_return", "ret", "return", "pnl_pct", "log_return"])
+    if rcol is None:
+        ecol = _detect_col(df.columns, ["equity", "balance", "nav", "capital"])
+        if ecol is None:
+            raise ValueError(f"equity csv has no return or equity column: {list(df.columns)}")
+        s = df[ecol].astype(float).values
+        r = np.diff(s) / s[:-1]
+    else:
+        r = df[rcol].astype(float).values
+    r = r[~np.isnan(r)]
+    T = len(r)
+    if T <= train_days:
+        raise ValueError(f"need T > train_days; have T={T}, train_days={train_days}")
+    train = r[:train_days]
+    test  = r[train_days:]
+
+    def side(arr, label):
+        mu = float(arr.mean())
+        sd = float(arr.std(ddof=1)) if len(arr) > 1 else 0.0
+        sr = (mu / sd) if sd > 0 else float("nan")
+        sr_ann = sr * np.sqrt(252.0) if not np.isnan(sr) else float("nan")
+        rng = np.random.default_rng(seed if label == "train" else seed + 1)
+        srs = []
+        for _ in range(n_iter):
+            idx = rng.integers(0, len(arr), size=len(arr))
+            w = arr[idx]
+            m = w.mean()
+            sx = w.std(ddof=1) if len(w) > 1 else 0.0
+            srs.append((m / sx) * np.sqrt(252.0) if sx > 0 else float("nan"))
+        srs = np.array(srs)
+        srs = srs[~np.isnan(srs)]
+        ci_lo = float(np.quantile(srs, 0.025)) if len(srs) else float("nan")
+        ci_hi = float(np.quantile(srs, 0.975)) if len(srs) else float("nan")
+        return {
+            "n": int(len(arr)), "mean": mu, "std": sd,
+            "sharpe_per": float(sr), "sharpe_ann": float(sr_ann),
+            "total": float(arr.sum()),
+            "boot_ci95_sharpe_ann": [ci_lo, ci_hi],
+            "boot_p_le_zero": float(np.mean(srs <= 0)) if len(srs) else float("nan"),
+        }
+
+    tr = side(train, "train")
+    te = side(test, "test")
+    decision = {
+        "test_point_in_train_ci": (
+            (not _b0g_nan(te["sharpe_ann"])) and
+            tr["boot_ci95_sharpe_ann"][0] <= te["sharpe_ann"] <= tr["boot_ci95_sharpe_ann"][1]
+        ),
+        "same_sign": (
+            (not _b0g_nan(tr["sharpe_ann"])) and (not _b0g_nan(te["sharpe_ann"])) and
+            np.sign(tr["sharpe_ann"]) == np.sign(te["sharpe_ann"])
+        ),
+        "ci_overlap": (
+            (not any(_b0g_nan(x) for x in tr["boot_ci95_sharpe_ann"] + te["boot_ci95_sharpe_ann"])) and
+            not (tr["boot_ci95_sharpe_ann"][1] < te["boot_ci95_sharpe_ann"][0] or
+                 te["boot_ci95_sharpe_ann"][1] < tr["boot_ci95_sharpe_ann"][0])
+        ),
+    }
+    return {"train": tr, "test": te, "decision": decision}
+
+
+def holdout_split_trades(trades_csv: str = "bt_out/trades.csv",
+                         train_days: int = 24,
+                         n_iter: int = 10000,
+                         seed: int = 42) -> dict:
+    """Split trade pnl by entry-day index < train_days (time-disjoint)."""
+    import pandas as pd
+    df = pd.read_csv(trades_csv)
+    pcol = _detect_col(df.columns, ["pnl", "PnL", "profit", "pl", "net_pnl"])
+    if pcol is None:
+        raise ValueError(f"trades csv has no pnl column: {list(df.columns)}")
+    tcol = _detect_col(df.columns, ["entry_ts", "entry_time", "signal_ts", "ts", "time", "date", "datetime"])
+    if tcol is not None:
+        ts = pd.to_datetime(df[tcol])
+        day0 = ts.dt.normalize().min()
+        day_idx = (ts.dt.normalize() - day0).dt.days
+        train_mask = day_idx < train_days
+        train_pnl = df.loc[train_mask, pcol].astype(float).values
+        test_pnl  = df.loc[~train_mask, pcol].astype(float).values
+        split_method = f"by_entry_day(col={tcol})"
+    else:
+        n = len(df)
+        cut = int(round(n * train_days / 37.0))
+        train_pnl = df[pcol].astype(float).values[:cut]
+        test_pnl  = df[pcol].astype(float).values[cut:]
+        split_method = f"by_index(cut={cut}, no_ts_col)"
+
+    def side(arr, label):
+        if len(arr) == 0:
+            return {"n": 0, "mean": float("nan"), "std": float("nan"),
+                    "sharpe_per": float("nan"), "total": float("nan"),
+                    "boot_ci95_sharpe": [float("nan"), float("nan")],
+                    "boot_p_le_zero": float("nan")}
+        mu = float(arr.mean())
+        sd = float(arr.std(ddof=1)) if len(arr) > 1 else 0.0
+        sr = (mu / sd) if sd > 0 else float("nan")
+        rng = np.random.default_rng(seed if label == "train" else seed + 1)
+        srs = []
+        for _ in range(n_iter):
+            idx = rng.integers(0, len(arr), size=len(arr))
+            w = arr[idx]
+            m = w.mean()
+            sx = w.std(ddof=1) if len(w) > 1 else 0.0
+            srs.append((m / sx) if sx > 0 else float("nan"))
+        srs = np.array(srs)
+        srs = srs[~np.isnan(srs)]
+        ci_lo = float(np.quantile(srs, 0.025)) if len(srs) else float("nan")
+        ci_hi = float(np.quantile(srs, 0.975)) if len(srs) else float("nan")
+        return {
+            "n": int(len(arr)), "mean": mu, "std": sd,
+            "sharpe_per": float(sr), "total": float(arr.sum()),
+            "boot_ci95_sharpe": [ci_lo, ci_hi],
+            "boot_p_le_zero": float(np.mean(srs <= 0)) if len(srs) else float("nan"),
+        }
+
+    tr = side(train_pnl, "train")
+    te = side(test_pnl, "test")
+    decision = {
+        "split_method": split_method,
+        "test_point_in_train_ci": (
+            (not _b0g_nan(te["sharpe_per"])) and
+            tr["boot_ci95_sharpe"][0] <= te["sharpe_per"] <= tr["boot_ci95_sharpe"][1]
+        ),
+        "same_sign": (
+            (not _b0g_nan(tr["sharpe_per"])) and (not _b0g_nan(te["sharpe_per"])) and
+            np.sign(tr["sharpe_per"]) == np.sign(te["sharpe_per"])
+        ),
+        "ci_overlap": (
+            (not any(_b0g_nan(x) for x in tr["boot_ci95_sharpe"] + te["boot_ci95_sharpe"])) and
+            not (tr["boot_ci95_sharpe"][1] < te["boot_ci95_sharpe"][0] or
+                 te["boot_ci95_sharpe"][1] < tr["boot_ci95_sharpe"][0])
+        ),
+    }
+    return {"train": tr, "test": te, "decision": decision}
+
+
+def compute_b0g_report(equity_csv: str = "bt_out/equity.csv",
+                       trades_csv: str = "bt_out/trades.csv") -> dict:
+    """B-0g full report: hold-out split for both equity-daily and trade-pnl."""
+    return {
+        "equity_holdout_train24d": holdout_split_equity(equity_csv, train_days=24),
+        "trade_holdout_train24d":  holdout_split_trades(trades_csv, train_days=24),
+    }

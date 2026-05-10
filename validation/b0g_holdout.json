@@ -1,0 +1,67 @@
+{
+  "equity_holdout_train24d": {
+    "train": {
+      "n": 24,
+      "mean": 0.0014867316581324156,
+      "std": 0.01642050273418357,
+      "sharpe_per": 0.0905411778311388,
+      "sharpe_ann": 1.4372966397124063,
+      "total": 0.035681559795177974,
+      "boot_ci95_sharpe_ann": [
+        -4.636974257846467,
+        8.515418974131535
+      ],
+      "boot_p_le_zero": 0.3114
+    },
+    "test": {
+      "n": 12,
+      "mean": 0.0015876634664853395,
+      "std": 0.00947810313347592,
+      "sharpe_per": 0.16750856623176386,
+      "sharpe_ann": 2.6591160523334345,
+      "total": 0.019051961597824074,
+      "boot_ci95_sharpe_ann": [
+        -7.694414273236615,
+        12.64539220263135
+      ],
+      "boot_p_le_zero": 0.283
+    },
+    "decision": {
+      "test_point_in_train_ci": true,
+      "same_sign": "True",
+      "ci_overlap": true
+    }
+  },
+  "trade_holdout_train24d": {
+    "train": {
+      "n": 10,
+      "mean": -282.7476849999169,
+      "std": 3423.625600238919,
+      "sharpe_per": -0.08258720958862593,
+      "total": -2827.4768499991687,
+      "boot_ci95_sharpe": [
+        -0.7117485607360826,
+        0.6566219583762901
+      ],
+      "boot_p_le_zero": 0.6022
+    },
+    "test": {
+      "n": 14,
+      "mean": 763.5304086286867,
+      "std": 2296.385458861161,
+      "sharpe_per": 0.33249226765585854,
+      "total": 10689.425720801613,
+      "boot_ci95_sharpe": [
+        -0.19128464359517486,
+        1.033010525660186
+      ],
+      "boot_p_le_zero": 0.0968
+    },
+    "decision": {
+      "split_method": "by_entry_day(col=entry_ts)",
+      "test_point_in_train_ci": true,
+      "same_sign": "False",
+      "ci_overlap": true
+    }
+  }
+}

@@ -153,3 +153,40 @@ def test_walk_forward_zero_mean_noise_inconsistent():
     windows = walk_forward_sharpe(r, window=20, step=1)
     s = walk_forward_summary(windows)
     assert 0.25 < s["consistency_rate"] < 0.75
+
+
+# -----------------------------------------------------------------------------
+# Phase B-0g: hold-out split tests
+# -----------------------------------------------------------------------------
+
+def test_holdout_split_equity_runs_on_real_data():
+    from validation.bootstrap import holdout_split_equity
+    r = holdout_split_equity("bt_out/equity.csv", train_days=24)
+    assert r["train"]["n"] == 24
+    assert r["test"]["n"] >= 1
+    assert "boot_ci95_sharpe_ann" in r["train"]
+    assert "test_point_in_train_ci" in r["decision"]
+
+
+def test_holdout_split_trades_runs_on_real_data():
+    from validation.bootstrap import holdout_split_trades
+    r = holdout_split_trades("bt_out/trades.csv", train_days=24)
+    assert r["train"]["n"] >= 1
+    assert r["test"]["n"] >= 1
+    assert r["train"]["n"] + r["test"]["n"] == 24
+
+
+def test_holdout_split_equity_constant_positive_returns_same_sign():
+    import numpy as np, pandas as pd, tempfile, os
+    from validation.bootstrap import holdout_split_equity
+    df = pd.DataFrame({"daily_return": np.linspace(0.0005, 0.0015, 30)})
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        df.to_csv(f.name, index=False)
+        path = f.name
+    try:
+        r = holdout_split_equity(path, train_days=24, n_iter=1000)
+        assert r["train"]["sharpe_ann"] > 0
+        assert r["test"]["sharpe_ann"] > 0
+        assert r["decision"]["same_sign"] is True
+    finally:
+        os.unlink(path)
