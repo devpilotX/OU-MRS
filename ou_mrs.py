@@ -13,6 +13,7 @@ import signal_publisher  # Phase 8f.5
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
 from cost_model import compute_rt_cost  # Phase A1
 from pathlib import Path as _A3P  # Phase A3 (idempotent alias)
+from latency import Timer as _LatTimer, flush_if_due as _lat_flush  # Phase A12
 TRADES_PATH = _A3P(__file__).resolve().parent / "trades.jsonl"  # Phase A3: CWD-independent
 
 load_dotenv()
@@ -313,6 +314,7 @@ def main():
             except Exception as _e: log.debug(f"signal heartbeat failed: {_e}")
 
         if now.minute == last_minute or now.second < 5:
+            _lat_flush()  # Phase A12: emit aggregated stats every 60s
             time.sleep(1)
             continue
         last_minute = now.minute
@@ -352,11 +354,13 @@ def main():
                         df = _new_df.sort_index()
                     _candle_cache_p98i[sym] = df.tail(500)
                 bar = df.iloc[-1]
-                sig = compute_signal(df, PARAMS)
+                with _LatTimer("compute_signal"):
+                    sig = compute_signal(df, PARAMS)
 
                 # Phase 4b: refresh portfolio snapshot, throttled (broker-wide; first symbol only)
                 if sym == INSTRUMENTS[0] and _t - last_portfolio_ts >= PORTFOLIO_REFRESH_SEC:
-                    cached_portfolio = _snapshot_portfolio(broker)
+                    with _LatTimer("snapshot_portfolio"):
+                        cached_portfolio = _snapshot_portfolio(broker)
                     last_portfolio_ts = _t
 
                 # Phase 8g.4.b: live_hook for first symbol only (per-symbol panels = Step 6)
@@ -574,12 +578,15 @@ def main():
                     _sl_side = "BUY"
                 sl_oid = None
                 if LIVE:
-                    broker.place_market(sig.side, qty)
+                    with _LatTimer("place_market_entry"):
+                        broker.place_market(sig.side, qty)
                     try:
-                        sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
+                        with _LatTimer("place_stoploss_limit"):
+                            sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
                     except Exception as _e:
                         log.error(f"SL placement failed: {_e} — emergency market exit")
-                        broker.place_market(_sl_side, qty)
+                        with _LatTimer("place_market_sl_fallback"):
+                            broker.place_market(_sl_side, qty)
                         continue
                 else:
                     log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
