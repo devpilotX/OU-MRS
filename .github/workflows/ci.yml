@@ -29,5 +29,5 @@ jobs:
       - name: Compile all Python files (recursive)
         run: python -m compileall -q -f -x 'venv|__pycache__|\.git' .
 
-      - name: Run full test suite (Phase A7: no more --deselect for test_hard_halt_max_dd)
+      - name: "Run full test suite (Phase A7: no more --deselect for test_hard_halt_max_dd)"
         run: python -m pytest tests/ -v --tb=short
