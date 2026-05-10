@@ -17,7 +17,9 @@ log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
 DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
-OUT  = Path("bt_out"); OUT.mkdir(exist_ok=True)
+_HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
+OUT = _HERE / "bt_out"
+OUT.mkdir(exist_ok=True)
 
 CAPITAL        = 150_000
 LOT_SIZE       = 15
