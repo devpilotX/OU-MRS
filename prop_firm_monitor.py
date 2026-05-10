@@ -98,7 +98,7 @@ class PropFirmMonitor:
 # === Phase 9.5e: sticky halt persistence (append-only patch) ===
 from datetime import datetime as _datetime_p95e
 
-HALT_PATH = Path("/home/ubuntu/bots/ou-mrs/state/pfm_halt.json")
+HALT_PATH = Path(__file__).resolve().parent / "state" / "pfm_halt.json"  # Phase A5
 
 def _today_iso():
     return date.today().isoformat()

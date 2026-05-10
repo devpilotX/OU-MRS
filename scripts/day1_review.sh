@@ -5,7 +5,7 @@
 
 set +e
 set +H
-cd /home/ubuntu/bots/ou-mrs
+cd "$(dirname "$(realpath "$0")")/.."  # Phase A5: scripts/ -> repo root
 
 echo "============================================"
 echo " Day 1 morning review for Phase 9.8 filter"

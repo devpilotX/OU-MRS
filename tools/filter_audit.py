@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path("/home/ubuntu/bots/ou-mrs")
+ROOT = Path(__file__).resolve().parent.parent  # Phase A5: tools/ -> repo root
 STATE = ROOT / "state"
 SYMBOLS = ["BNF", "NF"]
 

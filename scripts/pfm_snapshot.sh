@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/ubuntu/bots/ou-mrs
+cd "$(dirname "$(realpath "$0")")/.."  # Phase A5: scripts/ -> repo root
 LOG=$(ls -t logs/ou_mrs_*.log 2>/dev/null | head -1)
 [ -f "$LOG" ] || exit 0
 DICT=$(grep -E "\[pfm\] (init|EOD|status)" "$LOG" | tail -1 | grep -oP '\{.*\}$')
