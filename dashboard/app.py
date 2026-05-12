@@ -142,7 +142,7 @@ def api_status():
         "latest_heartbeat": hb,
         "heartbeat_count_today": hb_count,
         "server_time": datetime.now().isoformat(),
-        "capital": int(os.environ.get("CAPITAL", 150000)),
+        "capital": int(os.environ.get("CAPITAL", 3750000)),
         "live_mode": os.environ.get("LIVE","false").lower() == "true",
         "bot_status": _bs_lbl,
         "bot_status_reason": _bs_rsn,
@@ -371,7 +371,7 @@ def api_strategy():
         "NF":  {"env": "NIFTY_FUT_SYMBOL",    "default": "NIFTY26MAY26FUT",    "lot_size": 65, "margin": 50000},
         "FNF": {"env": "FINNIFTY_FUT_SYMBOL", "default": "FINNIFTY26MAY26FUT", "lot_size": 60, "margin": 60000},
     }
-    _capital = float(_os_pv1.getenv("CAPITAL", 150000))
+    _capital = float(_os_pv1.getenv("CAPITAL", 3750000))
     _inst = [s.strip().upper() for s in _os_pv1.getenv("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in _CFG] or ["BNF"]
     def _max_lots(cap, k): return max(1, min(50, int(cap) // _CFG[k]["margin"]))
     def _tier(cap):
@@ -383,12 +383,6 @@ def api_strategy():
     _symbols = [{"key": k, "symbol": _os_pv1.getenv(_CFG[k]["env"], _CFG[k]["default"]), "lot_size": _CFG[k]["lot_size"], "margin_per_lot": _CFG[k]["margin"], "max_lots": _max_lots(_capital, k)} for k in _inst]
     return {"symbols": _symbols, "capital": _capital, "capital_tier": _tier(_capital), "z_entry": float(_os_pv1.getenv("Z_ENTRY", 1.5)), "z_stop": float(_os_pv1.getenv("Z_STOP", 3.5)), "window": int(_os_pv1.getenv("WINDOW", 40)), "live_mode": _os_pv1.getenv("LIVE", "false").lower() == "true", "symbol": _symbols[0]["symbol"] if _symbols else "", "lot_size": _symbols[0]["lot_size"] if _symbols else 15}
 
-@app.get("/api/export/trades", dependencies=[Depends(need_auth)])
-def api_export_trades():
-    from fastapi.responses import FileResponse
-    path = BOT_DIR / "bt_out" / "trades.csv"
-    if not path.exists(): return {"error": "no trades"}
-    return FileResponse(path, filename="trades.csv", media_type="text/csv")
 
 
 # ========== LIVE_STATE_v1 ==========
@@ -427,6 +421,12 @@ def api_live_state(symbol: str = "BNF"):
 
 @app.get('/api/risk', dependencies=[Depends(need_auth)])
 def api_risk():
+    # Phase 9.8d: load PropFirmMonitor snapshot for flat-field overlay
+    try:
+        import json as _jp98d, pathlib as _pp98d
+        _pfm_p98d = _jp98d.loads(_pp98d.Path('state/pfm.json').read_text())
+    except Exception:
+        _pfm_p98d = {}
     import sys, json as _json
     from datetime import datetime as _dt
     sys.path.insert(0, str(BOT_DIR))
@@ -434,7 +434,7 @@ def api_risk():
         from tier_policy import get_policy as _gp
     except Exception:
         _gp = None
-    base_capital = int(os.environ.get('CAPITAL', 150000))
+    base_capital = int(os.environ.get("CAPITAL", 3750000))
     total_pnl = 0.0
     csv_path = BOT_DIR / 'bt_out' / 'trades.csv'
     if csv_path.exists():
@@ -554,7 +554,8 @@ def api_risk():
     if pt_pct >= 1.0: progress_label = 'AHEAD'
     elif pt_pct >= 0.4: progress_label = 'ON-TRACK'
     else: progress_label = 'BEHIND'
-    return {
+    # Phase 9.8d: overlay flat PFM fields onto response
+    _resp_p98d = {
         'tier': tier,
         'capital': effective_capital,
         'base_capital': base_capital,
@@ -568,6 +569,17 @@ def api_risk():
         'days_traded': {'current': days_traded, 'min': min_days, 'pct': round(dt_pct, 4), 'sev': _sev_p(dt_pct)},
         'consistency': {'frac': round(cons_frac, 4), 'max_share': consistency_max, 'pct': round(cs_pct, 4), 'sev': _sev_u(cs_pct)},
     }
+    try:
+        if isinstance(_resp_p98d, dict):
+            _resp_p98d['peak_equity']            = float(_pfm_p98d.get('peak_equity', 0) or 0)
+            _resp_p98d['days_traded']            = int(_pfm_p98d.get('days_traded', 0) or 0)
+            _resp_p98d['best_day_pnl']           = float(_pfm_p98d.get('best_day_pnl', 0) or 0)
+            _resp_p98d['consistency_frac']       = float(_pfm_p98d.get('consistency_frac', 0) or 0)
+            _resp_p98d['consistency_flag']       = bool(_pfm_p98d.get('consistency_flag', False))
+            _resp_p98d['profit_target_progress'] = float(_pfm_p98d.get('profit_target_progress', 0) or 0)
+    except Exception:
+        pass
+    return _resp_p98d
 
 @app.get('/api/challenge', dependencies=[Depends(need_auth)])
 def api_challenge_alias():
@@ -740,3 +752,17 @@ async def sse_ticks(session: str = Cookie(default=None)):
 @app.get("/api/ticks/stats", dependencies=[Depends(need_auth)])
 def api_ticks_stats():
     return _p96_broker.stats()
+
+
+@app.get("/api/export/trades", dependencies=[Depends(need_auth)])
+def api_export_trades():
+    import json, csv, io
+    from fastapi.responses import Response
+    sp = BOT_DIR / "trades.jsonl"
+    if not sp.exists(): return {"error":"no live trades"}
+    rows = [json.loads(l) for l in sp.read_text().splitlines() if l.strip()]
+    buf = io.StringIO(); w = csv.writer(buf)
+    cols = ["entry_ts","exit_ts","side","qty","entry","exit","pnl","reason"]
+    w.writerow(cols)
+    for r in rows: w.writerow([r.get(k,"") for k in cols])
+    return Response(content=buf.getvalue(), media_type="text/csv", headers={"Content-Disposition":"attachment; filename=trades_live.csv"})

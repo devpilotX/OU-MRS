@@ -81,7 +81,7 @@ async function refreshMarket(){
 }
 
 async function refreshStrategy(){
-  const s=await fetchJSON("/api/strategy");if(!s)return;
+  const s=await fetchJSON("/api/strategy");if(!s)return; window.__CAPITAL__ = Number(s.capital)||3750000;
   // 8o.3a: multi-symbol render + capital tier chip
   const symList=(s.symbols||[]).map(x=>`<span class="strat-sym">${x.key}</span><span class="strat-lot">${x.lot_size}L · max ${x.max_lots}</span>`).join("&nbsp;&nbsp;");
   const tierChip=s.capital_tier?`<span class="strat-tier">${s.capital_tier}</span>`:"";
@@ -93,7 +93,7 @@ async function refreshTrades(){
   const pnl=d.total_pnl||0;
   const el=$("#total-pnl");el.textContent=fmtMoney(pnl);
   el.className="kpi-value "+(pnl>0?"positive":pnl<0?"negative":"");
-  $("#pnl-pct").textContent=fmtPct(pnl/150000);
+  $("#pnl-pct").textContent=fmtPct(pnl/(window.__CAPITAL__||3750000));
   $("#trade-count").textContent=d.count;
   $("#win-rate").textContent="Win: "+fmtPct(d.win_rate);
   $("#trade-summary").textContent=`${d.count} trades · ${fmtMoney(pnl)} · win ${fmtPct(d.win_rate)}`;
@@ -235,7 +235,7 @@ async function refreshEquity(){
   const d=await fetchJSON("/api/equity");if(!d||!d.rows||!d.rows.length)return;
   const labels=d.rows.map(r=>r.date||r.ts||"");
   const equity=d.rows.map(r=>Number(r.equity||0));
-  const cap=150000,baseline=new Array(equity.length).fill(cap);
+  const cap=(window.__CAPITAL__||3750000),baseline=new Array(equity.length).fill(cap);
   const minV=Math.min(...equity,cap),maxV=Math.max(...equity,cap),pad=(maxV-minV)*.15||5000;
   const finalEq=equity[equity.length-1],pnl=finalEq-cap;
   $("#equity-range").textContent=`${labels[0]} → ${labels[labels.length-1]}  ·  Final ₹${Math.round(finalEq).toLocaleString("en-IN")} (${pnl>=0?"+":""}${(pnl/cap*100).toFixed(2)}%)`;
@@ -1456,7 +1456,7 @@ setTimeout(refreshTickChip, 1500);
     var txt = (totalEl.textContent || "").replace(/[^0-9.\-]/g, "");
     var v = parseFloat(txt);
     if (!isNaN(v) && v !== 0) {
-      var newTxt = (v >= 0 ? "+" : "") + (v / 3750000 * 100).toFixed(2) + "% on ₹37.5L";
+      var newTxt = (v >= 0 ? "+" : "") + (v/(window.__CAPITAL__||3750000)*100).toFixed(2) + "% on ₹37.5L";
       if (pctEl.textContent !== newTxt) pctEl.textContent = newTxt;
     }
   }, 3000);

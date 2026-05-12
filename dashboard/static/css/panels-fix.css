@@ -1,0 +1,71 @@
+/* OU-MRS panels-fix · Phase 9.8a
+   Pure additive layer. Adds layout/alignment for two panels that
+   currently render as plain unstyled text.
+   NO font-size, font-family, font-weight changes. */
+
+/* ============ Risk & Capital Status panel ============ */
+/* Each .pfm-cell becomes its own row with label left, value right-aligned. */
+#panel-pfm .pfm-grid,
+.pfm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.pfm-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(120, 130, 200, 0.04);
+  border-radius: 6px;
+}
+
+.pfm-cell .pfm-lbl {
+  flex: 0 0 auto;
+}
+
+.pfm-cell .pfm-val {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+/* Fallback if .pfm-grid wrapper is missing — make .pfm-cell siblings stack
+   with spacing using flexbox on the panel body. */
+#panel-pfm > div:has(> .pfm-cell + .pfm-cell),
+.panel:has(> .pfm-cell + .pfm-cell) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* ============ Trade Exit Reason Mix panel ============ */
+/* Per-symbol blocks separated with vertical spacing; reason items spaced horizontally. */
+#reason-mix-body, .rmix-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+#reason-mix-body > div,
+.rmix-body > div,
+.rmix-symbol {
+  padding: 6px 0;
+}
+
+/* Add gap between adjacent reason-count items inside each symbol block. */
+#reason-mix-body span + span,
+.rmix-body span + span,
+.rmix-symbol span + span,
+.rmix-row span + span {
+  margin-left: 10px;
+}
+
+/* If reason items are direct text siblings with no wrapper, force word-spacing */
+#reason-mix-body, .rmix-body, .rmix-symbol, .rmix-row {
+  word-spacing: 0.25em;
+}
