@@ -2335,3 +2335,61 @@ setTimeout(refreshTickChip, 1500);
   setInterval(update, 5000);
   let rT; window.addEventListener("resize", function(){ clearTimeout(rT); rT = setTimeout(update, 200); });
 })();
+
+/* ===== Phase 9.8f.37: Level 2 Order Book panel ===== */
+(function _p98f_l2_book(){
+  if (window.__P98F_L2__) return;
+  window.__P98F_L2__ = true;
+  const SYMS = ["BNF","NF","FNF"];
+  const NAMES = {BNF:"BANKNIFTY", NF:"NIFTY", FNF:"FINNIFTY"};
+  function makePanel(){
+    if (document.getElementById("p98f-l2-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-l2-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Level 2 Order Book</h2><span class=\"muted\">Top 5 bids/asks per symbol \u00b7 source: /api/symbols depth \u00b7 live snapshot \u00b7 polled 3s</span></div><span class=\"panel-badge\" style=\"background:rgba(255,140,0,.12);color:#ff8c00\">DEPTH</span></div><div id=\"p98f-l2-grid\" style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px\"><div class=\"muted\">loading\u2026</div></div>";
+    const anchor = document.getElementById("p98f-regime-hm-panel") || document.getElementById("p98f-rolling-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function fmt(n){ return Number(n).toLocaleString("en-IN"); }
+  function renderBook(sym, sd){
+    const depth = (sd && sd.depth) || {bids:[], asks:[]};
+    const bids = depth.bids || []; const asks = depth.asks || [];
+    if (!bids.length && !asks.length) return "<div style=\"color:#888;padding:20px;text-align:center\">no depth data</div>";
+    const allSizes = bids.map(function(x){return x.quantity;}).concat(asks.map(function(x){return x.quantity;}));
+    const maxSize = Math.max.apply(null, allSizes.concat([1]));
+    let html = "<div style=\"font-weight:700;color:#ddd;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center\"><span>" + sym + " <span style=\"color:#888;font-weight:400;font-size:10px;letter-spacing:.4px\">" + NAMES[sym] + "</span></span><span style=\"color:#888;font-weight:400;font-size:10px\">LTP " + fmt(sd && sd.ltp || 0) + "</span></div>";
+    html += "<div style=\"display:grid;grid-template-columns:1.2fr 1fr 0.5fr;gap:4px;color:#666;font-size:9px;letter-spacing:.6px;padding:0 4px 4px\"><div>PRICE</div><div style=\"text-align:right\">SIZE</div><div style=\"text-align:right\">ORD</div></div>";
+    asks.slice().reverse().forEach(function(a){
+      const w = (a.quantity / maxSize) * 100;
+      html += "<div style=\"position:relative;display:grid;grid-template-columns:1.2fr 1fr 0.5fr;gap:4px;padding:3px 4px;background:linear-gradient(to left,rgba(255,85,102,0.18) " + w.toFixed(1) + "%,transparent " + w.toFixed(1) + "%);color:#ff5566;border-radius:2px;margin:1px 0\"><div>" + fmt(a.price) + "</div><div style=\"text-align:right;color:#ddd\">" + fmt(a.quantity) + "</div><div style=\"text-align:right;color:#888\">" + a.orders + "</div></div>";
+    });
+    const bestBid = bids[0] && bids[0].price; const bestAsk = asks[0] && asks[0].price;
+    const spread = (bestAsk && bestBid) ? (bestAsk - bestBid) : 0;
+    const bps = (bestBid && spread) ? (spread / bestBid * 10000) : 0;
+    html += "<div style=\"text-align:center;padding:7px 0;margin:6px 0;background:rgba(255,255,255,.04);border-radius:3px;font-weight:600;color:#ddd;letter-spacing:.4px;border-top:1px dashed rgba(255,255,255,.1);border-bottom:1px dashed rgba(255,255,255,.1)\">SPREAD " + spread.toFixed(2) + " <span style=\"color:#888;font-weight:400;margin-left:6px\">(" + bps.toFixed(1) + " bps)</span></div>";
+    bids.forEach(function(b){
+      const w = (b.quantity / maxSize) * 100;
+      html += "<div style=\"position:relative;display:grid;grid-template-columns:1.2fr 1fr 0.5fr;gap:4px;padding:3px 4px;background:linear-gradient(to left,rgba(60,224,79,0.18) " + w.toFixed(1) + "%,transparent " + w.toFixed(1) + "%);color:#3ce04f;border-radius:2px;margin:1px 0\"><div>" + fmt(b.price) + "</div><div style=\"text-align:right;color:#ddd\">" + fmt(b.quantity) + "</div><div style=\"text-align:right;color:#888\">" + b.orders + "</div></div>";
+    });
+    const totBid = bids.reduce(function(a,b){return a+b.quantity;}, 0);
+    const totAsk = asks.reduce(function(a,b){return a+b.quantity;}, 0);
+    const imb = (totBid + totAsk > 0) ? ((totBid - totAsk) / (totBid + totAsk)) : 0;
+    const imbColor = imb > 0.15 ? "#3ce04f" : (imb < -0.15 ? "#ff5566" : "#888");
+    const imbLbl = imb > 0.15 ? "BID-HEAVY" : (imb < -0.15 ? "ASK-HEAVY" : "BALANCED");
+    html += "<div style=\"margin-top:8px;padding:6px;background:rgba(255,255,255,.03);border-radius:3px;font-size:10px;color:#888;display:flex;justify-content:space-between\"><span>BID \u03a3 " + fmt(totBid) + "</span><span style=\"color:" + imbColor + ";font-weight:600\">" + imbLbl + " " + (imb*100).toFixed(1) + "%</span><span>ASK \u03a3 " + fmt(totAsk) + "</span></div>";
+    return html;
+  }
+  async function update(){
+    try {
+      const r = await fetch("/api/symbols", {credentials:"same-origin"});
+      if (!r.ok) return;
+      const d = await r.json();
+      const syms = d.symbols || {};
+      const grid = document.getElementById("p98f-l2-grid"); if (!grid) return;
+      let html = "";
+      SYMS.forEach(function(s){ html += "<div>" + renderBook(s, syms[s] || {}) + "</div>"; });
+      grid.innerHTML = html;
+    } catch(e){ console.warn("L2:", e); }
+  }
+  function init(){ makePanel(); update(); setInterval(update, 3000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
