@@ -2484,3 +2484,58 @@ setTimeout(refreshTickChip, 1500);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.39: Z-Score Live Gauges ===== */
+(function _p98f_zscore(){
+  if (window.__P98F_ZSCORE__) return;
+  window.__P98F_ZSCORE__ = true;
+  const SYMS = ["BNF","NF","FNF"];
+  const NAMES = {BNF:"BANKNIFTY", NF:"NIFTY", FNF:"FINNIFTY"};
+  function makePanel(){
+    if (document.getElementById("p98f-z-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-z-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Z-Score Live Gauges</h2><span class=\"muted\">Mean-reversion signal per symbol \u00b7 gauge shows current z within entry/stop bands \u00b7 polled 3s</span></div><span class=\"panel-badge\" style=\"background:rgba(0,191,255,.12);color:#00bfff\">SIGNAL</span></div><div id=\"p98f-z-grid\" style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:14px;font-family:JetBrains Mono,Consolas,monospace\"><div class=\"muted\">loading\u2026</div></div>";
+    const anchor = document.getElementById("p98f-scatter-panel") || document.getElementById("p98f-l2-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function zoneColor(z, ze, zs){ const a = Math.abs(z); if (a >= zs) return "#ff5566"; if (a >= ze) return "#ff8c00"; return "#888"; }
+  function zoneLabel(z, ze, zs){ const a = Math.abs(z); if (a >= zs) return "BEYOND-STOP"; if (a >= ze) return z > 0 ? "ABOVE-ENTRY (SHORT)" : "BELOW-ENTRY (LONG)"; return "NEUTRAL ZONE"; }
+  function renderGauge(sym, sd){
+    if (!sd) return "<div class=\"muted\" style=\"padding:20px;text-align:center\">no data</div>";
+    const z = Number(sd.z || 0); const ze = Number(sd.z_entry || 1.5); const zs = Number(sd.z_stop || 3.0);
+    const mu = Number(sd.mean || 0); const sg = Number(sd.std || 0); const ltp = Number(sd.ltp || 0);
+    const state = (sd.state || "idle").toUpperCase();
+    const range = zs * 1.1;
+    const zPct = Math.max(0, Math.min(100, ((z + range) / (2 * range)) * 100));
+    const elP = ((-ze + range) / (2 * range)) * 100;
+    const ehP = ((ze + range) / (2 * range)) * 100;
+    const slP = ((-zs + range) / (2 * range)) * 100;
+    const shP = ((zs + range) / (2 * range)) * 100;
+    const color = zoneColor(z, ze, zs); const label = zoneLabel(z, ze, zs);
+    let h = "<div style=\"padding:12px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid rgba(255,255,255,.06)\">";
+    h += "<div style=\"display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px\"><div><span style=\"font-weight:700;color:#ddd\">" + sym + "</span> <span style=\"color:#888;font-size:10px;letter-spacing:.4px\">" + NAMES[sym] + "</span></div><span style=\"font-size:9px;color:#888;letter-spacing:.4px\">LTP " + ltp.toLocaleString("en-IN") + "</span></div>";
+    h += "<div style=\"display:flex;align-items:baseline;gap:8px;margin-bottom:10px\"><span style=\"font-size:28px;font-weight:700;color:" + color + ";line-height:1;font-variant-numeric:tabular-nums\">" + z.toFixed(2) + "</span><span style=\"font-size:10px;color:" + color + ";letter-spacing:.4px\">" + label + "</span></div>";
+    h += "<div style=\"position:relative;height:16px;background:linear-gradient(to right,rgba(255,85,102,.25) 0%,rgba(255,85,102,.25) " + slP.toFixed(1) + "%,rgba(255,140,0,.2) " + slP.toFixed(1) + "%,rgba(255,140,0,.2) " + elP.toFixed(1) + "%,rgba(128,128,128,.15) " + elP.toFixed(1) + "%,rgba(128,128,128,.15) " + ehP.toFixed(1) + "%,rgba(255,140,0,.2) " + ehP.toFixed(1) + "%,rgba(255,140,0,.2) " + shP.toFixed(1) + "%,rgba(255,85,102,.25) " + shP.toFixed(1) + "%);border-radius:3px;border:1px solid rgba(255,255,255,.08)\">";
+    h += "<div style=\"position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:rgba(255,255,255,.45)\"></div>";
+    h += "<div style=\"position:absolute;top:-3px;bottom:-3px;left:" + elP.toFixed(1) + "%;width:1px;background:#ff8c00;opacity:.7\"></div>";
+    h += "<div style=\"position:absolute;top:-3px;bottom:-3px;left:" + ehP.toFixed(1) + "%;width:1px;background:#ff8c00;opacity:.7\"></div>";
+    h += "<div style=\"position:absolute;top:-3px;bottom:-3px;left:" + slP.toFixed(1) + "%;width:1px;background:#ff5566;opacity:.7\"></div>";
+    h += "<div style=\"position:absolute;top:-3px;bottom:-3px;left:" + shP.toFixed(1) + "%;width:1px;background:#ff5566;opacity:.7\"></div>";
+    h += "<div style=\"position:absolute;top:-4px;left:" + zPct.toFixed(1) + "%;transform:translateX(-50%);width:14px;height:24px;background:" + color + ";border-radius:2px;box-shadow:0 0 10px " + color + "aa\"></div>";
+    h += "</div>";
+    h += "<div style=\"display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#666;letter-spacing:.3px\"><span>\u2212" + range.toFixed(1) + "</span><span style=\"color:#ff5566\">\u2212" + zs.toFixed(1) + "</span><span style=\"color:#ff8c00\">\u2212" + ze.toFixed(1) + "</span><span style=\"color:#aaa\">0 \u03bc</span><span style=\"color:#ff8c00\">+" + ze.toFixed(1) + "</span><span style=\"color:#ff5566\">+" + zs.toFixed(1) + "</span><span>+" + range.toFixed(1) + "</span></div>";
+    h += "<div style=\"margin-top:10px;font-size:10px;color:#888;display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,.05)\"><span>\u03bc <b style=\"color:#ddd\">" + mu.toFixed(2) + "</b></span><span>\u03c3 <b style=\"color:#ddd\">" + sg.toFixed(2) + "</b></span><span>entry <b style=\"color:#ff8c00\">\u00b1" + ze.toFixed(2) + "</b></span><span>stop <b style=\"color:#ff5566\">\u00b1" + zs.toFixed(2) + "</b></span></div>";
+    h += "<div style=\"margin-top:6px;font-size:9px;color:#666;text-align:right;letter-spacing:.3px\">state <b style=\"color:#ddd\">" + state + "</b></div>";
+    h += "</div>"; return h;
+  }
+  function update(){
+    fetch("/api/symbols", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if (!d) return;
+      const syms = d.symbols || {};
+      const grid = document.getElementById("p98f-z-grid"); if (!grid) return;
+      grid.innerHTML = SYMS.map(function(s){ return renderGauge(s, syms[s]); }).join("");
+    }).catch(function(){});
+  }
+  function init(){ makePanel(); update(); setInterval(update, 3000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
