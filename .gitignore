@@ -1,6 +1,7 @@
 # ===== Secrets / environment =====
 .env
 .env.*
+!.env.example
 *.env
 .env.bak_*
 
@@ -43,3 +44,19 @@ reports/
 # 8o.3a: catch-all patcher backups
 *.bak.*
 *.bak_*
+trades.jsonl
+*.bak.p96.*
+*.bak.8n2
+
+# Phase 9.7b: sweep harness outputs
+bt_out/sweep_*/
+# Phase A9: prevent re-tracking of build/runtime artifacts
+*.pid
+*.backup_prehook
+dashboard.backup.*/
+
+# B-0h diagnostic artifacts (uncommitted, transient)
+bt_out_backup_*/
+bt_out_index*/
+bt_out_fut*/
+dashboard/static/preview.html

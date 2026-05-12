@@ -40,6 +40,7 @@ class Params:
     adx_n: int = 14                  # Phase 8c: ADX smoothing period
     adx_threshold: float = 25.0      # Phase 8c: reject entries when ADX above this
     adx_lookback_bars: int = 60      # Phase 8c: bars used for ADX estimation
+    regime_allow: tuple = ()         # Phase 9.8: regime allow-list (empty = permissive)
 
 
 def estimate_ou(x: np.ndarray):
@@ -65,7 +66,7 @@ def estimate_ou(x: np.ndarray):
 
 
 def compute_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, n: int = 14) -> Optional[float]:
-    """ADX(n) via simple rolling means. Returns most recent ADX or None if insufficient bars."""
+    """ADX(n) via Wilder EMA smoothing. Returns most recent ADX or None if insufficient bars."""
     if len(highs) < 2 * n + 2:
         return None
     high_diff = highs[1:] - highs[:-1]
@@ -76,15 +77,15 @@ def compute_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, n: int 
         highs[1:] - lows[1:],
         np.maximum(np.abs(highs[1:] - closes[:-1]), np.abs(lows[1:] - closes[:-1]))
     )
-    tr_s       = pd.Series(tr).rolling(n).mean()
-    plus_dm_s  = pd.Series(plus_dm).rolling(n).mean()
-    minus_dm_s = pd.Series(minus_dm).rolling(n).mean()
+    tr_s       = pd.Series(tr).ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder
+    plus_dm_s  = pd.Series(plus_dm).ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder
+    minus_dm_s = pd.Series(minus_dm).ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder
     tr_safe   = tr_s.replace(0, np.nan)
     plus_di   = 100.0 * plus_dm_s / tr_safe
     minus_di  = 100.0 * minus_dm_s / tr_safe
     di_sum    = (plus_di + minus_di).replace(0, np.nan)
     dx        = 100.0 * (plus_di - minus_di).abs() / di_sum
-    adx       = dx.rolling(n).mean().dropna()
+    adx       = dx.ewm(alpha=1.0/n, adjust=False, min_periods=n).mean()  # Wilder.dropna()
     if adx.empty:
         return None
     return float(adx.iloc[-1])
@@ -99,6 +100,9 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     lows   = w["low"].to_numpy(dtype=float)
     vols   = w["volume"].to_numpy(dtype=float)
 
+    # Phase 9.1: TWAP fallback when volume is unavailable (e.g. INDEX backfill)
+    if vols.sum() <= 0.0:
+        vols = np.ones_like(vols, dtype=float)
     # Strict volume: futures data always has volume. No silent spot fallback.
     if vols.sum() <= 0:
         return None
@@ -141,7 +145,22 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     if adx_val is None:
         return None
     if adx_val > p.adx_threshold:
+        import logging as _lg_p98h
+        _lg_p98h.getLogger("ou_mrs").info(f"[regime] skip: adx={adx_val:.2f} > {p.adx_threshold} (TREND)")
         return None  # trending regime - skip entries
+
+    # Phase 9.8: regime allow-list filter (CHOP-only, etc.)
+    if getattr(p, "regime_allow", None):
+        try:
+            from regime import classify_regime
+            _series_p98 = classify_regime(df)
+            _bar_regime_p98 = str(_series_p98.iloc[-1]) if len(_series_p98) else "UNKNOWN"
+        except Exception:
+            _bar_regime_p98 = "UNKNOWN"
+        if _bar_regime_p98 not in p.regime_allow:
+            import logging as _lg_p98h2
+            _lg_p98h2.getLogger("ou_mrs").info(f"[regime] skip: regime={_bar_regime_p98} not in allow={p.regime_allow}")
+            return None
 
     z      = (x[-1] - mu) / max(sigma_eq, 1e-9)
     z_prev = (x[-2] - mu) / max(sigma_eq, 1e-9)
@@ -158,3 +177,58 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         mu=float(mu), atr=atr, price=float(closes[-1]), r2=float(r2),
         adx=float(adx_val),
     )
+
+
+# === Phase 9.5: half-life time-stop + z-velocity stall ===
+import os as _os_p95
+HL_MULTIPLIER = float(_os_p95.environ.get("OU_HL_MULTIPLIER", "5.0"))
+Z_VEL_STALL_THRESHOLD = float(_os_p95.environ.get("OU_Z_VEL_STALL", "1.0"))
+VEL_STALL_BARS = int(_os_p95.environ.get("OU_VEL_STALL_BARS", "2"))
+
+
+def should_time_stop_hl(bars_held, half_life):
+    if half_life is None or half_life <= 0:
+        return False
+    return bars_held >= math.ceil(HL_MULTIPLIER * half_life)
+
+
+def should_velocity_stop(z_history, side):
+    needed = 3 + VEL_STALL_BARS
+    if z_history is None or len(z_history) < needed:
+        return False
+    velocities = []
+    for i in range(VEL_STALL_BARS):
+        cur = z_history[-1 - i]
+        prev = z_history[-1 - i - 3]
+        velocities.append((cur - prev) / 3.0)
+    if side == "SELL":
+        return all(v > -Z_VEL_STALL_THRESHOLD for v in velocities)
+    elif side == "BUY":
+        return all(v < +Z_VEL_STALL_THRESHOLD for v in velocities)
+    return False
+
+# Phase 9.5g: trail stop helper
+import os as _os_p95g
+
+def _env_float_p95g(name, default):
+    try:
+        v = _os_p95g.environ.get(name)
+        if v is None or v == "":
+            return float(default)
+        return float(v)
+    except Exception:
+        return float(default)
+
+OU_TRAIL_TRIGGER_ATR_MULT = _env_float_p95g("OU_TRAIL_TRIGGER_ATR_MULT", 0.0)
+OU_TRAIL_LOCK_PCT = _env_float_p95g("OU_TRAIL_LOCK_PCT", 0.0)
+
+def should_trail_stop(current_pnl_pts, peak_pnl_pts, atr):
+    if OU_TRAIL_TRIGGER_ATR_MULT <= 0 or OU_TRAIL_LOCK_PCT <= 0:
+        return False
+    if atr <= 0:
+        return False
+    activation_pts = OU_TRAIL_TRIGGER_ATR_MULT * atr
+    if peak_pnl_pts < activation_pts:
+        return False
+    lock_floor = peak_pnl_pts * (1.0 - OU_TRAIL_LOCK_PCT)
+    return current_pnl_pts <= lock_floor

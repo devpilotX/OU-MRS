@@ -1,10 +1,21 @@
-"""Phase 8e: Prop-firm (FTMO-style) rule monitor for live paper validation."""
+"""Phase 8e: Prop-firm rule monitor for live paper validation.
+
+Phase 9.5e (refactored A7): sticky halt persistence integrated as proper class
+methods instead of module-load monkey patches. Halt state survives process
+restarts within the same trading day via state/pfm_halt.json.
+"""
 import json
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from account import equity_log_path  # Phase 8f.2
+
 EQUITY_LOG = equity_log_path()
+HALT_PATH = Path(__file__).resolve().parent / "state" / "pfm_halt.json"  # Phase A5
+
+
+def _today_iso():
+    return date.today().isoformat()
 
 
 class PropFirmMonitor:
@@ -20,6 +31,7 @@ class PropFirmMonitor:
         self.cumulative_pnl = 0.0
         self.days_traded = 0
         self.daily_history = []
+        self._sticky_halt = None  # Phase 9.5e
         self._load_history()
 
     def _load_history(self):
@@ -45,24 +57,74 @@ class PropFirmMonitor:
         except Exception:
             pass
 
+    def _load_halt_state(self):
+        """Phase 9.5e: load today's persisted halt record if any."""
+        if not HALT_PATH.exists():
+            return None
+        try:
+            rec = json.loads(HALT_PATH.read_text())
+            if rec.get("date") == _today_iso():
+                return rec
+        except Exception:
+            pass
+        return None
+
+    def _persist_halt(self, reason, pnl_today, dd):
+        """Phase 9.5e: atomically persist a hard-halt record."""
+        HALT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        rec = {"date": _today_iso(), "ts": datetime.now().isoformat(),
+               "reason": reason, "pnl_today": float(pnl_today),
+               "dd": float(dd), "peak": float(self.peak_equity)}
+        try:
+            tmp = HALT_PATH.with_suffix(".tmp")
+            tmp.write_text(json.dumps(rec))
+            tmp.replace(HALT_PATH)
+        except Exception:
+            pass
+        self._sticky_halt = rec
+        return rec
+
+    def is_halted_today(self):
+        """Phase 9.5e: True if a hard-halt was already triggered today."""
+        if self._sticky_halt is None:
+            rec = self._load_halt_state()
+            if rec is not None:
+                self._sticky_halt = rec
+        if self._sticky_halt and self._sticky_halt.get("date") == _today_iso():
+            return True
+        return False
+
     def check(self, pnl_today):
+        # Phase 9.5e: sticky-halt short-circuit
+        if self.is_halted_today():
+            rec = self._sticky_halt or {}
+            return {"state": "hard_halt",
+                    "reason": rec.get("reason", "sticky_halt"),
+                    "pnl_today": pnl_today,
+                    "dd": rec.get("dd", 0.0),
+                    "peak": rec.get("peak", self.peak_equity)}
         equity = self.capital + self.cumulative_pnl + pnl_today
         peak = max(self.peak_equity, equity)
         dd = peak - equity
         if pnl_today <= -self.daily_loss:
-            return {"state": "hard_halt", "reason": "daily_loss_hard",
-                    "pnl_today": pnl_today, "dd": dd, "peak": peak}
-        if dd >= self.max_dd:
-            return {"state": "hard_halt", "reason": "max_dd_hard",
-                    "pnl_today": pnl_today, "dd": dd, "peak": peak}
-        if pnl_today <= -self.daily_loss * self.soft_halt_frac:
-            return {"state": "soft_halt", "reason": "daily_loss_soft",
-                    "pnl_today": pnl_today, "dd": dd, "peak": peak}
-        if dd >= self.max_dd * self.soft_halt_frac:
-            return {"state": "soft_halt", "reason": "dd_soft",
-                    "pnl_today": pnl_today, "dd": dd, "peak": peak}
-        return {"state": "ok", "reason": "within_limits",
-                "pnl_today": pnl_today, "dd": dd, "peak": peak}
+            result = {"state": "hard_halt", "reason": "daily_loss_hard",
+                      "pnl_today": pnl_today, "dd": dd, "peak": peak}
+        elif dd >= self.max_dd:
+            result = {"state": "hard_halt", "reason": "max_dd_hard",
+                      "pnl_today": pnl_today, "dd": dd, "peak": peak}
+        elif pnl_today <= -self.daily_loss * self.soft_halt_frac:
+            result = {"state": "soft_halt", "reason": "daily_loss_soft",
+                      "pnl_today": pnl_today, "dd": dd, "peak": peak}
+        elif dd >= self.max_dd * self.soft_halt_frac:
+            result = {"state": "soft_halt", "reason": "dd_soft",
+                      "pnl_today": pnl_today, "dd": dd, "peak": peak}
+        else:
+            result = {"state": "ok", "reason": "within_limits",
+                      "pnl_today": pnl_today, "dd": dd, "peak": peak}
+        # Phase 9.5e: persist on hard_halt to survive process restart
+        if result["state"] == "hard_halt":
+            self._persist_halt(result["reason"], pnl_today, result["dd"])
+        return result
 
     def end_of_day(self, pnl_today):
         EQUITY_LOG.parent.mkdir(parents=True, exist_ok=True)

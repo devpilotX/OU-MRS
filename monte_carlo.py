@@ -5,7 +5,8 @@ import csv, json, subprocess, sys
 from pathlib import Path
 import numpy as np
 
-OUT_DIR = Path("bt_out")
+_HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
+OUT_DIR = _HERE / "bt_out"
 CAPITAL = 150_000
 N_SIMS  = 10_000
 RNG     = np.random.default_rng(42)
@@ -19,7 +20,7 @@ def find_trades():
     for p in candidates:
         if p.exists() and p.stat().st_size > 0:
             return p
-    p = Path("trades.jsonl")
+    p = (_HERE / "trades.jsonl")
     if p.exists() and p.stat().st_size > 0:
         print(f"WARNING: using live-bot file {p} (may mix paper + backtest)")
         return p
@@ -72,7 +73,7 @@ def main():
     if path is None:
         print("\nERROR: No trades file found. Checked:")
         for p in [OUT_DIR/"trades.jsonl", OUT_DIR/"trades.json",
-                  OUT_DIR/"trades.csv", Path("trades.jsonl")]:
+                  OUT_DIR/"trades.csv", (_HERE / "trades.jsonl")]:
             print(f"  - {p}: {'exists' if p.exists() else 'missing'}")
         print("\nNext: share the diagnostic output above and we'll patch backtest.py to export trades.")
         sys.exit(2)
@@ -122,8 +123,8 @@ def main():
     print(f"  P(max DD ≤ 5%)               = {p_dd5:>5.1f}%")
     print(f"  P(max DD ≤ 8%)               = {p_dd8:>5.1f}%")
     print(f"  P(max DD ≤ 10%)              = {p_dd10:>5.1f}%")
-    print(f"  P(PASS FTMO 1-step: +8/-5%)  = {p_ftmo1:>5.1f}%")
-    print(f"  P(PASS FTMO 2-step P1: +10/-5%) = {p_ftmo2p1:>5.1f}%")
+    print(f"  P(PASS ELITE 1-step: +8/-5%)  = {p_ftmo1:>5.1f}%")
+    print(f"  P(PASS ELITE 2-step P1: +10/-5%) = {p_ftmo2p1:>5.1f}%")
     print(f"  P(PASS TopStep 50k: +6/-3%)  = {p_topstep:>5.1f}%")
     print(f"  P(PASS Hola Prime:  +8/-6%)  = {p_hola:>5.1f}%")
 

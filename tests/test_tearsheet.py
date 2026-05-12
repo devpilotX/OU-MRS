@@ -4,11 +4,11 @@ import tearsheet
 
 
 def test_tier_thresholds():
-    assert tearsheet._tier(100_000) == "TINY"
-    assert tearsheet._tier(1_000_000) == "PAPER"
-    assert tearsheet._tier(2_000_000) == "FTMO_STARTER"
-    assert tearsheet._tier(3_000_000) == "FTMO_PRO"
-    assert tearsheet._tier(10_000_000) == "FTMO_ELITE"
+    assert tearsheet._tier(100_000) == "SEED"
+    assert tearsheet._tier(1_000_000) == "GROWTH"
+    assert tearsheet._tier(2_000_000) == "INSTITUTIONAL"
+    assert tearsheet._tier(3_000_000) == "HEDGE_FUND"
+    assert tearsheet._tier(10_000_000) == "QUANT_ELITE"
 
 
 def test_inr_formatting():

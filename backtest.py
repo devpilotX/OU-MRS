@@ -8,14 +8,18 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from strategy import compute_signal, Params
+from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
+from strategy import should_trail_stop  # Phase 9.5g
+from cost_model import compute_rt_cost  # Phase 9.5c
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
 DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
-OUT  = Path("bt_out"); OUT.mkdir(exist_ok=True)
+_HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
+OUT = _HERE / "bt_out"
+OUT.mkdir(exist_ok=True)
 
 CAPITAL        = 150_000
 LOT_SIZE       = 15
@@ -30,10 +34,14 @@ SQUAREOFF      = pd.Timestamp("15:15").time()
 DAILY_LOSS_PCT = 0.02
 MAX_TRADES_DAY = 8
 
+# Phase 9.8: optional regime allow-list (e.g. BT_REGIME_FILTER=CHOP or CHOP,RANGE)
+_bt_rf_p98 = os.environ.get("BT_REGIME_FILTER", "CHOP,RANGE").strip()
+_regime_allow_p98 = tuple(r.strip().upper() for r in _bt_rf_p98.split(",") if r.strip()) if _bt_rf_p98 else ()
 PARAMS = Params(
-    adx_threshold=float(os.environ.get("BT_ADX", 25.0)),
-    z_entry=float(os.environ.get("BT_ZENTRY", 1.5)),
+    adx_threshold=float(os.environ.get("BT_ADX", 30.0)),
+    z_entry=float(os.environ.get("BT_ZENTRY", 1.4)),
     min_r2=float(os.environ.get("BT_MINR2", 0.05)),
+    regime_allow=_regime_allow_p98,
 )
 
 def size_lots(atr: float) -> int:
@@ -47,13 +55,14 @@ def _close(pos, fill_bar, fill_ts, reason):
     exit_px = fill_bar["open"] - (SLIPPAGE_TICKS * TICK) * (1 if pos["side"] == "BUY" else -1)
     pnl_pts = (exit_px - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
     gross   = pnl_pts * pos["qty"] * LOT_SIZE
-    net     = gross - BROKERAGE_RT
+    net     = gross - compute_rt_cost(pos["entry_px"], exit_px, LOT_SIZE, pos["qty"], side=pos["side"])  # Phase 9.5c
     return {
         "entry_ts": pos["entry_ts"], "exit_ts": fill_ts,
         "side": pos["side"], "qty": pos["qty"],
         "entry": pos["entry_px"], "exit": exit_px,
         "pnl": net, "gross": gross, "reason": reason,
         "bars_held": pos["bars_held"],
+        "regime": pos.get("regime", "UNKNOWN"),
     }
 
 def _last_n_stops(trades, n):
@@ -62,6 +71,11 @@ def _last_n_stops(trades, n):
 def run():
     df = pd.read_parquet(DATA)
     log.info(f"Loaded {len(df):,} bars")
+
+    # Phase 8h.2: classify regime per bar (full df, smoothing across days)
+    from regime import classify_regime
+    regime_series = classify_regime(df)
+    log.info("Regime distribution: " + str(regime_series.value_counts().to_dict()))
     trades = []
     equity = []
     pnl_cum = 0.0
@@ -105,15 +119,27 @@ def run():
                 reason = None
                 if sig:
                     z = sig.z
-                    if   position["side"] == "BUY"  and z >= 0: reason = "TARGET"
-                    elif position["side"] == "SELL" and z <= 0: reason = "TARGET"
+                    position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
+                    # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
+                    _mtm = (bar["close"] - position["entry_px"]) * (1 if position["side"] == "BUY" else -1)
+                    _profitable = _mtm > 0
+                    if   position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
+                    elif position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
                     elif abs(z) > PARAMS.z_stop and (
                          (position["side"] == "BUY"  and z < 0) or
                          (position["side"] == "SELL" and z > 0)):
                         reason = "STOP"
                 position["bars_held"] += 1
-                if not reason and position["bars_held"] >= int(5 * position["half_life"]):
-                    reason = "TIME"
+                if not reason and should_time_stop_hl(position["bars_held"], position["half_life"]):  # Phase 9.5
+                    reason = "TIME_STOP_HL"
+                if not reason and should_velocity_stop(position.get("z_history", []), position["side"]):  # Phase 9.5
+                    reason = "Z_VEL_STALL"
+                    # Phase 9.5g: trail stop check (last priority)
+                    if not reason:
+                        _ppts_p95g = max(position.get("peak_pnl_pts", 0.0), _mtm)
+                        position["peak_pnl_pts"] = _ppts_p95g
+                        if should_trail_stop(_mtm, _ppts_p95g, position["atr"]):
+                            reason = "TRAIL_STOP"
                 if reason:
                     trades.append(_close(position, next_bar, next_bar_ts, reason))
                     pnl_today += trades[-1]["pnl"]
@@ -134,10 +160,13 @@ def run():
             # Entry fills at NEXT bar's OPEN with slippage (no look-ahead)
             entry_px = next_bar["open"] + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
             position = {
+                "peak_pnl_pts": 0.0,
                 "side": sig.side, "qty": qty_lots,
                 "entry_px": entry_px, "entry_ts": next_bar_ts,
                 "half_life": sig.half_life, "atr": sig.atr,
                 "bars_held": 0,
+                "regime": str(regime_series.shift(1).get(next_bar_ts, "UNKNOWN")),  # B-0d.1: signal bar (filter-eval), not entry bar
+                "z_history": [sig.z],  # Phase 9.5: z_history seed
             }
             trades_today += 1
 
@@ -152,6 +181,12 @@ def run():
     with open(OUT / "metrics.json", "w") as f:
         json.dump(metrics, f, indent=2, default=str)
     log.info("METRICS:\n" + json.dumps(metrics, indent=2, default=str))
+
+    # Phase 8h.2: per-regime metrics
+    regime_metrics = compute_regime_metrics(tdf)
+    with open(OUT / "regime_metrics.json", "w") as f:
+        json.dump(regime_metrics, f, indent=2, default=str)
+    log.info("REGIME METRICS:\n" + json.dumps(regime_metrics, indent=2, default=str))
 
     if not edf.empty:
         plt.figure(figsize=(10, 5))
@@ -194,6 +229,38 @@ def compute_metrics(tdf: pd.DataFrame, edf: pd.DataFrame) -> dict:
         "trades_per_day": round(len(tdf) / max(len(edf), 1), 2),
         "reasons": tdf["reason"].value_counts().to_dict(),
     }
+
+def compute_regime_metrics(tdf):
+    """Phase 8h.2: split metrics by ADX regime (TREND/RANGE/CHOP).
+    Mean-reversion edge expected in RANGE, neutral CHOP, hostile TREND.
+    """
+    if tdf.empty or 'regime' not in tdf.columns:
+        return {}
+    out = {}
+    for regime in ['TREND', 'RANGE', 'CHOP', 'UNKNOWN']:
+        sub = tdf[tdf['regime'] == regime]
+        if len(sub) == 0:
+            out[regime] = {'trades': 0, 'win_rate': 0.0, 'total_pnl': 0.0, 'avg_pnl': 0.0, 'profit_factor': 0.0}
+            continue
+        wins = sub[sub['pnl'] > 0]
+        losses = sub[sub['pnl'] <= 0]
+        loss_sum = abs(float(losses['pnl'].sum())) if len(losses) else 0.0
+        win_sum = float(wins['pnl'].sum()) if len(wins) else 0.0
+        if loss_sum > 0:
+            pf = win_sum / loss_sum
+        elif win_sum > 0:
+            pf = 999.0
+        else:
+            pf = 0.0
+        out[regime] = {
+            'trades': int(len(sub)),
+            'win_rate': round(len(wins) / len(sub), 4),
+            'total_pnl': round(float(sub['pnl'].sum()), 2),
+            'avg_pnl': round(float(sub['pnl'].mean()), 2),
+            'profit_factor': round(float(pf), 3),
+        }
+    return out
+
 
 if __name__ == "__main__":
     run()

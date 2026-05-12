@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [phase-8g-multi-instrument, main, develop]
+  pull_request:
+    branches: [phase-8g-multi-instrument, main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python (pinned via .python-version, Phase A10)
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install dependencies (frozen lockfile, Phase A10)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock
+
+      - name: Compile all Python files (recursive)
+        run: python -m compileall -q -f -x 'venv|__pycache__|\.git' .
+
+      - name: "Run full test suite (Phase A7: no more --deselect for test_hard_halt_max_dd)"
+        run: python -m pytest tests/ -v --tb=short

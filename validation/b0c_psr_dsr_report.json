@@ -1,0 +1,148 @@
+{
+  "equity_daily_T36": {
+    "psr_at_threshold_0": {
+      "T": 36,
+      "sr_periodic": 0.10313178670448896,
+      "sr_threshold_periodic": 0.0,
+      "skewness": -0.5926616893355878,
+      "kurtosis_raw": 7.168061530260744,
+      "var_sr_periodic": 0.0307863825610083,
+      "z_stat": 0.5877778431073029,
+      "psr": 0.7216592910183838
+    },
+    "dsr_N10": {
+      "T": 36,
+      "sr_periodic": 0.10313178670448896,
+      "sr_threshold_periodic": 0.2661556907741311,
+      "skewness": -0.5926616893355878,
+      "kurtosis_raw": 7.168061530260744,
+      "var_sr_periodic": 0.0307863825610083,
+      "z_stat": -0.9291203204260527,
+      "n_trials": 10,
+      "sr_max_periodic_under_null": 0.2661556907741311,
+      "sr_max_annualized_under_null": 4.225090606877755,
+      "sr_observed_annualized": 1.6371663593150123,
+      "dsr": 0.17641336732430246,
+      "ann_factor": 252
+    },
+    "dsr_N20": {
+      "T": 36,
+      "sr_periodic": 0.10313178670448896,
+      "sr_threshold_periodic": 0.3212782823874223,
+      "skewness": -0.5926616893355878,
+      "kurtosis_raw": 7.168061530260744,
+      "var_sr_periodic": 0.0307863825610083,
+      "z_stat": -1.2432798927583213,
+      "n_trials": 20,
+      "sr_max_periodic_under_null": 0.3212782823874223,
+      "sr_max_annualized_under_null": 5.100134621058614,
+      "sr_observed_annualized": 1.6371663593150123,
+      "dsr": 0.10688235552919367,
+      "ann_factor": 252
+    }
+  },
+  "trade_full_T24": {
+    "psr_at_threshold_0": {
+      "T": 24,
+      "sr_periodic": 0.11695740207511311,
+      "sr_threshold_periodic": 0.0,
+      "skewness": -0.5887648937635931,
+      "kurtosis_raw": 3.760124653398315,
+      "var_sr_periodic": 0.046882581394923704,
+      "z_stat": 0.5401594206135549,
+      "psr": 0.7054564525153393
+    },
+    "dsr_N10": {
+      "T": 24,
+      "sr_periodic": 0.11695740207511311,
+      "sr_threshold_periodic": 0.3283264421803743,
+      "skewness": -0.5887648937635931,
+      "kurtosis_raw": 3.760124653398315,
+      "var_sr_periodic": 0.046882581394923704,
+      "z_stat": -0.9761928378468622,
+      "n_trials": 10,
+      "sr_max_periodic_under_null": 0.3283264421803743,
+      "sr_max_annualized_under_null": 0.3283264421803743,
+      "sr_observed_annualized": 0.11695740207511311,
+      "dsr": 0.1644844558993061,
+      "ann_factor": 1
+    },
+    "dsr_N20": {
+      "T": 24,
+      "sr_periodic": 0.11695740207511311,
+      "sr_threshold_periodic": 0.3963250047341707,
+      "skewness": -0.5887648937635931,
+      "kurtosis_raw": 3.760124653398315,
+      "var_sr_periodic": 0.046882581394923704,
+      "z_stat": -1.2902393496531368,
+      "n_trials": 20,
+      "sr_max_periodic_under_null": 0.3963250047341707,
+      "sr_max_annualized_under_null": 0.3963250047341707,
+      "sr_observed_annualized": 0.11695740207511311,
+      "dsr": 0.09848378382664119,
+      "ann_factor": 1
+    }
+  },
+  "trade_per_regime": {
+    "CHOP": {
+      "n_trades": 5,
+      "psr_at_threshold_0": {
+        "T": 5,
+        "sr_periodic": 0.518189503360615,
+        "sr_threshold_periodic": 0.0,
+        "skewness": 0.18165805277270095,
+        "kurtosis_raw": 1.4688850902511723,
+        "var_sr_periodic": 0.23433575058094508,
+        "z_stat": 1.070457270952402,
+        "psr": 0.8577932338388138
+      },
+      "dsr_N10": {
+        "T": 5,
+        "sr_periodic": 0.518189503360615,
+        "sr_threshold_periodic": 0.787299150672875,
+        "skewness": 0.18165805277270095,
+        "kurtosis_raw": 1.4688850902511723,
+        "var_sr_periodic": 0.23433575058094508,
+        "z_stat": -0.5559170472976048,
+        "n_trials": 10,
+        "sr_max_periodic_under_null": 0.787299150672875,
+        "sr_max_annualized_under_null": 0.787299150672875,
+        "sr_observed_annualized": 0.518189503360615,
+        "dsr": 0.2891337819251582,
+        "ann_factor": 1
+      }
+    },
+    "RANGE": {
+      "n_trades": 17,
+      "psr_at_threshold_0": {
+        "T": 17,
+        "sr_periodic": 0.061016423597287456,
+        "sr_threshold_periodic": 0.0,
+        "skewness": -0.8855924034598432,
+        "kurtosis_raw": 3.714005133307301,
+        "var_sr_periodic": 0.06603510901131275,
+        "z_stat": 0.23744296068013704,
+        "psr": 0.5938434176608337
+      },
+      "dsr_N10": {
+        "T": 17,
+        "sr_periodic": 0.061016423597287456,
+        "sr_threshold_periodic": 0.3936495753364375,
+        "skewness": -0.8855924034598432,
+        "kurtosis_raw": 3.714005133307301,
+        "var_sr_periodic": 0.06603510901131275,
+        "z_stat": -1.2944285441997008,
+        "n_trials": 10,
+        "sr_max_periodic_under_null": 0.3936495753364375,
+        "sr_max_annualized_under_null": 0.3936495753364375,
+        "sr_observed_annualized": 0.061016423597287456,
+        "dsr": 0.0977587181757335,
+        "ann_factor": 1
+      }
+    },
+    "TREND": {
+      "n_trades": 2,
+      "note": "n<4, PSR not applicable"
+    }
+  }
+}

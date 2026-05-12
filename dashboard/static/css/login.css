@@ -1,0 +1,41 @@
+/* OU-MRS login styling - Phase 9.8r */
+:root {
+  --bg: #0b0f17; --card: #131826; --line: #1f2740;
+  --text: #e6ebf5; --muted: #6f7a93;
+  --accent: #6366f1; --accent-2: #06b6d4;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.login-page { min-height: 100vh; display: grid; place-items: center;
+  background: radial-gradient(ellipse at top, #1a2138 0%, var(--bg) 60%); padding: 24px; }
+.login-shell { width: 100%; max-width: 420px; }
+.login-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 36px 32px; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+.login-brand { text-align: center; margin-bottom: 28px; }
+.login-mark { width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  display: grid; place-items: center; font-weight: 700; font-size: 22px; color: #fff;
+  box-shadow: 0 12px 30px rgba(99,102,241,.35); letter-spacing: 0.5px; }
+.login-title { font-size: 22px; font-weight: 700; letter-spacing: 0.4px; }
+.login-sub { color: var(--muted); font-size: 13px; margin-top: 4px; letter-spacing: 0.3px; }
+.login-form { display: grid; gap: 14px; }
+.login-field { display: grid; gap: 6px; }
+.login-lbl { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+.login-field input { width: 100%; background: #0e1322; border: 1px solid var(--line);
+  color: var(--text); padding: 12px 14px; border-radius: 10px; font-size: 15px;
+  outline: none; transition: border-color .15s, box-shadow .15s; }
+.login-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.2); }
+.login-btn { margin-top: 6px; width: 100%; padding: 12px 14px; border: 0; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; font-weight: 600; font-size: 15px; cursor: pointer;
+  transition: transform .08s, box-shadow .15s;
+  box-shadow: 0 10px 24px rgba(99,102,241,.30); letter-spacing: 0.3px; }
+.login-btn:hover { box-shadow: 0 14px 34px rgba(99,102,241,.45); }
+.login-btn:active { transform: translateY(1px); }
+.login-foot { margin-top: 22px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: 0.4px; }
+@media (max-width: 480px) {
+  .login-card { padding: 28px 20px; border-radius: 12px; }
+  .login-mark { width: 48px; height: 48px; font-size: 18px; }
+}

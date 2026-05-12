@@ -1,0 +1,136 @@
+{
+  "schema_version": "0.0.2",
+  "git_commit": "post-7d589a3 (B-0b)",
+  "trade_level": {
+    "n_trades": 24,
+    "n_iter": 10000,
+    "mean_block_len": 5.0,
+    "seed": 42,
+    "point_total_pnl": 7861.9488708024455,
+    "point_mean_pnl": 327.5812029501019,
+    "point_info_ratio": 0.5729719134511151,
+    "point_win_rate": 0.5416666666666666,
+    "ci95_total_pnl": [
+      -16705.866868737634,
+      32440.924589612237
+    ],
+    "ci95_mean_pnl": [
+      -696.0777861974013,
+      1351.7051912338432
+    ],
+    "ci95_info_ratio": [
+      -1.223476298033983,
+      2.7298210803211473
+    ],
+    "ci95_win_rate": [
+      0.375,
+      0.75
+    ],
+    "p_value_one_sided": 0.2461
+  },
+  "equity_level": {
+    "source": "equity.csv daily mark-to-market",
+    "ts_col": "date",
+    "eq_col": "equity",
+    "n_days": 36,
+    "n_iter": 10000,
+    "mean_block_len": 5.0,
+    "seed": 42,
+    "ann_factor": 252,
+    "point_daily_mean_pnl": 218.38746863340123,
+    "point_daily_std_pnl": 2117.5573080990325,
+    "point_annualized_sharpe": 1.6371663593150123,
+    "ci95_annualized_sharpe": [
+      -3.4957032575202818,
+      7.139522502975774
+    ],
+    "p_value_one_sided": 0.2681
+  },
+  "per_regime": {
+    "pnl_col": "pnl",
+    "regime_col": "regime",
+    "by_regime": {
+      "CHOP": {
+        "n_trades": 5,
+        "n_iter": 10000,
+        "mean_block_len": 5.0,
+        "seed": 42,
+        "point_total_pnl": 7311.778682200437,
+        "point_mean_pnl": 1462.3557364400874,
+        "point_info_ratio": 1.1587069547411908,
+        "point_win_rate": 0.8,
+        "ci95_total_pnl": [
+          -199.72070059943235,
+          14823.278065000308
+        ],
+        "ci95_mean_pnl": [
+          -39.94414011988647,
+          2964.6556130000617
+        ],
+        "ci95_info_ratio": [
+          -0.04366459980860261,
+          3.6787523244540363
+        ],
+        "ci95_win_rate": [
+          0.6,
+          1.0
+        ],
+        "p_value_one_sided": 0.0333
+      },
+      "RANGE": {
+        "n_trades": 17,
+        "n_iter": 10000,
+        "mean_block_len": 5.0,
+        "seed": 42,
+        "point_total_pnl": 3005.2360390017475,
+        "point_mean_pnl": 176.77859052951456,
+        "point_info_ratio": 0.25157715938904607,
+        "point_win_rate": 0.5294117647058824,
+        "ci95_total_pnl": [
+          -12870.381565488433,
+          19545.281177261786
+        ],
+        "ci95_mean_pnl": [
+          -757.081268558143,
+          1149.72242219187
+        ],
+        "ci95_info_ratio": [
+          -1.042065288238589,
+          1.9443034137334496
+        ],
+        "ci95_win_rate": [
+          0.35294117647058826,
+          0.7058823529411765
+        ],
+        "p_value_one_sided": 0.3375
+      },
+      "TREND": {
+        "n_trades": 2,
+        "n_iter": 10000,
+        "mean_block_len": 5.0,
+        "seed": 42,
+        "point_total_pnl": -2455.065850399738,
+        "point_mean_pnl": -1227.532925199869,
+        "point_info_ratio": -1.0745775180785928,
+        "point_win_rate": 0.0,
+        "ci95_total_pnl": [
+          -4739.7459307996505,
+          -170.38576999982524
+        ],
+        "ci95_mean_pnl": [
+          -2369.8729653998253,
+          -85.19288499991262
+        ],
+        "ci95_info_ratio": [
+          -1.0745775180785928,
+          0.0
+        ],
+        "ci95_win_rate": [
+          0.0,
+          0.0
+        ],
+        "p_value_one_sided": 1.0
+      }
+    }
+  }
+}

@@ -4,10 +4,12 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>OU-MRS · Pro Dashboard</title>
-<link rel="stylesheet" href="/static/style.css?v=7"/>
+<link rel="stylesheet" href="/static/style.css?v=28"/>
+  <link rel="stylesheet" href="/static/css/panels-fix.css?v=8"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 </head>
 <body>
 <header class="topbar">
@@ -19,6 +21,9 @@
     <span id="market-chip" class="chip">Market: --</span>
     <span id="mode-chip" class="chip">Mode: --</span>
     <span id="health-chip" class="chip">-- · -- · --</span>
+    <span id="tick-chip" class="chip tick-stale">Ticks: --</span>
+        <span id="pfm-chip" class="chip">PFM: --</span>
+        <span id="latency-chip" class="chip">--</span>
     <button id="theme-toggle" class="btn-icon">☀️</button>
     <a href="/logout" class="btn-logout">Logout</a>
   </div>
@@ -46,7 +51,8 @@
     <div class="kpi"><span class="kpi-label">UPTIME</span><span id="uptime-val" class="kpi-value">--</span><span id="uptime-sub" class="kpi-sub">--</span></div>
     <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">--</div></div>
   </section>
-  <section class="symbols-grid">
+  <div id="deep-dive-notice" class="deep-dive-notice"></div>
+    <section class="symbols-grid">
     <div class="symbol-card sc-offline" id="card-BNF">
       <div class="sc-row1">
         <div class="sc-id"><div class="sc-sym">BNF</div><div class="sc-name">BANKNIFTY · 26MAY26</div></div>
@@ -96,16 +102,49 @@
       </div>
     </div>
   </section>
-  <section class="panel">
-    <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">--</span></div><span class="panel-badge">BACKTEST · 121d</span></div>
-    <div id="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
+  
+<section class="panel" id="panel-regime">
+  <div class="panel-header">
+    <div><h2>Market Regime</h2><span class="muted">Where the edge actually lives · ADX-14 split TREND / RANGE / CHOP</span></div>
+    <div class="ec-meta">
+      <span class="panel-badge" id="regime-current">--</span>
+      <span class="panel-badge info" id="regime-adx">ADX --</span>
+    </div>
+  </div>
+  <div class="regime-grid">
+    <div class="regime-donut-wrap"><canvas id="regime-donut"></canvas></div>
+    <div class="regime-table" id="regime-table">--</div>
+  </div>
+</section>
+  <section class="panel" id="panel-pfm">
+        <div class="panel-header">
+          <div><h2>Risk &amp; Capital Status</h2><span class="muted">PropFirmMonitor live snapshot · updates every minute</span></div>
+          <span class="panel-badge" id="pfm-status-badge">--</span>
+        </div>
+        <div class="pfm-grid">
+          <div class="pfm-cell"><span class="pfm-lbl">Cumulative P&amp;L</span><span class="pfm-val" id="pfm-cum">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Peak Equity</span><span class="pfm-val" id="pfm-peak">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Days Traded</span><span class="pfm-val" id="pfm-days">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Best Day</span><span class="pfm-val" id="pfm-best">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Consistency</span><span class="pfm-val" id="pfm-cons">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Target Progress</span><span class="pfm-val" id="pfm-prog">--</span><div class="pfm-bar"><div class="pfm-bar-fill" id="pfm-prog-bar" style="width:0%"></div></div></div>
+        </div>
+      </section>
+      <section class="panel">
+    <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">--</span></div><span class="panel-badge">BACKTEST · 37d</span></div>
+    <div class="regime-legend">
+            <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch TREND"></span>TREND</span>
+            <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch RANGE"></span>RANGE</span>
+            <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch CHOP"></span>CHOP</span>
+          </div>
+          <div id="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
   </section>
   <section class="grid-2">
     <div class="panel"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
     <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
   </section>
   <section class="grid-2">
-    <div class="panel"><div class="panel-header"><h2>Backtest Metrics</h2></div><div id="metrics-view" class="metrics-grid"></div></div>
+    <div class="panel"><div class="panel-header"><div><h2>Backtest Metrics</h2><span class="muted">24 trades · 37 days · historical only · not live</span></div><span class="panel-badge" style="background:rgba(245,158,11,.1);color:var(--amber)">BACKTEST</span></div><div id="metrics-view" class="metrics-grid"></div></div>
     <div class="panel"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
   </section>
   <section class="panel">
@@ -113,13 +152,125 @@
     <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
     <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
   </section>
-  <section class="panel">
-    <div class="panel-header"><div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
-    <div class="panel-actions"><label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label><label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label></div></div>
+  <section class="panel" id="panel-reason-mix">
+        <div class="panel-header">
+          <div><h2>Trade Exit Reason Mix</h2><span class="muted">How positions actually closed · per symbol</span></div>
+          <span class="panel-badge" id="rmix-badge">ALL TIME</span>
+        </div>
+        <div id="reason-mix-body" class="rmix-body">
+          <div class="muted">Loading...</div>
+        </div>
+      </section>
+      <section class="panel" id="panel-log">
+    <div class="panel-header">
+      <div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
+      <div class="panel-actions">
+        <select id="log-file" class="log-ctl"><option value="">Latest</option></select>
+        <select id="log-level" class="log-ctl"><option value="">All levels</option><option value="INFO">INFO</option><option value="WARNING">WARN</option><option value="ERROR">ERROR</option></select>
+        <select id="log-symbol" class="log-ctl"><option value="">All symbols</option><option value="BNF">BNF</option><option value="NF">NF</option><option value="FNF">FNF</option><option value="pfm">pfm</option></select>
+        <input id="log-search" class="log-ctl log-search" type="text" placeholder="search / regex"/>
+        <label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label>
+        <label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label>
+        <button id="log-copy" class="btn-icon" type="button">Copy</button>
+        <a id="log-download" href="#" class="btn-icon" download>Download</a>
+      </div>
+    </div>
+    <div id="log-sticky" class="log-sticky" style="display:none"></div>
     <pre id="log-view"></pre>
   </section>
-  <footer class="footer"><span>Updated <span id="last-update">--</span></span><span>Server <span id="server-time">--</span></span><span>DevPilotX · OU-MRS v1.0</span></footer>
+  <footer class="footer"><span class="ft-tag">OU-MRS</span><span class="ft-ver">v1.0</span><span class="ft-sep">·</span><span class="ft-lbl">last sync</span><span id="last-update">--</span><span class="ft-sep">·</span><span class="ft-lbl">server</span><span id="server-time">--</span></footer>
 </main>
-<script src="/static/app.js?v=8"></script>
-</body>
+<section class="panel" id="heatmap-panel" style="margin-top:24px">
+  <div class="panel-header">
+    <div>
+      <h2>Daily P&amp;L Heatmap</h2>
+      <h3 class="panel-sub">Last 13 weeks · backtest + live · hover any cell</h3>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="panel-badge" id="hm-source-badge">BT + LIVE</span>
+      <span class="panel-badge" style="background:rgba(16,185,129,.1);color:var(--green)">CALENDAR</span>
+    </div>
+  </div>
+  <div class="hm-wrap">
+    <div class="hm-cal">
+      <div class="hm-months" id="hm-months"></div>
+      <div class="hm-body">
+        <div class="hm-days" id="hm-days-axis">
+          <span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span>
+        </div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+      </div>
+      <div class="hm-monthbar" id="hm-monthbar"></div>
+    </div>
+    <div class="hm-side">
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Trading days</span>
+        <span class="hm-stat-val" id="hm-tdays">--</span>
+        <span class="hm-stat-sub" id="hm-tdays-sub">--</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Win rate</span>
+        <span class="hm-stat-val" id="hm-winpct">--</span>
+        <span class="hm-stat-sub" id="hm-winpct-sub">--</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Avg / day</span>
+        <span class="hm-stat-val" id="hm-avg">--</span>
+        <span class="hm-stat-sub">arithmetic mean</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Best · Worst</span>
+        <span class="hm-stat-val" id="hm-extremes" style="font-size:15px">--</span>
+        <span class="hm-stat-sub" id="hm-extremes-sub">--</span>
+      </div>
+      <div class="hm-stat">
+        <span class="hm-stat-lbl">Current streak</span>
+        <span class="hm-stat-val" id="hm-streak">--</span>
+        <span class="hm-stat-sub" id="hm-streak-sub">consecutive</span>
+      </div>
+      <div class="hm-legend">
+        <span>−</span>
+        <div class="hm-legend-cells">
+          <div class="heatmap-cell loss-4"></div>
+          <div class="heatmap-cell loss-3"></div>
+          <div class="heatmap-cell loss-2"></div>
+          <div class="heatmap-cell loss-1"></div>
+          <div class="heatmap-cell empty"></div>
+          <div class="heatmap-cell win-1"></div>
+          <div class="heatmap-cell win-2"></div>
+          <div class="heatmap-cell win-3"></div>
+          <div class="heatmap-cell win-4"></div>
+        </div>
+        <span>+</span>
+      </div>
+    </div>
+  </div>
+  <div class="heatmap-tooltip" id="hm-tooltip"></div>
+</section>
+<script src="/static/app.js?v=36"></script>
+    <script src="/static/sse-ticks.js"></script>
+
+    <div class="kbd-modal" id="kbd-modal" hidden>
+      <div class="kbd-modal-inner">
+        <div class="kbd-header">
+          <h2>Keyboard shortcuts</h2>
+          <button class="kbd-close" type="button" aria-label="Close">×</button>
+        </div>
+        <table class="kbd-table">
+          <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+          <tr><td><kbd>r</kbd></td><td>Refresh dashboard now</td></tr>
+          <tr><td><kbd>t</kbd></td><td>Toggle theme (dark/light)</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / FNF symbol card</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Focus log search box</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>e</kbd></td><td>Go to Equity Curve</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>r</kbd></td><td>Go to Market Regime</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>p</kbd></td><td>Go to PFM Risk</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>t</kbd></td><td>Go to Trade History</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>l</kbd></td><td>Go to Live Bot Log</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close modal / unfocus</td></tr>
+        </table>
+        <div class="kbd-foot muted">Shortcuts ignored when typing in inputs · Press <kbd>?</kbd> any time</div>
+      </div>
+    </div>
+  </body>
 </html>

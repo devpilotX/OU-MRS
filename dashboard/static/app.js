@@ -20,18 +20,47 @@ function humanDur(s){if(!s)return"--";const h=Math.floor(s/3600),m=Math.floor((s
 function escHtml(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 async function refreshStatus(){
-  const s=await fetchJSON("/api/status");if(!s)return;
-  const el=$("#bot-status");el.textContent=(s.bot_state||"--").toUpperCase();
-  el.style.color=s.bot_state==="active"?"var(--green)":"var(--muted)";
-  $("#bot-sub").textContent="Timer: "+(s.timer_state||"--");
-  $("#capital").textContent=fmtMoney(s.capital);
-  $("#mode-label").textContent=s.live_mode?"🔴 LIVE":"📝 Paper";
-  const mc=$("#mode-chip");mc.textContent=s.live_mode?"🔴 LIVE":"📝 Paper";mc.className="chip "+(s.live_mode?"err":"info");
-  $("#heartbeat-info").textContent="Today heartbeats: "+(s.heartbeat_count_today||0);
-  $("#server-time").textContent=new Date(s.server_time).toLocaleTimeString();
-  if(s.next_run_usec){const us=parseInt(s.next_run_usec);if(us>0){const dt=new Date(us/1000);$("#schedule-time").textContent=dt.toLocaleString("en-IN",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});}}
+  const t0 = performance.now();
+  const s = await fetchJSON('/api/status'); if(!s) return;
+  if (typeof recordLatency === 'function') recordLatency('status', performance.now() - t0);
+  const lbl = s.bot_status || (s.bot_state || '--').toUpperCase();
+  const sev = s.bot_status_severity || (s.bot_state === 'active' ? 'ok' : '');
+  const el = $('#bot-status');
+  el.textContent = lbl;
+  el.className = 'kpi-value bot-sev-' + sev;
+  $('#bot-sub').textContent = s.bot_status_reason || ('Timer: ' + (s.timer_state || '--'));
+  $('#capital').textContent = fmtMoney(s.capital);
+  $('#mode-label').textContent = s.live_mode ? 'LIVE' : 'Paper';
+  const mc = $('#mode-chip'); mc.textContent = s.live_mode ? 'LIVE' : 'Paper'; mc.className = 'chip ' + (s.live_mode ? 'err' : 'info');
+  const hbi = $('#heartbeat-info'); if(hbi) hbi.textContent = 'Heartbeats today: ' + (s.heartbeat_count_today || 0);
+  const stEl = $('#server-time'); if(stEl) stEl.textContent = new Date(s.server_time).toLocaleTimeString();
+  if(s.next_run_usec){ const us = parseInt(s.next_run_usec); if(us > 0){ const dt = new Date(us/1000); const sched = $('#schedule-time'); if(sched) sched.textContent = dt.toLocaleString('en-IN',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); } }
 }
 
+
+function _ecGaugeColor(pct, mode){
+  if (mode === 'progress') {
+    if (pct >= 0.80) return 'ok';
+    if (pct >= 0.40) return 'warn';
+    return 'err';
+  }
+  if (pct >= 0.80) return 'err';
+  if (pct >= 0.60) return 'warn';
+  return 'ok';
+}
+
+function _ecGaugeUpdate(id, pct, sev, valStr){
+  const fg = document.querySelector('#ec-gauge-' + id + ' .ec-gauge-fg');
+  const valEl = document.querySelector('#ec-gauge-' + id + ' .ec-gauge-val');
+  if (!fg || !valEl) return;
+  const C = 125.66;
+  fg.setAttribute('stroke-dashoffset', String(C * (1 - Math.max(0, Math.min(1, pct)))));
+  fg.setAttribute('class', 'ec-gauge-fg ec-gauge-' + sev);
+  valEl.textContent = valStr;
+  valEl.className = 'ec-gauge-val ec-' + sev;
+}
+
+async function refreshChallenge(){ return refreshRisk(); }
 async function refreshHealth(){
   const h=await fetchJSON("/api/health");if(!h)return;
   const c=$("#health-chip");
@@ -43,13 +72,16 @@ async function refreshHealth(){
 }
 
 async function refreshMarket(){
+  const t0=performance.now();
   const m=await fetchJSON("/api/market-status");if(!m)return;
+  recordLatency("market-status", performance.now()-t0);
   const c=$("#market-chip");c.textContent="Market: "+m.status.toUpperCase().replace("_"," ");
   c.className="chip "+(m.status==="open"?"ok":m.status==="pre_open"?"warn":"");
+  applyCadence(m.status === "open" || m.status === "pre_open");
 }
 
 async function refreshStrategy(){
-  const s=await fetchJSON("/api/strategy");if(!s)return;
+  const s=await fetchJSON("/api/strategy");if(!s)return; window.__CAPITAL__ = Number(s.capital)||3750000;
   // 8o.3a: multi-symbol render + capital tier chip
   const symList=(s.symbols||[]).map(x=>`<span class="strat-sym">${x.key}</span><span class="strat-lot">${x.lot_size}L · max ${x.max_lots}</span>`).join("&nbsp;&nbsp;");
   const tierChip=s.capital_tier?`<span class="strat-tier">${s.capital_tier}</span>`:"";
@@ -58,13 +90,19 @@ async function refreshStrategy(){
 
 async function refreshTrades(){
   const d=await fetchJSON("/api/trades");if(!d)return;
-  const pnl=d.total_pnl||0;
-  const el=$("#total-pnl");el.textContent=fmtMoney(pnl);
-  el.className="kpi-value "+(pnl>0?"positive":pnl<0?"negative":"");
-  $("#pnl-pct").textContent=fmtPct(pnl/150000);
+  const livePnl=d.total_pnl||0;
+  // Phase 9.8e B6: Top KPI is ALL-TIME (csv backtest + jsonl live + unrealized) from /api/risk
+  let allTimePnl=livePnl;
+  try {
+    const r=await fetchJSON("/api/risk");
+    if(r && typeof r.cumulative_pnl==="number") allTimePnl=r.cumulative_pnl;
+  } catch(e){}
+  const el=$("#total-pnl");el.textContent=fmtMoney(allTimePnl);
+  el.className="kpi-value "+(allTimePnl>0?"positive":allTimePnl<0?"negative":"");
+  $("#pnl-pct").textContent=fmtPct(allTimePnl/(window.__CAPITAL__||3750000));
   $("#trade-count").textContent=d.count;
   $("#win-rate").textContent="Win: "+fmtPct(d.win_rate);
-  $("#trade-summary").textContent=`${d.count} trades · ${fmtMoney(pnl)} · win ${fmtPct(d.win_rate)}`;
+  $("#trade-summary").textContent=`${d.count} trades · ${fmtMoney(livePnl)} · win ${fmtPct(d.win_rate)}`;
   renderTradeTable(d.trades||[]);
 }
 
@@ -84,13 +122,67 @@ function renderTradeTable(trades){
 }
 
 async function refreshLog(){
-  const d=await fetchJSON("/api/log?n=120");if(!d)return;
-  const pre=$("#log-view");const errOnly=$("#log-errors-only").checked;
-  let lines=d.lines||[];
-  if(errOnly)lines=lines.filter(l=>/error|exception|traceback|failed/i.test(l));
-  pre.innerHTML=lines.map(l=>{let cls="log-info";if(/error|exception|traceback|failed/i.test(l))cls="log-err";else if(/warn/i.test(l))cls="log-warn";else if(/heartbeat/i.test(l))cls="log-hb";return `<span class="${cls}">${escHtml(l)}</span>`;}).join("\n");
-  if(d.source)$("#log-source").textContent="file: "+d.source;
-  if($("#log-autoscroll").checked)pre.scrollTop=pre.scrollHeight;
+  const fileSel = $("#log-file");
+  const file = fileSel ? fileSel.value : "";
+  const q = ($("#log-search") && $("#log-search").value) || "";
+  const level = ($("#log-level") && $("#log-level").value) || "";
+  const symbol = ($("#log-symbol") && $("#log-symbol").value) || "";
+  const errOnly = $("#log-errors-only") && $("#log-errors-only").checked;
+  const params = new URLSearchParams({n: "200"});
+  if(file) params.set("file", file);
+  if(q) params.set("q", q);
+  if(level || errOnly) params.set("level", errOnly ? "ERROR" : level);
+  if(symbol) params.set("symbol", symbol);
+  const d = await fetchJSON("/api/log?" + params.toString());
+  if(!d) return;
+  const pre = $("#log-view");
+  let lines = d.lines || [];
+  pre.innerHTML = lines.map(l => {
+    let cls = "log-info";
+    if(/\[ERROR\]|\[CRITICAL\]|exception|traceback|failed/i.test(l)) cls = "log-err";
+    else if(/\[WARN/i.test(l)) cls = "log-warn";
+    else if(/heartbeat/i.test(l)) cls = "log-hb";
+    return `<span class="${cls}">${escHtml(l)}</span>`;
+  }).join("\n");
+  if(d.source) $("#log-source").textContent = `${d.source} - ${d.filtered}/${d.total} lines`;
+  const sticky = $("#log-sticky");
+  if(sticky){
+    const errs = d.sticky_errors || [];
+    if(!errs.length){ sticky.style.display = "none"; sticky.innerHTML = ""; }
+    else {
+      sticky.style.display = "block";
+      sticky.innerHTML = `<div class="log-sticky-hdr">Recent errors (${errs.length})</div>` + errs.map(l => `<div class="log-sticky-line">${escHtml(l)}</div>`).join("");
+    }
+  }
+  const dl = $("#log-download");
+  if(dl && d.source) dl.href = "/api/logs/download?file=" + encodeURIComponent(d.source);
+  if($("#log-autoscroll").checked) pre.scrollTop = pre.scrollHeight;
+}
+
+async function initLogControls(){
+  const sel = $("#log-file");
+  if(sel){
+    const d = await fetchJSON("/api/logs/list");
+    if(d && d.files){
+      sel.innerHTML = '<option value="">Latest</option>' + d.files.map(f => `<option value="${escHtml(f.name)}">${escHtml(f.name)} (${(f.size/1024).toFixed(1)} KB)</option>`).join("");
+    }
+    sel.onchange = () => refreshLog();
+  }
+  const q = $("#log-search");
+  if(q){
+    let t = null;
+    q.oninput = () => { clearTimeout(t); t = setTimeout(refreshLog, 250); };
+  }
+  const lev = $("#log-level"); if(lev) lev.onchange = () => refreshLog();
+  const sym = $("#log-symbol"); if(sym) sym.onchange = () => refreshLog();
+  const cp = $("#log-copy");
+  if(cp) cp.onclick = () => {
+    const txt = $("#log-view").innerText;
+    navigator.clipboard.writeText(txt).then(() => {
+      cp.textContent = "Copied";
+      setTimeout(() => { cp.textContent = "Copy"; }, 1500);
+    });
+  };
 }
 
 async function refreshMetrics(){
@@ -126,7 +218,7 @@ async function refreshMetrics(){
     { label: "SORTINO",       value: fmt(m.sortino,          "ratio"), target: "Target >= 4.0",     grade: grade(m.sortino,          4.0,  2.0,  true),  sub: "downside-adjusted" },
     { label: "PROFIT FACTOR", value: fmt(m.profit_factor,    "x"),     target: "Target >= 1.5",     grade: grade(m.profit_factor,    1.5,  1.2,  true),  sub: "gross win / gross loss" },
     { label: "WIN RATE",      value: fmt(m.win_rate,         "wr"),    target: "Benchmark 60%",     grade: grade(m.win_rate,         0.60, 0.50, true),  sub: (m.trades||0) + " trades" },
-    { label: "MAX DRAWDOWN",  value: fmt(m.max_drawdown_pct, "pct"),   target: "FTMO ceiling -10%", grade: grade(m.max_drawdown_pct, -5, -10, true), sub: "peak to trough" },
+    { label: "MAX DRAWDOWN",  value: fmt(m.max_drawdown_pct, "pct"),   target: "ELITE ceiling -10%", grade: grade(m.max_drawdown_pct, -5, -10, true), sub: "peak to trough" },
     { label: "TOTAL RETURN",  value: fmt(m.return_pct,       "pct"),   target: (m.trading_days||0) + " trading days", grade: grade(m.return_pct, 0, -2, true), sub: fmt(m.total_pnl, "money") },
   ];
   el.className = "metric-cards-grid";
@@ -149,7 +241,7 @@ async function refreshEquity(){
   const d=await fetchJSON("/api/equity");if(!d||!d.rows||!d.rows.length)return;
   const labels=d.rows.map(r=>r.date||r.ts||"");
   const equity=d.rows.map(r=>Number(r.equity||0));
-  const cap=150000,baseline=new Array(equity.length).fill(cap);
+  const cap=(window.__CAPITAL__||3750000),baseline=new Array(equity.length).fill(cap);
   const minV=Math.min(...equity,cap),maxV=Math.max(...equity,cap),pad=(maxV-minV)*.15||5000;
   const finalEq=equity[equity.length-1],pnl=finalEq-cap;
   $("#equity-range").textContent=`${labels[0]} → ${labels[labels.length-1]}  ·  Final ₹${Math.round(finalEq).toLocaleString("en-IN")} (${pnl>=0?"+":""}${(pnl/cap*100).toFixed(2)}%)`;
@@ -181,13 +273,28 @@ async function refreshPortfolio(){
   const p=await fetchJSON("/api/portfolio");if(!p)return;
   const el=$("#portfolio-view");
   if(!p.ok){el.innerHTML=`<div class="muted">Angel: ${p.error||"--"}</div>`;return;}
-  const rms=p.rms||{};const f=k=>fmtMoney(Number(rms[k]||0));
-  el.innerHTML=`<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
+  // Phase 9.8e B7: detect inactive bot / paper mode - rms null or all-zero means no live broker data
+  const rms=p.rms||null;
+  const hasReal = rms && Object.keys(rms).some(k => Number(rms[k]||0) !== 0);
+  if(!hasReal){
+    const cap = Number(window.__CAPITAL__||3750000);
+    const capStr = "Rs " + cap.toLocaleString("en-IN");
+    el.innerHTML = `<div class="pf-paper">
+      <div class="pf-paper-badge">PAPER MODE &middot; BOT INACTIVE</div>
+      <div class="pf-paper-row"><span class="mk">Simulated capital</span><span class="pf-val">${capStr}</span></div>
+      <div class="pf-paper-row"><span class="mk">Broker positions</span><span class="pf-muted">none (paper)</span></div>
+      <div class="pf-paper-row"><span class="mk">Next wakeup</span><span class="pf-val">Wed 13 May &middot; 09:14 IST</span></div>
+      <div class="pf-paper-hint">Live broker data will populate when bot session is active.</div>
+    </div>`;
+  } else {
+    const f=k=>fmtMoney(Number(rms[k]||0));
+    el.innerHTML=`<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
+  }
   $("#portfolio-ts").textContent=new Date().toLocaleTimeString();
 }
 
 async function refreshFast(){await Promise.all([refreshStatus(),refreshHealth(),refreshMarket(),refreshTrades(),refreshLog()]);$("#last-update").textContent=new Date().toLocaleTimeString();}
-async function refreshSlow(){await Promise.all([refreshMetrics(),refreshEquity(),refreshDailyPnl(),refreshDrawdown(),refreshStrategy(),refreshPortfolio()]);}
+async function refreshSlow(){await Promise.all([refreshMetrics(),refreshEquity(),refreshDailyPnl(),refreshDrawdown(),refreshStrategy(),refreshPortfolio(),refreshHeatmap()]);}
 
 function initTheme(){
   const saved=localStorage.getItem("theme")||"dark";
@@ -197,18 +304,18 @@ function initTheme(){
 }
 function initFilters(){$("#trade-filter").onchange=()=>refreshTrades();$("#log-errors-only").onchange=()=>refreshLog();}
 
-initTheme();initFilters();refreshFast();refreshSlow();
+initTheme();initFilters();initLogControls();refreshFast();refreshSlow();
 setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
 // ===== v6 -- chart subtitles + info tooltips =====
 (function(){
   const labels = {
-    "Equity Curve":     { sub: "How ₹1,50,000 grew over 121 backtest days (Oct 2025 → Apr 2026)", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
+    "Equity Curve":     { sub: "Backtest replay · 2026-02-25 → 2026-04-23 · 37 trading days · base ₹1,50,000 (academic notional) · live capital ₹37,50,000 scales same return %", info: "Stepped line = daily equity. Dotted = starting capital. Rising line = strategy is profitable over time." },
     "Daily P&L":        { sub: "Per-day realised profit/loss from closed trades",                    info: "Green bar = profitable day · Red bar = losing day · No bar = no trades that day. Height = ₹ amount." },
     "Drawdown":         { sub: "How far equity fell from its running peak (risk view)",              info: "0% = at all-time high. -3.65% = worst peak-to-trough loss. Small drawdown = stable strategy." },
     "Backtest Metrics": { sub: "Risk/return stats from 121-day historical simulation",               info: "Sharpe 3.25 = excellent risk-adj return. PF 2.35 = earned ₹2.35 for every ₹1 lost. 62.5% win rate." },
     "Live Portfolio":   { sub: "Real-time Angel broker balance (paper mode = ₹0 used)",              info: "Available = deposit. Margin Used = locked for open positions. Paper mode uses zero margin." },
-    "Trade History":    { sub: "Every trade the bot has taken this session",                         info: "Empty = no signals fired yet today. Bot waits for z-score ≥ |1.5| after 40-bar warm-up (~09:55 AM)." },
+    "Trade History":    { sub: "All trades · backtest + paper · most recent first",                         info: "Empty = no signals fired yet today. Bot waits for z-score ≥ |1.5| after 40-bar warm-up (~09:55 AM)." },
     "Live Bot Log":     { sub: "Tail of the bot's runtime log (heartbeats + trades + errors)",       info: "Heartbeats every 30s = bot is alive. Errors shown in red. Toggle 'Errors only' to filter noise." },
   };
   function enhance(){
@@ -245,7 +352,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
     const html = `
       <section id="live-strip" class="live-strip">
         <div class="live-card main waiting" id="lc-ltp">
-          <div class="lbl">BANKNIFTY FUT · LTP</div>
+          <div class="lbl" id="ltp-label">BANKNIFTY FUT · LTP</div>
           <div class="ltp-val" id="ltp-val">--</div>
           <div class="sub" id="ltp-sub">waiting for bot...</div>
         </div>
@@ -363,7 +470,9 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
   async function refreshLive(){
     try {
-      const r = await fetch("/api/live/state", { credentials:"same-origin" });
+      // 8o.3b: per-symbol routing
+      try{if(["FNF",null,""].indexOf(localStorage.getItem("ou_mrs_active_symbol"))>=0)localStorage.setItem("ou_mrs_active_symbol","BNF");}catch(_){} const __sym = (window.__ouActiveSymbol || localStorage.getItem("ou_mrs_active_symbol") || "BNF");
+      const r = await fetch("/api/live/state?symbol=" + encodeURIComponent(__sym), { credentials:"same-origin" });
       if (r.status === 401 || r.status === 303) return;
       const d = await r.json();
       if (!d.ok || d.stale) {
@@ -376,7 +485,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       }
       document.querySelectorAll(".live-card").forEach(c => c.classList.remove("waiting"));
       if (d.ltp != null) {
-        document.getElementById("ltp-val").textContent = "₹" + Number(d.ltp).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+        document.getElementById("ltp-val").textContent = "₹" + Number(d.ltp).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); const _lbl_p98o = document.getElementById("ltp-label"); if (_lbl_p98o) _lbl_p98o.textContent = ({BNF:"BANKNIFTY",NF:"NIFTY",FNF:"FINNIFTY"}[__sym]||__sym) + " FUT · LTP";
         if (d.ohlc_today) {
           const o = d.ohlc_today.o || d.ltp;
           const chg = d.ltp - o;
@@ -402,10 +511,41 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       if (d.intraday_candles && d.intraday_candles.length) renderIntraday(d.intraday_candles);
       if (d.depth) { renderDepth("bids", d.depth.bids || []); renderDepth("asks", d.depth.asks || []); }
       renderPosition(d.position);
+      // 8o.3b: lite-mode notice when non-primary symbol is active
+      const __isLite = !!d.is_lite;
+      const __notice = document.getElementById("deep-dive-notice");
+      if (__notice) {
+        __notice.textContent = __isLite ? ("Deep-dive (z · intraday · depth) is primary-symbol only. Showing lite state for " + (d.active_symbol||"--") + ".") : "";
+        __notice.classList.toggle("visible", __isLite);
+      }
+      document.body.classList.toggle("lite-symbol", __isLite);
     } catch(e) {}
   }
 
-  function boot(){ injectDOM(); refreshLive(); setInterval(refreshLive, 5000); }
+  // 8o.3b: symbol-card click-to-activate hero focus tabs
+  function initSymbolTabs(){
+    const stored = localStorage.getItem("ou_mrs_active_symbol") || "BNF";
+    window.__ouActiveSymbol = stored;
+    function applyActive(){
+      document.querySelectorAll(".symbol-card").forEach(c => {
+        const sym = (c.id||"").replace("card-","");
+        c.classList.toggle("active", sym === window.__ouActiveSymbol);
+      });
+    }
+    document.querySelectorAll(".symbol-card").forEach(c => {
+      c.style.cursor = "pointer";
+      c.addEventListener("click", () => {
+        const sym = (c.id||"").replace("card-","");
+        if (!sym) return;
+        window.__ouActiveSymbol = sym;
+        localStorage.setItem("ou_mrs_active_symbol", sym);
+        applyActive();
+        refreshLive();
+      });
+    });
+    applyActive();
+  }
+  function boot(){ injectDOM(); initSymbolTabs(); refreshLive(); setInterval(refreshLive, 5000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
@@ -609,3 +749,1153 @@ async function refreshSymbols() {
 }
 setInterval(refreshSymbols, 5000);
 refreshSymbols();
+
+// Phase 9.8e B-CAL-1: compact money formatter for heatmap cells
+function fmtCalCell(v){
+  if(v == null || isNaN(v) || v === 0) return "";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "−" : "+";
+  if(abs >= 100000) return sign + (abs/100000).toFixed(1) + "L";
+  if(abs >= 1000)   return sign + Math.round(abs/1000) + "k";
+  return sign + Math.round(abs);
+}
+
+// Phase 9.8e B-CAL-3: filter trade table to specific date
+function filterTradesByDate(dateStr){
+  const tt = document.getElementById("trades-table");
+  if(tt) tt.scrollIntoView({behavior:"smooth", block:"start"});
+  const rows = document.querySelectorAll("#trades-table tbody tr");
+  let matched = 0;
+  rows.forEach(r => {
+    const cells = r.querySelectorAll("td");
+    if(cells.length < 2){ r.style.display = "none"; return; }
+    const ts = (cells[1].textContent || "").trim();
+    const match = ts.startsWith(dateStr);
+    r.style.display = match ? "" : "none";
+    if(match) matched++;
+  });
+  let bn = document.getElementById("hm-trade-filter-banner");
+  if(!bn){
+    bn = document.createElement("div");
+    bn.id = "hm-trade-filter-banner";
+    bn.className = "trade-filter-banner";
+    const tbl = document.getElementById("trades-table");
+    if(tbl && tbl.parentNode) tbl.parentNode.insertBefore(bn, tbl);
+  }
+  bn.innerHTML = '<span>Showing <b>' + matched + '</b> trade' + (matched===1?'':'s') + ' for <b>' + dateStr + '</b></span>' +
+                 '<button class="hm-clear-btn" onclick="clearTradeDateFilter()">× clear filter</button>';
+  bn.style.display = "flex";
+}
+
+function clearTradeDateFilter(){
+  document.querySelectorAll("#trades-table tbody tr").forEach(r => r.style.display = "");
+  const bn = document.getElementById("hm-trade-filter-banner");
+  if(bn) bn.style.display = "none";
+}
+
+// Phase 8q · Premium daily P&L heatmap (GitHub-contrib style)
+async function refreshHeatmap(){
+  const t0 = performance.now();
+  const d = await fetchJSON("/api/daily-pnl"); if(!d) return;
+  recordLatency("daily-pnl", performance.now() - t0);
+  const rows = d.rows || [];
+  const byDate = {}; rows.forEach(r => { byDate[r.date] = r; });
+  const grid = document.getElementById("heatmap-grid"); if(!grid) return;
+  grid.innerHTML = "";
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = 91;
+  const start = new Date(today); start.setDate(today.getDate() - (days - 1));
+  while(start.getDay() !== 0) start.setDate(start.getDate() - 1);
+  let maxAbs = 0; rows.forEach(r => { const a = Math.abs(r.pnl||0); if(a>maxAbs) maxAbs = a; });
+  if(maxAbs <= 0) maxAbs = 1;
+
+  // Build month labels: scan each week for boundary
+  const monthsRow = document.getElementById("hm-months");
+  monthsRow.innerHTML = '<span></span>';  // empty corner
+  const monthSpans = {}; const monthCounts = {};
+  for(let w=0; w<13; w++){
+    const wkStart = new Date(start); wkStart.setDate(start.getDate() + w*7);
+    const monKey = wkStart.getFullYear() + "-" + wkStart.getMonth();
+    if(!(monKey in monthSpans)){
+      monthSpans[monKey] = { label: wkStart.toLocaleString("en-US", {month:"short"}).toUpperCase(), startWeek: w };
+      monthCounts[monKey] = 1;
+    } else { monthCounts[monKey]++; }
+  }
+  Object.values(monthSpans).forEach(m => {
+    const sp = document.createElement("span");
+    const cnt = monthCounts[Object.keys(monthSpans).find(k => monthSpans[k] === m)];
+    sp.style.gridColumn = (m.startWeek + 2) + " / span " + cnt;
+    sp.textContent = (cnt >= 2) ? m.label : "";
+    monthsRow.appendChild(sp);
+  });
+
+  const cells = [];
+  for(let w=0; w<13; w++){
+    for(let dow=0; dow<7; dow++){
+      const dt = new Date(start); dt.setDate(start.getDate() + w*7 + dow);
+      const key = dt.toISOString().slice(0,10);
+      const rec = byDate[key];
+      const pnl = rec ? (rec.pnl||0) : null;
+      const cell = document.createElement("div");
+      cell.className = "heatmap-cell";
+      cell.style.gridColumn = (w+1);
+      cell.style.gridRow = (dow+1);
+      if(dt > today){ cell.style.visibility = "hidden"; }
+      else if(pnl == null || rec.trades === 0){ cell.classList.add("empty"); }
+      else {
+        const ratio = Math.abs(pnl) / maxAbs;
+        const tier = ratio >= 0.75 ? 4 : ratio >= 0.45 ? 3 : ratio >= 0.18 ? 2 : 1;
+        cell.classList.add(pnl >= 0 ? "win-"+tier : "loss-"+tier);
+        cell.textContent = fmtCalCell(pnl);  // Phase 9.8e B-CAL-1
+      }
+      cell.dataset.date = key;
+      cell.dataset.pnl = pnl != null ? pnl : "";
+      cell.dataset.trades = rec ? rec.trades : 0;
+      cell.dataset.wins = rec ? rec.wins : 0;
+      cell.dataset.live = rec ? (rec.live||0) : 0;
+      cell.dataset.bt = rec ? (rec.bt||0) : 0;
+      // Phase 9.8e B-CAL-3: click cell -> filter trade table to that date
+      if(pnl != null && rec && rec.trades > 0){
+        cell.style.cursor = "pointer";
+        cell.addEventListener("click", () => filterTradesByDate(key));
+      }
+      cells.push(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  // Stats
+  const past = rows.filter(r => new Date(r.date) <= today);
+  const winDays = past.filter(r => (r.pnl||0) > 0).length;
+  const lossDays = past.filter(r => (r.pnl||0) < 0).length;
+  const tradingDays = past.length;
+  const totalPnl = past.reduce((s, r) => s + (r.pnl||0), 0);
+  const avg = tradingDays ? totalPnl / tradingDays : 0;
+  const liveTotal = past.reduce((s, r) => s + (r.live||0), 0);
+  const btTotal = past.reduce((s, r) => s + (r.bt||0), 0);
+
+  setText("hm-tdays", tradingDays);
+  const _dates = past.map(r => r.date).filter(Boolean).sort();
+  const _rangeStr = _dates.length ? (_dates[0].slice(5) + " to " + _dates[_dates.length-1].slice(5)) : "no data";
+  const _liveTag = liveTotal > 0 ? " · " + liveTotal + " live" : "";
+  setText("hm-tdays-sub", _rangeStr + _liveTag);
+  setText("hm-winpct", tradingDays ? (winDays/tradingDays*100).toFixed(1) + "%" : "--");
+  setText("hm-winpct-sub", winDays + "W / " + lossDays + "L");
+  const avgEl = document.getElementById("hm-avg");
+  if(avgEl){
+    avgEl.textContent = (avg >= 0 ? "+" : "") + "Rs " + Math.round(avg).toLocaleString("en-IN");
+    avgEl.className = "hm-stat-val " + (avg > 0 ? "pos" : avg < 0 ? "neg" : "");
+  }
+  if(past.length){
+    const best = past.reduce((a,b) => (b.pnl||0) > (a.pnl||0) ? b : a);
+    const worst = past.reduce((a,b) => (b.pnl||0) < (a.pnl||0) ? b : a);
+    document.getElementById("hm-extremes").innerHTML =
+      '<span style="color:var(--green)">+' + Math.round(best.pnl).toLocaleString("en-IN") + '</span> / <span style="color:var(--red)">' + Math.round(worst.pnl).toLocaleString("en-IN") + '</span>';
+    setText("hm-extremes-sub", best.date.slice(5) + " · " + worst.date.slice(5));
+  }
+  // Streak
+  const sorted = past.slice().sort((a,b) => a.date.localeCompare(b.date));
+  let streak = 0; let streakSign = 0;
+  for(let i = sorted.length - 1; i >= 0; i--){
+    const p = sorted[i].pnl || 0;
+    const sign = p > 0 ? 1 : p < 0 ? -1 : 0;
+    if(sign === 0) continue;
+    if(streak === 0){ streakSign = sign; streak = 1; }
+    else if(sign === streakSign){ streak++; }
+    else break;
+  }
+  const stEl = document.getElementById("hm-streak");
+  if(stEl){
+    if(streak === 0){ stEl.textContent = "--"; stEl.className = "hm-stat-val"; }
+    else {
+      stEl.textContent = (streakSign > 0 ? "+" : "−") + streak;
+      stEl.className = "hm-stat-val " + (streakSign > 0 ? "pos" : "neg");
+    }
+  }
+  setText("hm-streak-sub", streak === 0 ? "no streak" : (streak === 1 ? "1 day" : streak + " days"));
+
+  // Phase 9.8e B-CAL-2: rich tooltip — day-of-week, win%, avg/trade, smart positioning
+  const tip = document.getElementById("hm-tooltip");
+  const _DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const _MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  cells.forEach(cell => {
+    cell.addEventListener("mouseenter", () => {
+      const date = cell.dataset.date;
+      const pnl = cell.dataset.pnl;
+      const trades = parseInt(cell.dataset.trades)||0;
+      const wins = parseInt(cell.dataset.wins)||0;
+      const losses = Math.max(0, trades - wins);
+      const live = parseInt(cell.dataset.live)||0;
+      const bt = parseInt(cell.dataset.bt)||0;
+      let prettyDate = date;
+      try {
+        const dt = new Date(date + "T00:00:00");
+        prettyDate = _DOW[dt.getDay()] + " · " + dt.getDate() + " " + _MON[dt.getMonth()] + " " + dt.getFullYear();
+      } catch(e){}
+      let html = '<div class="ht-date">' + prettyDate + '</div>';
+      if(pnl === "" || trades === 0){
+        html += '<div class="ht-empty">no trades this day</div>';
+      } else {
+        const p = parseFloat(pnl);
+        const avg = trades > 0 ? p / trades : 0;
+        const winPct = trades > 0 ? (wins / trades * 100) : 0;
+        html += '<div class="ht-pnl ' + (p>=0?"pos":"neg") + '">' + (p>=0?"+":"−") + "₹" + Math.abs(Math.round(p)).toLocaleString("en-IN") + '</div>';
+        html += '<div class="ht-grid">';
+        html +=   '<div class="ht-k">Trades</div><div class="ht-v">' + trades + '</div>';
+        html +=   '<div class="ht-k">Win rate</div><div class="ht-v">' + winPct.toFixed(0) + '% (' + wins + 'W / ' + losses + 'L)</div>';
+        html +=   '<div class="ht-k">Avg/trade</div><div class="ht-v ' + (avg>=0?"pos":"neg") + '">' + (avg>=0?"+":"−") + "₹" + Math.abs(Math.round(avg)).toLocaleString("en-IN") + '</div>';
+        html += '</div>';
+        const tags = [];
+        if(live > 0) tags.push('<span class="ht-tag live">LIVE ×' + live + '</span>');
+        if(bt > 0)   tags.push('<span class="ht-tag bt">BT ×' + bt + '</span>');
+        if(tags.length) html += '<div class="ht-tags">' + tags.join("") + '</div>';
+        html += '<div class="ht-hint">→ click to filter trade table</div>';
+      }
+      tip.innerHTML = html;
+      tip.classList.add("show");
+    });
+    cell.addEventListener("mousemove", (e) => {
+      const tw = tip.offsetWidth || 220;
+      const th = tip.offsetHeight || 100;
+      let x = e.clientX + 14;
+      let y = e.clientY + 14;
+      if(x + tw > window.innerWidth - 8) x = e.clientX - tw - 14;
+      if(y + th > window.innerHeight - 8) y = e.clientY - th - 14;
+      tip.style.left = Math.max(8, x) + "px";
+      tip.style.top = Math.max(8, y) + "px";
+    });
+    cell.addEventListener("mouseleave", () => { tip.classList.remove("show"); });
+  });
+}
+
+function setText(id, v){ const e = document.getElementById(id); if(e) e.textContent = v; }
+
+// Phase 8q · Latency tracking
+const _latencies = [];
+function recordLatency(endpoint, ms){
+  _latencies.push({ endpoint, ms, t: Date.now() });
+  if(_latencies.length > 30) _latencies.shift();
+  const recent = _latencies.slice(-10);
+  const avg = recent.reduce((s,x) => s + x.ms, 0) / recent.length;
+  const chip = document.getElementById("latency-chip");
+  if(chip){
+    chip.textContent = "API " + Math.round(avg) + "ms";
+    chip.className = "chip " + (avg < 50 ? "lat-fast" : avg < 200 ? "lat-mid" : "lat-slow");
+  }
+}
+
+// Phase 8q · Adaptive cadence (1s/5s during market hours, 5s/30s when closed)
+let _fastInterval = null, _slowInterval = null;
+let _currentCadence = "closed";
+function applyCadence(marketOpen){
+  const target = marketOpen ? "open" : "closed";
+  if(target === _currentCadence) return;
+  _currentCadence = target;
+  if(_fastInterval) clearInterval(_fastInterval);
+  if(_slowInterval) clearInterval(_slowInterval);
+  const fastMs = marketOpen ? 1000 : 5000;
+  const slowMs = marketOpen ? 5000 : 30000;
+  _fastInterval = setInterval(() => refreshFast(), fastMs);
+  _slowInterval = setInterval(() => refreshSlow(), slowMs);
+  console.log("[cadence] applied " + target + ": fast=" + fastMs + "ms slow=" + slowMs + "ms");
+}
+
+// Phase 8n.1: Elite Challenge polling (decoupled from refreshStatus)
+setTimeout(function(){ try { refreshChallenge(); } catch(e){} }, 800);
+setInterval(function(){ try { refreshChallenge(); } catch(e){} }, 7500);
+
+// Phase 8h.2: Market Regime panel
+let _regimeChart = null;
+async function refreshRegime(){
+  const r = await fetchJSON('/api/regime');
+  if(!r) return;
+  const cEl = document.getElementById('regime-current');
+  if(cEl){
+    cEl.textContent = r.current || 'UNKNOWN';
+    var cls = 'info';
+    if(r.current === 'RANGE') cls = 'healthy';
+    else if(r.current === 'CHOP') cls = 'at-risk';
+    else if(r.current === 'TREND') cls = 'breached';
+    cEl.className = 'panel-badge ' + cls;
+  }
+  const aEl = document.getElementById('regime-adx');
+  if(aEl){ aEl.textContent = 'ADX ' + (r.current_adx != null ? r.current_adx.toFixed(1) : '--'); }
+  const regimes = r.regimes || {};
+  const keys = ['TREND', 'RANGE', 'CHOP'];
+  const trades = keys.map(function(k){ return (regimes[k] && regimes[k].trades) || 0; });
+  const ctx = document.getElementById('regime-donut');
+  if(ctx && typeof Chart !== 'undefined'){
+    if(_regimeChart) _regimeChart.destroy();
+    _regimeChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: keys, datasets: [{ data: trades, backgroundColor: ['#ef4444', '#10b981', '#f59e0b'], borderWidth: 0, hoverOffset: 8 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } },
+          tooltip: { callbacks: { label: function(c){ var k = c.label; var m = regimes[k] || {}; return k + ': ' + (m.trades || 0) + ' trades, Rs ' + Math.round(m.total_pnl || 0).toLocaleString(); } } }
+        }
+      }
+    });
+  }
+  const tEl = document.getElementById('regime-table');
+  if(tEl){
+    var html = '<table class="regime-stats"><thead><tr><th>Regime</th><th>Trades</th><th>WR</th><th>Total PnL</th><th>Avg</th><th>PF</th></tr></thead><tbody>';
+    // Phase 9.8e B8: sample-size guard - WR/PF unreliable when n<5
+    var SAMPLE_MIN = 5;
+    keys.forEach(function(k){
+      var m = regimes[k] || {};
+      var n = m.trades || 0;
+      var pnlStr = m.total_pnl != null ? 'Rs ' + Math.round(m.total_pnl).toLocaleString() : '--';
+      var avgStr = m.avg_pnl != null ? 'Rs ' + Math.round(m.avg_pnl).toLocaleString() : '--';
+      var wrStr, pfStr;
+      if (n < SAMPLE_MIN) {
+        var tip = 'needs &ge;' + SAMPLE_MIN + ' trades (n=' + n + ')';
+        wrStr = '<span class="ns-small" title="' + tip + '">&mdash;</span>';
+        pfStr = '<span class="ns-small" title="' + tip + '">&mdash;</span>';
+      } else {
+        wrStr = m.win_rate != null ? (m.win_rate * 100).toFixed(0) + '%' : '&mdash;';
+        pfStr = m.profit_factor != null ? (m.profit_factor >= 999 ? '&infin;' : m.profit_factor.toFixed(2)) : '&mdash;';
+      }
+      var nCell = (n < SAMPLE_MIN) ? '<span class="ns-trades">' + n + '</span>' : String(n);
+      html += '<tr><td><span class="regime-pill regime-' + k.toLowerCase() + '">' + k + '</span></td><td>' + nCell + '</td><td>' + wrStr + '</td><td class="num">' + pnlStr + '</td><td class="num">' + avgStr + '</td><td>' + pfStr + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    tEl.innerHTML = html;
+  }
+}
+setTimeout(function(){ try { refreshRegime(); } catch(e){} }, 1100);
+setInterval(function(){ try { refreshRegime(); } catch(e){} }, 30000);
+
+// Phase 9.8v: PFM panel + tick chip live updaters
+async function refreshPfm(){
+  try {
+    const r = await fetch("/api/risk", { credentials: "same-origin" });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || d.cumulative_pnl == null) return;
+    const pnl = Number(d.cumulative_pnl);
+    const peak = Number(d.peak_equity || 0);
+    const cumEl = document.getElementById("pfm-cum");
+    if (cumEl) { cumEl.textContent = (pnl >= 0 ? "+" : "") + "₹" + pnl.toLocaleString("en-IN",{maximumFractionDigits:0}); cumEl.className = "pfm-val " + (pnl >= 0 ? "profit" : "loss"); }
+    const peakEl = document.getElementById("pfm-peak");
+    if (peakEl) peakEl.textContent = "₹" + peak.toLocaleString("en-IN",{maximumFractionDigits:0});
+    const daysEl = document.getElementById("pfm-days");
+    if (daysEl) daysEl.textContent = String(d.days_traded || 0);
+    const bestEl = document.getElementById("pfm-best");
+    if (bestEl) bestEl.textContent = "₹" + Number(d.best_day_pnl || 0).toLocaleString("en-IN",{maximumFractionDigits:0});
+    const consEl = document.getElementById("pfm-cons");
+    if (consEl) consEl.textContent = (d.consistency_flag ? "✓ " : "⚠ ") + Number(d.consistency_frac || 0).toFixed(2);
+    const progEl = document.getElementById("pfm-prog");
+    const progBar = document.getElementById("pfm-prog-bar");
+    const pct = Math.max(0, Math.min(100, Number(d.profit_target_progress || 0) * 100));
+    if (progEl) progEl.textContent = pct.toFixed(0) + "%";
+    if (progBar) progBar.style.width = pct + "%";
+    const chip = document.getElementById("pfm-chip");
+    if (chip) { const s = d.consistency_flag ? "pfm-ok" : "pfm-soft"; chip.className = "chip " + s; chip.textContent = "PFM: " + (d.consistency_flag ? "OK" : "WARN"); }
+    const badge = document.getElementById("pfm-status-badge");
+    if (badge) badge.textContent = d.consistency_flag ? "CONSISTENT" : "REVIEW";
+  } catch(e) {}
+}
+
+async function refreshTickChip(){
+  try {
+    const r = await fetch("/api/ticks/stats", { credentials: "same-origin" });
+    if (!r.ok) return;
+    const d = await r.json();
+    const chip = document.getElementById("tick-chip");
+    if (!chip) return;
+    if (d && d.subscribers != null && d.subscribers > 0) {
+      chip.className = "chip tick-live";
+      chip.textContent = "Ticks: " + (d.last_tick_age_sec != null ? Math.round(d.last_tick_age_sec) + "s" : "live");
+    } else {
+      chip.className = "chip tick-stale";
+      chip.textContent = "Ticks: idle";
+    }
+  } catch(e) {}
+}
+
+setInterval(refreshPfm, 60000);
+setInterval(refreshTickChip, 5000);
+setTimeout(refreshPfm, 1500);
+setTimeout(refreshTickChip, 1500);
+
+// Phase 9.8w: latency monitor - wraps fetch to measure RTT, p50 over 20 samples
+(function _p98w_latency(){
+  const samples = [];
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function(...args){
+    const t0 = performance.now();
+    return _origFetch(...args).then(r => {
+      const dt = performance.now() - t0;
+      samples.push(dt);
+      if (samples.length > 20) samples.shift();
+      return r;
+    }).catch(e => {
+      samples.push(2000);
+      if (samples.length > 20) samples.shift();
+      throw e;
+    });
+  };
+  function p50(arr){
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a,b) => a-b);
+    return s[Math.floor(s.length/2)];
+  }
+  function update(){
+    const chip = document.getElementById("latency-chip");
+    if (!chip || !samples.length) return;
+    const v = Math.round(p50(samples));
+    chip.textContent = v + "ms";
+    chip.className = "chip " + (v < 200 ? "ok" : v < 500 ? "warn" : "err");
+    chip.title = "p50 round-trip over last " + samples.length + " API calls";
+  }
+  setInterval(update, 2000);
+  setTimeout(update, 2500);
+})();
+
+// Phase 9.8x: regime overlay plugin for equity chart
+(function _p98x_regimeOverlay(){
+  if (typeof Chart === 'undefined') return;
+  let regimeRows = null;
+  const colors = {
+    TREND:   'rgba(16,185,129,0.10)',
+    RANGE:   'rgba(59,130,246,0.10)',
+    CHOP:    'rgba(245,158,11,0.10)',
+    UNKNOWN: 'rgba(139,148,168,0.04)'
+  };
+  async function fetchRegime(){
+    try {
+      const r = await fetch('/api/regime/timeseries', { credentials:'same-origin' });
+      if (!r.ok) return;
+      const d = await r.json();
+      regimeRows = (d && d.rows) || [];
+      const inst = Chart.getChart && Chart.getChart('equity-chart');
+      if (inst) inst.update('none');
+    } catch(e) {}
+  }
+  function buildIndex(){
+    const idx = {};
+    if (!regimeRows) return idx;
+    for (const r of regimeRows) idx[r.date] = r.regime;
+    return idx;
+  }
+  const plugin = {
+    id: 'regimeOverlay',
+    beforeDatasetsDraw(chart){
+      if (!chart.canvas || chart.canvas.id !== 'equity-chart') return;
+      if (!regimeRows || !regimeRows.length) return;
+      const idx = buildIndex();
+      const labels = chart.data.labels || [];
+      const ctx = chart.ctx;
+      const area = chart.chartArea;
+      const xScale = chart.scales.x;
+      ctx.save();
+      labels.forEach((label, i) => {
+        const lblStr = String(label).slice(0,10);
+        const regime = idx[lblStr];
+        if (!regime) return;
+        const x0 = xScale.getPixelForValue(i);
+        const x1 = i + 1 < labels.length ? xScale.getPixelForValue(i+1) : area.right;
+        ctx.fillStyle = colors[regime] || colors.UNKNOWN;
+        ctx.fillRect(x0, area.top, Math.max(1, x1 - x0), area.bottom - area.top);
+      });
+      ctx.restore();
+    }
+  };
+  Chart.register(plugin);
+  // wait for equity chart to exist, then refresh
+  let polled = 0;
+  const poller = setInterval(() => {
+    polled++;
+    const inst = Chart.getChart && Chart.getChart('equity-chart');
+    if (inst) {
+      clearInterval(poller);
+      fetchRegime();
+    }
+    if (polled > 60) clearInterval(poller);
+  }, 1000);
+})();
+
+// Phase 9.8y: keyboard shortcuts
+(function _p98y_keyboard(){
+  let chordMode = null;
+  let chordTimer = null;
+  function isTyping(){
+    const a = document.activeElement;
+    if (!a) return false;
+    const tag = (a.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return true;
+    if (a.isContentEditable) return true;
+    return false;
+  }
+  function flash(el){
+    if (!el) return;
+    el.classList.add("kbd-flash");
+    setTimeout(() => el.classList.remove("kbd-flash"), 1000);
+  }
+  function scrollTo(sel){
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    flash(el);
+    return true;
+  }
+  function showModal(){ const m = document.getElementById("kbd-modal"); if (m) m.hidden = false; }
+  function hideModal(){ const m = document.getElementById("kbd-modal"); if (m) m.hidden = true; }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      hideModal();
+      if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
+      chordMode = null;
+      return;
+    }
+    if (isTyping()) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (chordMode === "g") {
+      clearTimeout(chordTimer);
+      chordMode = null;
+      const targets = {
+        e: "#equity-chart-wrap",
+        r: "#panel-regime",
+        p: "#panel-pfm",
+        t: "#trades-table",
+        l: "#panel-log"
+      };
+      const sel = targets[e.key.toLowerCase()];
+      if (sel) { e.preventDefault(); scrollTo(sel); }
+      return;
+    }
+    switch (e.key) {
+      case "?":
+        e.preventDefault(); showModal(); break;
+      case "r":
+        e.preventDefault();
+        if (typeof refreshFast === "function") refreshFast();
+        if (typeof refreshSlow === "function") refreshSlow();
+        break;
+      case "t":
+        e.preventDefault();
+        const tt = document.getElementById("theme-toggle");
+        if (tt) tt.click();
+        break;
+      case "1":
+        e.preventDefault(); scrollTo("#card-BNF"); break;
+      case "2":
+        e.preventDefault(); scrollTo("#card-NF"); break;
+      case "3":
+        e.preventDefault(); scrollTo("#card-FNF"); break;
+      case "/":
+        e.preventDefault();
+        const s = document.getElementById("log-search");
+        if (s) { s.focus(); s.select(); }
+        break;
+      case "g":
+        chordMode = "g";
+        chordTimer = setTimeout(() => { chordMode = null; }, 1500);
+        break;
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains("kbd-close")) hideModal();
+    if (e.target && e.target.id === "kbd-modal") hideModal();
+  });
+  console.log("Phase 9.8y: keyboard shortcuts active. Press ? for help.");
+})();
+
+// Phase 9.8z: smart empty states
+(function _p98z_emptyStates(){
+  function getISTNow(){
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + 5.5 * 3600000);
+  }
+  function isMarketOpen(){
+    const ist = getISTNow();
+    const day = ist.getDay();
+    if (day === 0 || day === 6) return false;
+    const mins = ist.getHours() * 60 + ist.getMinutes();
+    return mins >= 555 && mins <= 930; // 09:15 - 15:30 IST
+  }
+  function nextMarketStart(){
+    const ist = getISTNow();
+    const next = new Date(ist);
+    next.setHours(9, 14, 0, 0);
+    if (next.getTime() <= ist.getTime()) next.setDate(next.getDate() + 1);
+    while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+    return next;
+  }
+  function fmtDelta(target){
+    const ms = target.getTime() - getISTNow().getTime();
+    if (ms <= 0) return "now";
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h > 0) return h + "h " + m + "m";
+    return m + "m";
+  }
+  function paintEmptyTrades(){
+    const tbody = document.querySelector("#trades-table tbody");
+    if (!tbody) return;
+    const realRows = Array.from(tbody.children).filter(r => !r.classList.contains("es-row"));
+    if (realRows.length > 0) return;
+    const open = isMarketOpen();
+    const next = nextMarketStart();
+    const heading = open
+      ? "Bot is watching for signals"
+      : "Market closed";
+    const subline = open
+      ? "Waiting for z-score >= 1.5 with ADX confirmation"
+      : "Next session opens in " + fmtDelta(next) + " (09:14 IST)";
+    tbody.innerHTML = '<tr class="es-row"><td colspan="11" class="empty-state-cell"><div class="empty-state"><span class="empty-icon">\ud83d\udcca</span><span class="empty-text">' + heading + '</span><span class="empty-sub">' + subline + '</span></div></td></tr>';
+  }
+  function paintEmptyLog(){
+    const lv = document.getElementById("log-view");
+    if (!lv) return;
+    const txt = (lv.textContent || "").trim();
+    if (!txt) {
+      lv.classList.add("is-empty");
+      const open = isMarketOpen();
+      lv.textContent = open
+        ? "No log entries yet - waiting for first heartbeat..."
+        : "Bot is offline - log will populate after market opens at 09:14 IST. Heartbeats appear every 30s when running.";
+    } else if (txt.length > 60 && lv.classList.contains("is-empty")) {
+      lv.classList.remove("is-empty");
+    }
+  }
+  function tick(){
+    try { paintEmptyTrades(); paintEmptyLog(); } catch(e) {}
+  }
+  // Observe trade table mutations to react fast after refreshTrades
+  const tbody = document.querySelector("#trades-table tbody");
+  if (tbody && typeof MutationObserver !== "undefined") {
+    new MutationObserver(() => setTimeout(paintEmptyTrades, 80)).observe(tbody, { childList: true });
+  }
+  setTimeout(tick, 1500);
+  setInterval(tick, 10000);
+})();
+
+// Phase 9.8aa: trade exit reason mix
+(function _p98aa_reasonMix(){
+  const COLORS = {
+    TARGET: "#10b981",
+    STOP: "#ef4444",
+    TIME: "#f59e0b",
+    Z_VEL_STALL: "#8b5cf6",
+    KILL: "#dc2626",
+    EOD: "#3b82f6",
+    OTHER: "#6b7280"
+  };
+  const SYMBOLS = ["BNF", "NF", "FNF"];
+  function pickField(t, names){
+    for (const n of names) {
+      if (t[n] != null && t[n] !== "") return t[n];
+    }
+    return null;
+  }
+  async function refresh(){
+    try {
+      const r = await fetch("/api/trades", { credentials: "same-origin" });
+      if (!r.ok) return;
+      const d = await r.json();
+      const trades = Array.isArray(d) ? d : (d.trades || d.rows || []);
+      const grouped = {};
+      SYMBOLS.forEach(s => grouped[s] = {});
+      trades.forEach(t => {
+        const symRaw = pickField(t, ["symbol", "sym", "instrument"]) || "";
+        const sym = String(symRaw).toUpperCase();
+        if (!SYMBOLS.includes(sym)) return;
+        const reasonRaw = pickField(t, ["reason", "exit_reason", "exit"]) || "OTHER";
+        const reason = String(reasonRaw).toUpperCase().replace(/\s+/g, "_");
+        grouped[sym][reason] = (grouped[sym][reason] || 0) + 1;
+      });
+      const body = document.getElementById("reason-mix-body");
+      if (!body) return;
+      let html = "";
+      SYMBOLS.forEach(sym => {
+        const counts = grouped[sym] || {};
+        const reasonKeys = Object.keys(counts);
+        const total = reasonKeys.reduce((a, k) => a + counts[k], 0);
+        if (total === 0) {
+          html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">' + sym + '</span> <span class="muted">(0 trades)</span></div><div class="rmix-bar"><div class="rmix-empty">no trades yet</div></div></div>';
+          return;
+        }
+        const sorted = reasonKeys.sort((a,b) => counts[b] - counts[a]);
+        let bars = "", chips = "";
+        sorted.forEach(re => {
+          const c = counts[re];
+          const pct = (c / total * 100);
+          const color = COLORS[re] || COLORS.OTHER;
+          bars += '<div class="rmix-seg" style="width:' + pct.toFixed(2) + '%;background:' + color + '" title="' + re + ': ' + c + ' (' + pct.toFixed(1) + '%)"></div>';
+          chips += '<span class="rmix-chip" style="--c:' + color + '">' + re + ' ' + c + '</span>';
+        });
+        const noun = total === 1 ? "trade" : "trades";
+        html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">' + sym + '</span> <span class="muted">(' + total + ' ' + noun + ')</span></div><div class="rmix-bar">' + bars + '</div><div class="rmix-chips">' + chips + '</div></div>';
+      });
+      body.innerHTML = html;
+    } catch(e) {}
+  }
+  setTimeout(refresh, 2000);
+  setInterval(refresh, 60000);
+})();
+
+// Phase 9.8ab Fix 6: schedule-time fallback when /api/status doesn't populate it
+(function _p98ab_schedFallback(){
+  setInterval(function(){
+    var el = document.getElementById('schedule-time');
+    if (!el) return;
+    var t = (el.textContent||'').trim();
+    if (t === '--' || t === '') {
+      var now = new Date();
+      var utc = now.getTime() + now.getTimezoneOffset()*60000;
+      var ist = new Date(utc + 5.5*3600000);
+      var next = new Date(ist);
+      next.setHours(9,14,0,0);
+      if (next.getTime() <= ist.getTime()) next.setDate(next.getDate()+1);
+      while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate()+1);
+      var pad = function(n){return n<10?'0'+n:n;};
+      el.textContent = next.toDateString().slice(0,10) + ' · ' + pad(next.getHours())+':'+pad(next.getMinutes())+' IST';
+    }
+  }, 5000);
+})();
+
+// Phase 9.8ab Fix 1: reason mix robust response parsing
+(function _p98ab_mixFix(){
+  const COLORS = { TARGET:'#10b981', STOP:'#ef4444', TIME:'#f59e0b', Z_VEL_STALL:'#8b5cf6', KILL:'#dc2626', EOD:'#3b82f6', OTHER:'#6b7280' };
+  const SYMBOLS = ['BNF','NF','FNF'];
+  function inferSymbolFromTrade(t){
+    var direct = t.symbol || t.sym || t.instrument || t.ticker;
+    if (direct) return String(direct).toUpperCase();
+    var entry = Number(t.entry || t.in || t.in_price || t.entryPrice || 0);
+    if (entry > 50000) return 'BNF';
+    if (entry > 22000 && entry < 30000) return 'NF';
+    if (entry > 18000 && entry < 28000) return 'FNF';
+    return null;
+  }
+  function flatten(d){
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.trades)) return d.trades;
+    if (d && Array.isArray(d.rows)) return d.rows;
+    if (d && typeof d === 'object'){
+      var out=[];
+      for (var k of Object.keys(d)){
+        if (Array.isArray(d[k])){
+          for (var t of d[k]) out.push(Object.assign({symbol:k}, t));
+        }
+      }
+      return out;
+    }
+    return [];
+  }
+  async function refresh(){
+    try {
+      const r = await fetch('/api/trades', { credentials:'same-origin' });
+      if (!r.ok) return;
+      const d = await r.json();
+      const trades = flatten(d);
+      const grouped = { BNF:{}, NF:{}, FNF:{} };
+      trades.forEach(t => {
+        var sym = inferSymbolFromTrade(t);
+        if (!sym || !SYMBOLS.includes(sym)) return;
+        var reasonRaw = t.reason || t.exit_reason || t.exit || 'OTHER';
+        var reason = String(reasonRaw).toUpperCase().replace(/\s+/g,'_');
+        grouped[sym][reason] = (grouped[sym][reason]||0)+1;
+      });
+      const body = document.getElementById('reason-mix-body');
+      if (!body) return;
+      var html='';
+      SYMBOLS.forEach(function(sym){
+        var counts = grouped[sym]||{};
+        var keys = Object.keys(counts);
+        var total = keys.reduce(function(a,k){return a+counts[k];},0);
+        if (total===0){
+          html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">'+sym+'</span> <span class="muted">(0 trades)</span></div><div class="rmix-bar"><div class="rmix-empty">no trades yet</div></div></div>';
+          return;
+        }
+        var sorted = keys.sort(function(a,b){return counts[b]-counts[a];});
+        var bars='', chips='';
+        sorted.forEach(function(re){
+          var c = counts[re];
+          var pct = c/total*100;
+          var color = COLORS[re]||COLORS.OTHER;
+          bars += '<div class="rmix-seg" style="width:'+pct.toFixed(2)+'%;background:'+color+'" title="'+re+': '+c+' ('+pct.toFixed(1)+'%)"></div>';
+          chips += '<span class="rmix-chip" style="--c:'+color+'">'+re+' '+c+'</span>';
+        });
+        var noun = total===1?'trade':'trades';
+        html += '<div class="rmix-row"><div class="rmix-header"><span class="rmix-sym">'+sym+'</span> <span class="muted">('+total+' '+noun+')</span></div><div class="rmix-bar">'+bars+'</div><div class="rmix-chips">'+chips+'</div></div>';
+      });
+      body.innerHTML = html;
+    } catch(e){}
+  }
+  setTimeout(refresh, 2500);
+  setInterval(refresh, 60000);
+})();
+
+// Phase 9.8ac: post-refresh fixers (defensive overrides for minified upstream code)
+(function _p98ac_finalFixers(){
+  function safeNum(v){
+    if (v == null) return 0;
+    if (typeof v === "number") return isFinite(v) ? v : 0;
+    if (typeof v === "string") return parseFloat(v) || 0;
+    if (typeof v === "object") {
+      if (v.value != null) return safeNum(v.value);
+      if (v.count != null) return safeNum(v.count);
+      if (v.days != null) return safeNum(v.days);
+      // numpy-serialized scalars sometimes look like { "0": 5 }
+      if (v["0"] != null) return safeNum(v["0"]);
+      return 0;
+    }
+    return 0;
+  }
+  function safeBool(v){
+    if (v === true || v === 1 || v === "True" || v === "true") return true;
+    if (typeof v === "object" && v !== null) {
+      if (v.value === true || v.value === "True") return true;
+    }
+    return false;
+  }
+
+  // Fix 5: Total P&L percent on Rs 37.5L live capital
+  setInterval(function(){
+    var totalEl = document.getElementById("total-pnl");
+    var pctEl = document.getElementById("pnl-pct");
+    if (!totalEl || !pctEl) return;
+    var txt = (totalEl.textContent || "").replace(/[^0-9.\-]/g, "");
+    var v = parseFloat(txt);
+    if (!isNaN(v) && v !== 0) {
+      var newTxt = (v >= 0 ? "+" : "") + (v/(window.__CAPITAL__||3750000)*100).toFixed(2) + "% on ₹37.5L";
+      if (pctEl.textContent !== newTxt) pctEl.textContent = newTxt;
+    }
+  }, 3000);
+
+  // Fix 7: Strategy KPI - replace verbose config dump with friendly summary
+  setInterval(function(){
+    var el = document.getElementById("strategy-detail");
+    if (!el) return;
+    var t = (el.textContent || "").trim();
+    if (t.length > 80 || t.indexOf("z_e") !== -1 || t.indexOf("max ") !== -1 || t.indexOf("HEDGE_FUND") !== -1) {
+      el.innerHTML = '<div style="font-size:11px;line-height:1.5"><div><strong>Mean Reversion</strong></div><div class="muted">z entry ±1.5 · stop ±3.5</div><div class="muted">BNF + NF · ₹37.5L · paper</div></div>';
+    }
+  }, 4000);
+
+  // PFM panel defensive: handle nested objects, numpy-serialized scalars, missing fields
+  async function refreshPfmStrong(){
+    try {
+      var r = await fetch("/api/risk", { credentials: "same-origin" });
+      if (!r.ok) return;
+      var d = await r.json();
+      if (!d) return;
+      var pnl = safeNum(d.cumulative_pnl);
+      var peak = safeNum(d.peak_equity);
+      var days = safeNum(d.days_traded);
+      var best = safeNum(d.best_day_pnl);
+      var cf = safeNum(d.consistency_frac);
+      var flag = safeBool(d.consistency_flag);
+      var prog = safeNum(d.profit_target_progress);
+      var cumEl = document.getElementById("pfm-cum");
+      if (cumEl) {
+        cumEl.textContent = (pnl >= 0 ? "+" : "") + "₹" + pnl.toLocaleString("en-IN",{maximumFractionDigits:0});
+        cumEl.className = "pfm-val " + (pnl >= 0 ? "profit" : "loss");
+      }
+      var peakEl = document.getElementById("pfm-peak");
+      if (peakEl) peakEl.textContent = "₹" + peak.toLocaleString("en-IN",{maximumFractionDigits:0});
+      var daysEl = document.getElementById("pfm-days");
+      if (daysEl) daysEl.textContent = String(days);
+      var bestEl = document.getElementById("pfm-best");
+      if (bestEl) bestEl.textContent = "₹" + best.toLocaleString("en-IN",{maximumFractionDigits:0});
+      var consEl = document.getElementById("pfm-cons");
+      if (consEl) consEl.textContent = (flag ? "✓ " : "⚠ ") + cf.toFixed(2);
+      var progEl = document.getElementById("pfm-prog");
+      var progBar = document.getElementById("pfm-prog-bar");
+      var pct = Math.max(0, Math.min(100, prog * 100));
+      if (progEl) progEl.textContent = pct.toFixed(0) + "%";
+      if (progBar) progBar.style.width = pct + "%";
+      var badge = document.getElementById("pfm-status-badge");
+      if (badge) badge.textContent = flag ? "CONSISTENT" : "REVIEW";
+    } catch(e) {}
+  }
+  setInterval(refreshPfmStrong, 30000);
+  setTimeout(refreshPfmStrong, 1500);
+  setTimeout(refreshPfmStrong, 4000);
+})();
+
+// ===== Phase 9.8e B-UI-4 + B-UI-1: Bloomberg status bar + flash highlights =====
+(function _p98e_premium(){
+  if (window.__P98E_PREMIUM__) return;
+  window.__P98E_PREMIUM__ = true;
+
+  // ---------- B-UI-4: dense top status bar ----------
+  function injectBar(){
+    if (document.getElementById('p98e-statusbar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'p98e-statusbar';
+    bar.className = 'p98e-statusbar';
+    bar.innerHTML =
+      '<div class="sb-cell sb-brand">OU-MRS</div>' +
+      '<div class="sb-cell"><span class="sb-lbl">IST</span><span class="sb-val sb-mono" id="sb-clock">--:--:--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">MKT</span><span class="sb-val" id="sb-mkt">--</span></div>' +
+      '<div class="sb-cell sb-grow"><span class="sb-lbl">SESSION</span><span class="sb-val" id="sb-session">--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">CUM P&amp;L</span><span class="sb-val" id="sb-cum">--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">TODAY</span><span class="sb-val" id="sb-day">--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">LAT</span><span class="sb-val" id="sb-lat">--</span></div>' +
+      '<div class="sb-cell sb-pulse-cell"><span class="sb-pulse" id="sb-pulse" title="live heartbeat"></span></div>';
+    document.body.insertBefore(bar, document.body.firstChild);
+    document.body.classList.add('p98e-has-statusbar');
+  }
+  function pad(n,k){ return String(n).padStart(k,'0'); }
+  function istNow(){
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset()*60000;
+    return new Date(utcMs + 5.5*3600*1000);
+  }
+  function marketState(d){
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) return {state:'CLOSED', cls:'closed', sub:'Weekend market closed'};
+    const m = d.getHours()*60 + d.getMinutes();
+    const openM = 9*60+15, closeM = 15*60+30;
+    if (m < openM){
+      const mins = openM - m;
+      return {state:'PRE-OPEN', cls:'preopen', sub:'Opens in ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm'};
+    }
+    if (m < closeM){
+      const mins = closeM - m;
+      return {state:'OPEN', cls:'open', sub:'Closes in ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm'};
+    }
+    return {state:'CLOSED', cls:'closed', sub:'After-hours / next open 09:15 IST'};
+  }
+  function tick(){
+    const d = istNow();
+    const ck = document.getElementById('sb-clock');
+    if (ck) ck.textContent = pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);
+    const ms = marketState(d);
+    const mk = document.getElementById('sb-mkt');
+    if (mk){ mk.textContent = ms.state; mk.className = 'sb-val sb-mkt-' + ms.cls; }
+    const ss = document.getElementById('sb-session');
+    if (ss) ss.textContent = ms.sub;
+    // mirror Top KPI cumulative
+    const tot = document.getElementById('total-pnl');
+    const sbc = document.getElementById('sb-cum');
+    if (tot && sbc){
+      sbc.textContent = (tot.textContent || '--').trim();
+      const pos = /positive/.test(tot.className), neg = /negative/.test(tot.className);
+      sbc.className = 'sb-val ' + (pos ? 'sb-pos' : neg ? 'sb-neg' : '');
+    }
+    // mirror today's PnL — try common ids
+    const day = document.getElementById('today-pnl') || document.getElementById('pnl-today') || document.getElementById('day-pnl');
+    const sbd = document.getElementById('sb-day');
+    if (sbd){
+      if (day){
+        sbd.textContent = (day.textContent || '--').trim();
+        const dpos = /positive/.test(day.className), dneg = /negative/.test(day.className);
+        sbd.className = 'sb-val ' + (dpos ? 'sb-pos' : dneg ? 'sb-neg' : '');
+      } else {
+        sbd.textContent = '--';
+      }
+    }
+    // mirror latency chip
+    const lat = document.getElementById('latency-chip');
+    const sbl = document.getElementById('sb-lat');
+    if (sbl){
+      if (lat) sbl.textContent = (lat.textContent || '--').replace(/^API\s+/i,'');
+      else sbl.textContent = '--';
+    }
+  }
+  function startBar(){
+    injectBar();
+    tick();
+    setInterval(tick, 1000);
+    setInterval(function(){
+      const p = document.getElementById('sb-pulse');
+      if (p){ p.classList.add('beat'); setTimeout(function(){ p.classList.remove('beat'); }, 300); }
+    }, 2000);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startBar);
+  else startBar();
+
+  // ---------- B-UI-1: flash highlights on numeric change ----------
+  function parseNum(s){
+    if (s == null) return NaN;
+    const cleaned = String(s).replace(/[,\s₹Rs]/g,'').replace(/[^\d.\-+]/g,'');
+    if (!cleaned) return NaN;
+    return parseFloat(cleaned);
+  }
+  function attachFlash(){
+    const sel = '.kpi-value, #total-pnl, #pnl-pct, #trade-count, #win-rate, #pfm-cum, #pfm-peak, #sb-cum, #sb-day';
+    document.querySelectorAll(sel).forEach(function(el){
+      if (el.dataset.p98eFlash) return;
+      el.dataset.p98eFlash = '1';
+      el.dataset.lastTxt = el.textContent;
+      const obs = new MutationObserver(function(){
+        const newT = el.textContent;
+        const oldT = el.dataset.lastTxt || '';
+        if (newT === oldT) return;
+        el.dataset.lastTxt = newT;
+        const n1 = parseNum(oldT), n2 = parseNum(newT);
+        let cls;
+        if (isNaN(n1) || isNaN(n2)) cls = 'flash-eq';
+        else if (n2 > n1) cls = 'flash-up';
+        else if (n2 < n1) cls = 'flash-down';
+        else cls = 'flash-eq';
+        el.classList.remove('flash-up','flash-down','flash-eq');
+        void el.offsetWidth; // restart animation
+        el.classList.add(cls);
+        setTimeout(function(){ el.classList.remove(cls); }, 900);
+      });
+      obs.observe(el, {childList:true, characterData:true, subtree:true});
+    });
+  }
+  setTimeout(attachFlash, 1500);
+  setInterval(attachFlash, 5000);
+})();
+
+// ===== Phase 9.8e B-UI-2: KPI mini sparklines (SVG, no deps) =====
+(function _p98e_sparklines(){
+  if (window.__P98E_SPARK__) return;
+  window.__P98E_SPARK__ = true;
+  const HIST_KEY = 'p98e_kpi_hist_v1';
+  const MAX = 40;
+  function loadHist(){
+    try { return JSON.parse(localStorage.getItem(HIST_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function saveHist(h){
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(h)); } catch(e){}
+  }
+  function parseNum(s){
+    if (s == null) return null;
+    const cleaned = String(s).replace(/[,\s₹Rs%]/g,'').replace(/[^\d.\-+]/g,'');
+    if (!cleaned || cleaned === '-' || cleaned === '+') return null;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+  function buildSvg(vals, w, h){
+    if (!vals || vals.length < 2) return '';
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = max - min || 1;
+    const pad = 2;
+    const step = (w - pad*2) / (vals.length - 1);
+    const pts = vals.map(function(v, i){
+      const x = pad + i*step;
+      const y = h - pad - ((v - min) / range) * (h - pad*2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const last = vals[vals.length-1], first = vals[0];
+    const trend = last > first ? 'up' : last < first ? 'down' : 'flat';
+    const lastX = pad + (vals.length-1)*step;
+    const lastY = h - pad - ((last - min) / range) * (h - pad*2);
+    return '<svg class="p98e-spark p98e-spark-' + trend + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.6" fill="currentColor"/>' +
+      '</svg>';
+  }
+  const TARGETS = [
+    { sel: '#total-pnl', key: 'total_pnl' },
+    { sel: '#pnl-pct', key: 'pnl_pct' },
+    { sel: '#trade-count', key: 'trade_count' },
+    { sel: '#win-rate', key: 'win_rate' }
+  ];
+  function tick(){
+    const hist = loadHist();
+    let changed = false;
+    TARGETS.forEach(function(t){
+      const el = document.querySelector(t.sel);
+      if (!el) return;
+      const n = parseNum(el.textContent);
+      if (n == null) return;
+      hist[t.key] = hist[t.key] || [];
+      const last = hist[t.key][hist[t.key].length - 1];
+      if (last !== n) {
+        hist[t.key].push(n);
+        if (hist[t.key].length > MAX) hist[t.key].shift();
+        changed = true;
+      }
+      // attach or update spark
+      let sp = el.parentNode.querySelector('.p98e-spark-host[data-key="' + t.key + '"]');
+      if (!sp) {
+        sp = document.createElement('span');
+        sp.className = 'p98e-spark-host';
+        sp.setAttribute('data-key', t.key);
+        el.insertAdjacentElement('afterend', sp);
+      }
+      sp.innerHTML = buildSvg(hist[t.key], 56, 16);
+    });
+    if (changed) saveHist(hist);
+  }
+  function start(){ tick(); setInterval(tick, 5500); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else setTimeout(start, 1800);
+})();
+
+// ===== Phase 9.8e B-CAL-7: heatmap legend + B-CAL-8: streak markers =====
+(function _p98e_calLegend(){
+  if (window.__P98E_CAL_LEGEND__) return;
+  window.__P98E_CAL_LEGEND__ = true;
+
+  function injectLegend(){
+    const hm = document.getElementById('heatmap') || document.querySelector('.heatmap-grid') || document.querySelector('[id*="heatmap"]');
+    if (!hm) return false;
+    const host = hm.parentNode;
+    if (!host || host.querySelector('.hm-legend')) return true;
+    const leg = document.createElement('div');
+    leg.className = 'hm-legend';
+    leg.innerHTML =
+      '<span class="hm-leg-lbl">P&amp;L bins:</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-loss-2"></span>&lt; &minus;&#8377;5k</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-loss-1"></span>&minus;&#8377;5k..0</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-flat"></span>0</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-win-1"></span>0..+&#8377;5k</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-win-2"></span>+&#8377;5k..+&#8377;25k</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-win-3"></span>&gt; +&#8377;25k</span>' +
+      '<span class="hm-leg-sep">&middot;</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-emoji">&#128293;</span>3+ win streak</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-emoji">&#10052;</span>3+ loss streak</span>';
+    hm.insertAdjacentElement('afterend', leg);
+    return true;
+  }
+
+  function markStreaks(){
+    const cells = Array.from(document.querySelectorAll('.heatmap-cell, .hm-cell, [data-pnl]'));
+    if (!cells.length) return;
+    // Sort by date attribute if present
+    cells.sort(function(a,b){
+      const da = a.getAttribute('data-date') || '';
+      const db = b.getAttribute('data-date') || '';
+      return da.localeCompare(db);
+    });
+    let run = 0, runSign = 0;
+    cells.forEach(function(c, i){
+      // remove previous marker
+      const prev = c.querySelector('.hm-streak-emoji');
+      if (prev) prev.remove();
+      const pnl = parseFloat(c.getAttribute('data-pnl') || '0');
+      if (!pnl) { run = 0; runSign = 0; return; }
+      const sign = pnl > 0 ? 1 : pnl < 0 ? -1 : 0;
+      if (sign === runSign && sign !== 0) {
+        run++;
+      } else {
+        run = 1;
+        runSign = sign;
+      }
+      // Mark the cell that completes a streak of 3+ — and continues marking each subsequent
+      const isLastInRun = (i === cells.length - 1) ||
+                          (function(){
+                            const next = cells[i+1];
+                            if (!next) return true;
+                            const np = parseFloat(next.getAttribute('data-pnl') || '0');
+                            const ns = np > 0 ? 1 : np < 0 ? -1 : 0;
+                            return ns !== sign;
+                          })();
+      if (run >= 3 && isLastInRun) {
+        const em = document.createElement('span');
+        em.className = 'hm-streak-emoji';
+        em.textContent = sign > 0 ? '\uD83D\uDD25' : '\u2744';
+        em.title = (sign > 0 ? 'Win' : 'Loss') + ' streak: ' + run + ' days';
+        c.appendChild(em);
+      }
+    });
+  }
+
+  function tick(){
+    injectLegend();
+    markStreaks();
+  }
+  setTimeout(tick, 2200);
+  setInterval(tick, 8000);
+})();

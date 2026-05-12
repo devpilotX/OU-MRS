@@ -1,0 +1,226 @@
+{
+  "phase": "B-0h",
+  "title": "INDEX-as-proxy disambiguation for FUT-37d edge claim",
+  "shipped_ist": "2026-05-10T22:56:00+05:30",
+  "purpose": "Test whether the on-disk 137-day BANKNIFTY INDEX series can validate the FUT-37d edge claim out-of-sample. Result: NO. INDEX is not a valid P&L proxy for FUT, even though it generates near-identical signal events.",
+  "data_sources": {
+    "fut_canonical": "data/BANKNIFTY_FUT_1min.parquet (11888 rows, 2026-02-25 -> 2026-04-23, 37 days, +05:30 tz)",
+    "index_long": "data/BANKNIFTY_INDEX_1min_tz.parquet (50440 rows, 2025-10-01 -> 2026-04-24, 137 days, +05:30 tz)",
+    "fut_blocked": "Angel One SmartAPI does not index expired FUT contracts; cannot extend FUT history past current contract via Angel"
+  },
+  "b0h_1a_index_137d_full_sample": {
+    "trades": 120,
+    "trading_days": 136,
+    "sharpe_eq_daily": -0.317,
+    "sortino": -0.238,
+    "total_pnl_rs": -5900.81,
+    "profit_factor": 0.93,
+    "max_drawdown_pct": -15.26,
+    "return_pct": -3.93,
+    "win_rate": 0.5333,
+    "trades_per_day": 0.88,
+    "regime_breakdown": {
+      "TREND": {
+        "trades": 3,
+        "win_rate": 0.0,
+        "total_pnl": -2558.66,
+        "avg_pnl": -852.89,
+        "profit_factor": 0.0
+      },
+      "RANGE": {
+        "trades": 97,
+        "win_rate": 0.5567,
+        "total_pnl": 1156.89,
+        "avg_pnl": 11.93,
+        "profit_factor": 1.018
+      },
+      "CHOP": {
+        "trades": 20,
+        "win_rate": 0.5,
+        "total_pnl": -4499.04,
+        "avg_pnl": -224.95,
+        "profit_factor": 0.746
+      },
+      "UNKNOWN": {
+        "trades": 0,
+        "win_rate": 0.0,
+        "total_pnl": 0.0,
+        "avg_pnl": 0.0,
+        "profit_factor": 0.0
+      }
+    },
+    "holdout_train_days_100": {
+      "equity": {
+        "train": {
+          "n": 100,
+          "sharpe_ann": 1.027,
+          "ci95": [
+            -2.083,
+            4.264
+          ],
+          "p_le_zero": 0.2566
+        },
+        "test": {
+          "n": 35,
+          "sharpe_ann": -1.99,
+          "ci95": [
+            -5.872,
+            4.605
+          ],
+          "p_le_zero": 0.7688
+        },
+        "decision": {
+          "test_in_train_ci": true,
+          "same_sign": false,
+          "ci_overlap": true
+        }
+      },
+      "trades": {
+        "train": {
+          "n": 60,
+          "sharpe_per": -0.0666,
+          "total": -5668.23,
+          "p_le_zero": 0.708
+        },
+        "test": {
+          "n": 60,
+          "sharpe_per": -0.0013,
+          "total": -232.58,
+          "p_le_zero": 0.4734
+        },
+        "decision": {
+          "test_in_train_ci": true,
+          "same_sign": true,
+          "ci_overlap": true
+        }
+      }
+    }
+  },
+  "b0h_2b_index_37d_slice_same_window_as_fut": {
+    "calendar_window": "2026-02-25 -> 2026-04-24 (matches FUT-37d)",
+    "comparison": {
+      "FUT_37d": {
+        "trades": 24,
+        "trading_days": 37,
+        "win_rate": 0.5417,
+        "sharpe_eq_daily": 1.615,
+        "total_pnl_rs": 7861.95,
+        "profit_factor": 1.363
+      },
+      "INDEX_37d_slice": {
+        "trades": 31,
+        "trading_days": 37,
+        "win_rate": 0.5484,
+        "sharpe_eq_daily": -1.462,
+        "total_pnl_rs": -11137.01,
+        "profit_factor": 0.728
+      }
+    },
+    "per_regime_same_window": {
+      "CHOP": {
+        "FUT": {
+          "n": 3,
+          "pnl": 4064.06,
+          "wr": 0.6
+        },
+        "INDEX": {
+          "n": 5,
+          "pnl": -5684.76,
+          "wr": 0.6,
+          "pf": 0.456
+        }
+      },
+      "RANGE": {
+        "FUT": {
+          "n": 19,
+          "pnl": 6252.96,
+          "wr": 0.58
+        },
+        "INDEX": {
+          "n": 24,
+          "pnl": -4540.29,
+          "wr": 0.58,
+          "pf": 0.846
+        }
+      },
+      "TREND": {
+        "FUT": {
+          "n": 2,
+          "pnl": -2455.07,
+          "wr": 0.0
+        },
+        "INDEX": {
+          "n": 2,
+          "pnl": -911.96,
+          "wr": 0.0,
+          "pf": 0.0
+        }
+      }
+    },
+    "holdout_train_days_24_mirror_fut": {
+      "equity": {
+        "train": {
+          "n": 24,
+          "sharpe_ann": -2.37,
+          "total_ret": -0.0892,
+          "p_le_zero": 0.7623
+        },
+        "test": {
+          "n": 13,
+          "sharpe_ann": 2.576,
+          "total_ret": 0.0231,
+          "p_le_zero": 0.2664
+        },
+        "decision": {
+          "test_in_train_ci": true,
+          "same_sign": false,
+          "ci_overlap": true
+        }
+      },
+      "trades": {
+        "train": {
+          "n": 11,
+          "sharpe_per": -0.218,
+          "total": -13449.32,
+          "p_le_zero": 0.762
+        },
+        "test": {
+          "n": 20,
+          "sharpe_per": 0.0508,
+          "total": 2312.31,
+          "p_le_zero": 0.3959
+        },
+        "decision": {
+          "split_method": "by_entry_day(col=entry_ts)",
+          "test_in_train_ci": true,
+          "same_sign": false,
+          "ci_overlap": true
+        }
+      }
+    }
+  },
+  "verdict": {
+    "case": "B (proxy invalid)",
+    "reasoning": "Same calendar window (2026-02-25 -> 2026-04-24), same strategy, FUT bars vs INDEX bars: identical win rates per regime (CHOP 60%/60%, RANGE 58%/58%, overall 54.17%/54.84%) but P&L flips from +Rs 7,862 (FUT) to -Rs 11,137 (INDEX). Strategy generates near-identical trades on both series; what differs is the rupees per trade. Avg_win shrinks from Rs 2,270 (FUT) to Rs 1,228 (INDEX), -46%. Avg_loss shrinks from -Rs 1,968 to -Rs 1,509, -23%. Wins shrink almost 2x more than losses shrink, P&L sign flips.",
+    "mechanism_hypothesis": "FUT-INDEX basis is itself a mean-reverting process. Trades enter and exit at different basis levels, so FUT P&L includes basis decay during the trade that is structurally invisible to the INDEX backtest.",
+    "implication_for_fut_edge": "FUT-37d edge claim survives B-0h disconfirmation. The B-0h.1a INDEX-137d disconfirmation falsifies the proxy, not the FUT edge.",
+    "implication_for_validation": "Cannot use INDEX-137d as out-of-sample test for FUT-37d edge. The only paths to T>37 FUT validation are (a) live-paper accumulation (~1 day per trading day from Mon onwards), (b) NSE Bhavcopy or Kite Connect Historical for expired-contract FUT data."
+  },
+  "sacred_rules_added": [
+    "For futures-traded strategies, cash-index series are NOT valid P&L proxies even when they generate near-identical signal events. Win rate parity does NOT imply P&L parity when basis dynamics matter.",
+    "When a backtest baseline is built on T<50 of one instrument, ALWAYS try a same-strategy run on the largest available proxy series before declaring the edge real. The cheapest experiment that could falsify the headline finding goes first.",
+    "When comparing pandas datetime Series across CSVs with mixed tz conventions, force tz-naive on both sides via pd.to_datetime(s, utc=True, errors='coerce').dt.tz_localize(None) before any boolean comparison.",
+    "In any multi-step diagnostic, save intermediate artifacts to disk BEFORE running terminal analysis steps; if the analysis throws, the artifacts are still there for the next iteration."
+  ],
+  "rating_axis_deltas": {
+    "statistical_rigor": "6.9 -> 7.0 (B-0h.1a honest retraction-on-larger-sample) -> 7.1 (B-0h.2b clean disambiguation)",
+    "edge_alpha": "5.5 -> 4.5 (B-0h.1a interim disconfirmation drop) -> 5.0 (B-0h.2b recovery; capped because still unverified past T=37)",
+    "weighted": "6.5 -> 5.7 (interim) -> 6.2 (recovered)"
+  },
+  "next_actions": [
+    "Mon 11 May 09:14 IST live-paper observation paste; confirm A12 latency, A7 sticky-halt, GitHub Actions",
+    "Tue 12 May A2 ship (HEDGE_FUND CAPITAL wiring -> tier_policy.risk_per_trade_pct)",
+    "B-0i scoping: NSE Bhavcopy daily settlement files OR Kite Connect Historical API for expired-FUT minute bars (multi-day Tier-C work)",
+    "Defer: live-paper accumulation slowly extends FUT sample; ~30 trading days to T~67"
+  ]
+}

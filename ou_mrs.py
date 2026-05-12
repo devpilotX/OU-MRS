@@ -4,12 +4,17 @@ from datetime import datetime, time as dtime
 import pandas as pd
 from dotenv import load_dotenv
 from angel_adapter import AngelBroker
-from strategy import compute_signal, Params
+from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
+from strategy import should_trail_stop  # Phase 9.5g
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
 from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
 import signal_publisher  # Phase 8f.5
 from prop_firm_monitor import PropFirmMonitor  # Phase 8e
+from cost_model import compute_rt_cost  # Phase A1
+from pathlib import Path as _A3P  # Phase A3 (idempotent alias)
+from latency import Timer as _LatTimer, flush_if_due as _lat_flush  # Phase A12
+TRADES_PATH = _A3P(__file__).resolve().parent / "trades.jsonl"  # Phase A3: CWD-independent
 
 load_dotenv()
 logging.basicConfig(
@@ -22,11 +27,15 @@ log = logging.getLogger("ou_mrs")
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
 CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
 
+# 8p.2: tier-aware parameter regime auto-applied by capital
+from tier_policy import get_policy as _get_policy
+_TIER_NAME, _POLICY = _get_policy(CAPITAL)
+
 # --- Phase 8g: multi-instrument config ---
 INSTRUMENT_CFG = {
-    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": 1.5, "exchange": "NFO"},
-    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"),     "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": 1.5, "exchange": "NFO"},
-    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"),  "lot_size": 60, "margin_per_lot": 60_000, "atr_mult": 1.5, "exchange": "NFO"},
+    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"),     "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"),  "lot_size": 60, "margin_per_lot": 60_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
 }
 INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
 assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMENT_CFG keys"
@@ -40,21 +49,38 @@ def max_lots_for_capital(capital: int, instrument: str = "BNF") -> int:
     return max(1, min(50, capital // per_lot))
 
 def capital_tier(capital: int) -> str:
-    if capital < 200_000:    return "TINY"
-    if capital < 1_500_000:  return "PAPER"
-    if capital < 2_500_000:  return "FTMO_STARTER"
-    if capital < 5_000_000:  return "FTMO_PRO"
-    return "FTMO_ELITE"
+    # 8p.0: asset-management tier labels (no retail prop-firm vocab)
+    if capital < 200_000:    return "SEED"
+    if capital < 1_500_000:  return "GROWTH"
+    if capital < 2_500_000:  return "INSTITUTIONAL"
+    if capital < 5_000_000:  return "HEDGE_FUND"
+    return "QUANT_ELITE"
 
 MAX_LOTS_BNF  = max_lots_for_capital(CAPITAL, "BNF")  # Phase 8g.4.a: legacy startup log only
 CAPITAL_TIER  = capital_tier(CAPITAL)
 MAX_TRADES    = 8           # Phase 8g.5: now AGGREGATE cap across runners (was per-symbol)
-MAX_CONCURRENT_POSITIONS = int(os.environ.get("MAX_CONCURRENT_POSITIONS", 2))  # Phase 8g.5: corr cap
-DAILY_LOSS    = 0.02
+MAX_CONCURRENT_POSITIONS = int(os.environ.get("MAX_CONCURRENT_POSITIONS", _POLICY["max_concurrent_positions"]))  # Phase 8g.5: corr cap
+DAILY_LOSS    = _POLICY["daily_loss_cap_pct"]  # 8p.2: tier-aware
 SESSION_START = dtime(9, 30)
 SESSION_END   = dtime(14, 45)
 SQUAREOFF     = dtime(15, 15)
+# Phase 9.8i: per-symbol candle cache (incremental fetch, eliminates rate-limit bleed)
+import pandas as _pd_p98i
+from datetime import timedelta as _td_p98i
+_candle_cache_p98i = {}  # {sym: pd.DataFrame}
+
 PARAMS        = Params()
+try:
+    PARAMS.z_entry = _POLICY["z_entry"]  # 8p.2: tier-aware
+    PARAMS.z_stop  = _POLICY["z_stop"]   # 8p.2: tier-aware
+    PARAMS.adx_threshold = float(os.environ.get("OU_ADX_THRESHOLD", 30.0))  # Phase 9.5c: realistic-cost sweep winner PF=1.277 (was 1.24 fee-illusion)
+    PARAMS.z_entry = float(os.environ.get("OU_Z_ENTRY", PARAMS.z_entry))  # Phase 9.7b: live tunable
+    # Phase 9.8: regime allow-list filter via env (e.g. OU_REGIME_FILTER=CHOP or CHOP,RANGE)
+    _rf_p98 = os.environ.get("OU_REGIME_FILTER", "").strip()
+    if _rf_p98:
+        PARAMS.regime_allow = tuple(r.strip().upper() for r in _rf_p98.split(",") if r.strip())
+except Exception as _e:
+    log.warning(f"8p.2 policy override on PARAMS skipped: {_e}")
 
 HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
@@ -108,9 +134,11 @@ def _exit(broker, pos, bar, reason, symbol="BNF", lot_size=15):
     else:
         log.info(f"[PAPER] EXIT {side} {pos['qty']}l")
     pnl_pts = (bar["close"] - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
-    pnl = pnl_pts * pos["qty"] * lot_size - 40
+    gross = pnl_pts * pos["qty"] * lot_size
+    cost = compute_rt_cost(pos["entry_px"], float(bar["close"]), lot_size, pos["qty"], side=pos["side"])
+    pnl = gross - cost  # Phase A1
     log.info(f"EXIT ({reason}) @ {bar['close']:.2f} pnl=Rs{pnl:.0f}")
-    with open("trades.jsonl", "a") as f:
+    with open(TRADES_PATH, "a") as f:
         f.write(json.dumps({
             "entry_ts": str(pos["entry_ts"]),
             "exit_ts": str(bar.name),
@@ -149,14 +177,15 @@ def _snapshot_portfolio(broker):
         rms = None; pos = None
         try:
             rms = broker.smart.rmsLimit().get("data")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug(f"_snapshot rmsLimit fetch failed: {_e}")
         try:
-            pos = broker.smart.runner.position().get("data")
-        except Exception:
-            pass
+            pos = broker.smart.position().get("data")
+        except Exception as _e:
+            log.debug(f"_snapshot position fetch failed: {_e}")
         return {"rms": rms, "position": pos, "ts": datetime.now().isoformat()}
-    except Exception:
+    except Exception as _e:
+        log.debug(f"_snapshot_portfolio outer failed: {_e}")
         return None
 
 def reconcile_sl_orders(broker, symbol="BNF"):
@@ -178,7 +207,8 @@ def reconcile_sl_orders(broker, symbol="BNF"):
                     continue
                 try:
                     rec = json.loads(line)
-                except Exception:
+                except Exception as _e:
+                    log.debug(f"reconcile sl_state json parse failed: {_e}")
                     continue
                 oid = rec.get("sl_order_id")
                 if not oid:
@@ -235,15 +265,18 @@ def main():
         return 0
 
     broker = AngelBroker().login()
-    try:
-        reconcile_sl_orders(broker, symbol=runner.symbol)   # Phase 8d.1
-    except Exception as _e:
-        log.warning(f"[reconcile] failed (non-fatal): {_e}")
+    # Phase 9.7: pre-init reconcile removed (referenced undefined `runner`); see post-init loop after runners dict
     pfm = PropFirmMonitor(capital=CAPITAL)  # Phase 8e
     log.info(f"[pfm] init: {pfm.status_summary()}")
     # Phase 8g.4.a: per-symbol runners dict; 4.b will add per-symbol loop
     runners = {sym: OuMrsRunner(sym, INSTRUMENT_CFG[sym], broker=broker, capital=CAPITAL, params=PARAMS, pfm=pfm) for sym in INSTRUMENTS}
     log.info(f"[runners] init: {len(runners)} symbol(s): " + ", ".join(f"{s}={r!r}" for s, r in runners.items()))
+    # Phase 9.7: post-init reconcile each runner's SL orders
+    for _sym, _r in runners.items():
+        try:
+            reconcile_sl_orders(broker, symbol=_r.symbol)
+        except Exception as _e:
+            log.warning(f"[reconcile] {_sym} failed (non-fatal): {_e}")
     last_minute = None
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b
@@ -281,6 +314,7 @@ def main():
             except Exception as _e: log.debug(f"signal heartbeat failed: {_e}")
 
         if now.minute == last_minute or now.second < 5:
+            _lat_flush()  # Phase A12: emit aggregated stats every 60s
             time.sleep(1)
             continue
         last_minute = now.minute
@@ -289,83 +323,106 @@ def main():
         for sym, runner in runners.items():
             _saved_tok = getattr(broker, "token", None)
             _saved_exch = getattr(broker, "exchange", None)
+            _saved_sym = getattr(broker, "symbol", None)
             broker.token = runner.token
             broker.exchange = runner.exchange
+            broker.symbol = runner.symbol_full
             try:
                 session_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-                rows = broker.get_candles(session_open, now, "ONE_MINUTE")
-                if not rows:
+                if now < session_open:
                     continue
-                df = pd.DataFrame(rows, columns=["ts","open","high","low","close","volume"])
-                df["ts"] = pd.to_datetime(df["ts"])
-                df = df.set_index("ts")
+                # Phase 9.8i: incremental fetch with 2-min overlap
+                _cached = _candle_cache_p98i.get(sym)
+                if _cached is None or _cached.empty:
+                    _fetch_start = session_open
+                else:
+                    _fetch_start = _cached.index[-1] - _td_p98i(minutes=2)
+                rows = broker.get_candles(_fetch_start, now, "ONE_MINUTE")
+                if not rows:
+                    if _cached is not None and not _cached.empty:
+                        df = _cached  # use cache when fetch fails
+                    else:
+                        continue
+                else:
+                    _new_df = pd.DataFrame(rows, columns=["ts","open","high","low","close","volume"])
+                    _new_df["ts"] = pd.to_datetime(_new_df["ts"])
+                    _new_df = _new_df.set_index("ts")
+                    if _cached is not None and not _cached.empty:
+                        df = pd.concat([_cached, _new_df])
+                        df = df[~df.index.duplicated(keep="last")].sort_index()
+                    else:
+                        df = _new_df.sort_index()
+                    _candle_cache_p98i[sym] = df.tail(500)
                 bar = df.iloc[-1]
-                sig = compute_signal(df, PARAMS)
+                with _LatTimer("compute_signal"):
+                    sig = compute_signal(df, PARAMS)
 
                 # Phase 4b: refresh portfolio snapshot, throttled (broker-wide; first symbol only)
                 if sym == INSTRUMENTS[0] and _t - last_portfolio_ts >= PORTFOLIO_REFRESH_SEC:
-                    cached_portfolio = _snapshot_portfolio(broker)
+                    with _LatTimer("snapshot_portfolio"):
+                        cached_portfolio = _snapshot_portfolio(broker)
                     last_portfolio_ts = _t
 
                 # Phase 8g.4.b: live_hook for first symbol only (per-symbol panels = Step 6)
-                if sym == INSTRUMENTS[0]:
-                    # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
-                    try:
-                        _win = getattr(PARAMS, "window", 40)
-                        _closes = df["close"].tail(_win).tolist()
-                        _mean = (sum(_closes)/len(_closes)) if _closes else None
-                        _std = None
-                        if _closes and _mean is not None:
-                            _var = sum((x-_mean)**2 for x in _closes)/len(_closes)
-                            _std = _var**0.5
-                        if len(df) < _win:
-                            _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
-                        elif runner.position:
-                            _state = "in_trade"
-                            _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
-                        elif runner.kill:
-                            _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
-                        else:
-                            _state = "idle"
-                            _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
-                        _ohlc = {
-                            "o": float(df.iloc[0]["open"]),
-                            "h": float(df["high"].max()),
-                            "l": float(df["low"].min()),
-                            "c": float(bar["close"]),
-                            "vol": int(df["volume"].sum()) if "volume" in df.columns else 0,
+                # --- LIVE_HOOK_v1: dashboard state writer (never breaks bot) ---
+                try:
+                    _win = getattr(PARAMS, "window", 40)
+                    _closes = df["close"].tail(_win).tolist()
+                    _mean = (sum(_closes)/len(_closes)) if _closes else None
+                    _std = None
+                    if _closes and _mean is not None:
+                        _var = sum((x-_mean)**2 for x in _closes)/len(_closes)
+                        _std = _var**0.5
+                    if len(df) < _win:
+                        _state, _reason = "warming_up", f"need {_win} bars, have {len(df)}"
+                    elif runner.position:
+                        _state = "in_trade"
+                        _reason = f"holding {runner.position['side']} {runner.position['qty']}l @ Rs{runner.position.get('entry_px','-')}"
+                    elif runner.kill:
+                        _state, _reason = "cooldown", "daily loss or 3-STOP circuit breaker"
+                    else:
+                        _state = "idle"
+                        _reason = f"watching · need |z| >= {getattr(PARAMS,'z_entry',1.5)}"
+                    _ohlc = {
+                        "o": float(df.iloc[0]["open"]),
+                        "h": float(df["high"].max()),
+                        "l": float(df["low"].min()),
+                        "c": float(bar["close"]),
+                        "vol": int(df["volume"].sum()) if "volume" in df.columns else 0,
+                    }
+                    _candles = [[idx.strftime("%H:%M"),
+                                 float(r["open"]), float(r["high"]),
+                                 float(r["low"]),  float(r["close"])]
+                                for idx, r in df.tail(240).iterrows()]
+                    _pos = None
+                    if runner.position:
+                        _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
+                        _upnl = (_pts * runner.position["qty"] * runner.lot_size
+                                 - compute_rt_cost(runner.position["entry_px"], float(bar["close"]), runner.lot_size, runner.position["qty"], side=runner.position["side"]))
+                        _pos = {
+                            "side": runner.position["side"],
+                            "entry": float(runner.position["entry_px"]),
+                            "qty": runner.position["qty"],
+                            "entry_ts": str(runner.position.get("entry_ts","")),
+                            "bars_held": runner.position.get("bars_held", 0),
+                            "half_life": runner.position.get("half_life", 0),
+                            "unrealized_pnl": round(_upnl, 2),
                         }
-                        _candles = [[idx.strftime("%H:%M"),
-                                     float(r["open"]), float(r["high"]),
-                                     float(r["low"]),  float(r["close"])]
-                                    for idx, r in df.tail(240).iterrows()]
-                        _pos = None
-                        if runner.position:
-                            _pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"]=="BUY" else -1)
-                            _upnl = _pts * runner.position["qty"] * runner.lot_size - 40
-                            _pos = {
-                                "side": runner.position["side"],
-                                "entry": float(runner.position["entry_px"]),
-                                "qty": runner.position["qty"],
-                                "entry_ts": str(runner.position.get("entry_ts","")),
-                                "bars_held": runner.position.get("bars_held", 0),
-                                "half_life": runner.position.get("half_life", 0),
-                                "unrealized_pnl": round(_upnl, 2),
-                            }
-                        _depth = None
-                        try:
-                            _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
-                            _tok = runner.token
-                            if _smart and _tok and hasattr(_smart, "getMarketData"):
-                                _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
-                                if _md.get("status") and _md.get("data",{}).get("fetched"):
-                                    _d = _md["data"]["fetched"][0]
-                                    _depth = {
-                                        "bids": _d.get("depth",{}).get("buy",[])[:5],
-                                        "asks": _d.get("depth",{}).get("sell",[])[:5],
-                                    }
-                        except Exception:
-                            pass
+                    _depth = None
+                    try:
+                        _smart = getattr(broker, "smart", None) or getattr(broker, "client", None)
+                        _tok = runner.token
+                        if _smart and _tok and hasattr(_smart, "getMarketData"):
+                            _md = _smart.getMarketData(mode="FULL", exchangeTokens={"NFO":[_tok]})
+                            if _md.get("status") and _md.get("data",{}).get("fetched"):
+                                _d = _md["data"]["fetched"][0]
+                                _depth = {
+                                    "bids": _d.get("depth",{}).get("buy",[])[:5],
+                                    "asks": _d.get("depth",{}).get("sell",[])[:5],
+                                }
+                    except Exception as _e:
+                        log.debug(f"live_hook payload build failed: {_e}")
+                    if sym == INSTRUMENTS[0]:
                         live_hook.tick(
                             ltp=float(bar["close"]),
                             z=((_closes[-1] - _mean) / _std if (_closes and _mean is not None and _std) else getattr(sig, "z", None)),
@@ -385,9 +442,9 @@ def main():
                             trades_today=runner.trades_today,
                             pnl_today=round(runner.pnl_today, 2),
                         )
-                    except Exception as _e:
-                        log.debug(f"live_hook tick failed: {_e}")
-                    # --- /LIVE_HOOK_v1 ---
+                except Exception as _e:
+                    log.debug(f"live_hook tick failed: {_e}")
+                # --- /LIVE_HOOK_v1 ---
                 # Phase 8g.6: per-symbol dashboard state (all symbols)
                 try:
                     if runner.kill:
@@ -401,9 +458,32 @@ def main():
                     _ps_pos = None
                     if runner.position:
                         _ps_pts = (float(bar["close"]) - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
-                        _ps_upnl = _ps_pts * runner.position["qty"] * runner.lot_size - 40
+                        _ps_upnl = (_ps_pts * runner.position["qty"] * runner.lot_size
+                                    - compute_rt_cost(runner.position["entry_px"], float(bar["close"]), runner.lot_size, runner.position["qty"], side=runner.position["side"]))
                         _ps_pos = {"side": runner.position["side"], "qty": runner.position["qty"], "entry": float(runner.position["entry_px"]), "unrealized_pnl": round(_ps_upnl, 2)}
-                    live_hook.tick_symbol(symbol=sym, ltp=float(bar["close"]), state=_ps_state, position=_ps_pos, trades_today=runner.trades_today, pnl_today=round(runner.pnl_today, 2), kill=runner.kill, max_lots=runner.max_lots, lot_size=runner.lot_size, reasons_log=runner.reasons_log[-5:])
+                    _ll_8o3c = locals()
+                    _ps_closes = _ll_8o3c.get("_closes") or []
+                    _ps_mean   = _ll_8o3c.get("_mean")
+                    _ps_std    = _ll_8o3c.get("_std")
+                    _ps_z      = ((_ps_closes[-1] - _ps_mean) / _ps_std) if (_ps_closes and _ps_mean is not None and _ps_std) else None
+                    live_hook.tick_symbol(
+                        symbol=sym, ltp=float(bar["close"]), state=_ps_state,
+                        state_reason=_ll_8o3c.get("_reason", ""),
+                        position=_ps_pos, trades_today=runner.trades_today,
+                        pnl_today=round(runner.pnl_today, 2),
+                        kill=runner.kill, max_lots=runner.max_lots, lot_size=runner.lot_size,
+                        reasons_log=runner.reasons_log[-5:],
+                        z=_ps_z, mean=_ps_mean, std=_ps_std,
+                        window=_ll_8o3c.get("_win", 40),
+                        z_entry=getattr(PARAMS, "z_entry", 1.5),
+                        z_stop=getattr(PARAMS, "z_stop", 3.5),
+                        candles_count=len(df) if "df" in _ll_8o3c else 0,
+                        intraday_candles=_ll_8o3c.get("_candles"),
+                        depth=_ll_8o3c.get("_depth"),
+                        ohlc_today=_ll_8o3c.get("_ohlc"),
+                        next_check_in_sec=max(1, 60 - datetime.now().second),
+                        portfolio=_ll_8o3c.get("cached_portfolio"),
+                    )
                 except Exception as _e:
                     log.debug(f"live_hook tick_symbol failed [{sym}]: {_e}")
 
@@ -438,15 +518,27 @@ def main():
                         continue
                     reason = None
                     z = sig.z
-                    if   runner.position["side"] == "BUY"  and z >= 0: reason = "TARGET"
-                    elif runner.position["side"] == "SELL" and z <= 0: reason = "TARGET"
+                    # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
+                    _mtm = (sig.price - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
+                    _profitable = _mtm > 0
+                    if   runner.position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
+                    elif runner.position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
                     elif abs(z) > PARAMS.z_stop and (
                         (runner.position["side"] == "BUY"  and z < 0) or
                         (runner.position["side"] == "SELL" and z > 0)):
                         reason = "STOP"
                     runner.position["bars_held"] += 1
-                    if not reason and runner.position["bars_held"] >= int(5 * runner.position["half_life"]):
-                        reason = "TIME"
+                    runner.position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
+                    if not reason and should_time_stop_hl(runner.position["bars_held"], runner.position["half_life"]):  # Phase 9.5
+                        reason = "TIME_STOP_HL"
+                    if not reason and should_velocity_stop(runner.position.get("z_history", []), runner.position["side"]):  # Phase 9.5
+                        reason = "Z_VEL_STALL"
+                    # Phase 9.5g: trail stop check (last priority)
+                    if not reason:
+                        _ppts_p95g = max(runner.position.get("peak_pnl_pts", 0.0), _mtm)
+                        runner.position["peak_pnl_pts"] = _ppts_p95g
+                        if should_trail_stop(_mtm, _ppts_p95g, runner.position["atr"]):
+                            reason = "TRAIL_STOP"
                     if reason:
                         p = _exit(broker, runner.position, bar, reason, symbol=runner.symbol, lot_size=runner.lot_size)
                         runner.pnl_today += p
@@ -486,16 +578,20 @@ def main():
                     _sl_side = "BUY"
                 sl_oid = None
                 if LIVE:
-                    broker.place_market(sig.side, qty)
+                    with _LatTimer("place_market_entry"):
+                        broker.place_market(sig.side, qty)
                     try:
-                        sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
+                        with _LatTimer("place_stoploss_limit"):
+                            sl_oid = broker.place_stoploss_limit(_sl_side, qty, _sl_trig, _sl_lim)
                     except Exception as _e:
                         log.error(f"SL placement failed: {_e} — emergency market exit")
-                        broker.place_market(_sl_side, qty)
+                        with _LatTimer("place_market_sl_fallback"):
+                            broker.place_market(_sl_side, qty)
                         continue
                 else:
                     log.info(f"[PAPER] {sig.side} {qty_lots}l @ {sig.price:.2f} [SL {_sl_side} trig={_sl_trig:.2f} lim={_sl_lim:.2f}]")
                 runner.position = {
+                    "peak_pnl_pts": 0.0,
                     "side": sig.side,
                     "qty": qty_lots,
                     "entry_px": sig.price,
@@ -506,6 +602,7 @@ def main():
                     "sl_order_id": sl_oid,
                     "sl_trigger": _sl_trig,
                     "sl_limit": _sl_lim,
+                    "z_history": [sig.z],  # Phase 9.5: z_history seed
                 }
                 # Phase 8d: persist SL state for crash recovery
                 try:
@@ -532,6 +629,9 @@ def main():
             finally:
                 if _saved_tok is not None: broker.token = _saved_tok
                 if _saved_exch is not None: broker.exchange = _saved_exch
+                if _saved_sym is not None: broker.symbol = _saved_sym
+            # Phase 9.8g: stagger inter-symbol fetches to avoid Angel rate-limit burst
+            time.sleep(3)
         time.sleep(2)
 
 if __name__ == "__main__":
