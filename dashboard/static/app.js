@@ -2393,3 +2393,94 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 3000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.38: Trade Distribution scatter ===== */
+(function _p98f_trade_scatter(){
+  if (window.__P98F_SCATTER__) return;
+  window.__P98F_SCATTER__ = true;
+  let trades = [], canvas;
+  function makePanel(){
+    if (document.getElementById("p98f-scatter-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-scatter-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Trade Distribution</h2><span class=\"muted\">Entry-hour \u00d7 bars-held \u00d7 |P&amp;L| \u00b7 hover for detail \u00b7 source: /api/trades</span></div><span class=\"panel-badge\" style=\"background:rgba(60,224,79,.12);color:#3ce04f\">FORENSIC</span></div><div style=\"position:relative;margin-top:14px\"><canvas id=\"p98f-scatter-canvas\" style=\"width:100%;height:340px;display:block\"></canvas><div id=\"p98f-scatter-tip\" style=\"position:absolute;display:none;padding:8px 10px;background:rgba(15,20,30,.96);border:1px solid rgba(255,255,255,.18);border-radius:4px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px;color:#ddd;pointer-events:none;z-index:10;line-height:1.6;white-space:nowrap\"></div></div><div id=\"p98f-scatter-foot\" class=\"muted\" style=\"margin-top:10px;font-size:12px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace\">loading\u2026</div>";
+    const anchor = document.getElementById("p98f-l2-panel") || document.getElementById("p98f-regime-hm-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function tradeHour(t){ const ts = (t.entry_ts || "").replace(" ", "T", 1); try { const d = new Date(ts); return d.getHours() + d.getMinutes()/60; } catch(e){ return 12; } }
+  function drawScatter(){
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect();
+    const W = rect.width || 800, H = rect.height || 340;
+    canvas.width = Math.floor(W*dpr); canvas.height = Math.floor(H*dpr);
+    canvas.style.width = W+"px"; canvas.style.height = H+"px";
+    const ctx = canvas.getContext("2d"); ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+    const padL=50, padR=20, padT=16, padB=36;
+    const pw = W-padL-padR, ph = H-padT-padB;
+    const xMin=9, xMax=15.5;
+    const yMax = Math.max(50, Math.max.apply(null, trades.map(function(t){ return t.bars_held||0; }).concat([10])) + 5);
+    ctx.strokeStyle = "rgba(128,128,128,.15)"; ctx.lineWidth = 1;
+    for (let h=9; h<=15; h++){ const x = padL + ((h-xMin)/(xMax-xMin))*pw; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+ph); ctx.stroke(); }
+    for (let i=0; i<=5; i++){ const y = padT + (i/5)*ph; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke(); }
+    ctx.fillStyle = "#888"; ctx.font = "10px JetBrains Mono, monospace"; ctx.textAlign = "center";
+    for (let h=9; h<=15; h++){ const x = padL + ((h-xMin)/(xMax-xMin))*pw; ctx.fillText(h+":00", x, H-padB+16); }
+    ctx.textAlign = "right";
+    for (let i=0; i<=5; i++){ const y = padT + (i/5)*ph; const val = Math.round(yMax * (1 - i/5)); ctx.fillText(val+"b", padL-6, y+3); }
+    ctx.textAlign = "left"; ctx.fillStyle = "#666"; ctx.font = "9px JetBrains Mono, monospace";
+    ctx.fillText("ENTRY HOUR (IST)", padL, H-4); ctx.save(); ctx.translate(12, padT+ph/2); ctx.rotate(-Math.PI/2); ctx.textAlign = "center"; ctx.fillText("BARS HELD", 0, 0); ctx.restore();
+    ctx.strokeStyle = "rgba(255,200,0,.25)"; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    const x915 = padL + ((9.25-xMin)/(xMax-xMin))*pw; const x1530 = padL + ((15.5-xMin)/(xMax-xMin))*pw;
+    ctx.beginPath(); ctx.moveTo(x915,padT); ctx.lineTo(x915,padT+ph); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1530,padT); ctx.lineTo(x1530,padT+ph); ctx.stroke();
+    ctx.setLineDash([]);
+    const maxAbsPnl = Math.max.apply(null, trades.map(function(t){ return Math.abs(t.pnl||0); }).concat([1]));
+    trades.forEach(function(t){
+      const hr = tradeHour(t); const bh = t.bars_held||0;
+      const x = padL + ((hr-xMin)/(xMax-xMin))*pw; const y = padT + (1 - bh/yMax)*ph;
+      const sz = 4 + Math.log(Math.abs(t.pnl||0)+1) / Math.log(maxAbsPnl+1) * 18;
+      const col = (t.pnl||0) > 0 ? "#3ce04f" : "#ff5566";
+      ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI*2); ctx.fillStyle = col + "55"; ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+      t._x = x; t._y = y; t._r = sz;
+    });
+  }
+  function update(){
+    fetch("/api/trades", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if (!d || !d.trades) return;
+      trades = d.trades; drawScatter();
+      const morn = trades.filter(function(t){ return tradeHour(t) < 12; });
+      const aft = trades.filter(function(t){ return tradeHour(t) >= 12; });
+      const winM = morn.filter(function(t){ return (t.pnl||0) > 0; }).length;
+      const winA = aft.filter(function(t){ return (t.pnl||0) > 0; }).length;
+      const sumM = morn.reduce(function(a,b){ return a + (b.pnl||0); }, 0);
+      const sumA = aft.reduce(function(a,b){ return a + (b.pnl||0); }, 0);
+      const f = document.getElementById("p98f-scatter-foot"); if (!f) return;
+      const fmtR = function(x){ return "\u20b9" + Math.round(x).toLocaleString("en-IN"); };
+      f.innerHTML = "<b style=\"color:#ddd\">N=" + trades.length + "</b> trades \u00b7 MORN (9-12) <b style=\"color:#00bfff\">" + morn.length + "</b> trades, " + (morn.length ? Math.round(winM/morn.length*100) : 0) + "% win, " + fmtR(sumM) + " \u00b7 AFT (12-15:30) <b style=\"color:#ff8c00\">" + aft.length + "</b> trades, " + (aft.length ? Math.round(winA/aft.length*100) : 0) + "% win, " + fmtR(sumA);
+    }).catch(function(){});
+  }
+  function hover(e){
+    if (!trades.length || !canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const tip = document.getElementById("p98f-scatter-tip"); if (!tip) return;
+    for (let i = trades.length - 1; i >= 0; i--){
+      const t = trades[i]; if (t._x == null) continue;
+      const dx = mx - t._x, dy = my - t._y;
+      if (dx*dx + dy*dy <= (t._r+2) * (t._r+2)){
+        tip.style.display = "block"; tip.style.left = Math.min(mx+12, rect.width-260) + "px"; tip.style.top = Math.max(my-12, 0) + "px";
+        const col = (t.pnl||0) > 0 ? "#3ce04f" : "#ff5566";
+        tip.innerHTML = "<b style=\"color:#ddd\">" + (t.entry_ts||"").slice(0,16) + "</b><br>" + (t.side||"?") + " " + (t.qty||"?") + " @ " + Number(t.entry||0).toFixed(2) + " \u2192 " + Number(t.exit||0).toFixed(2) + "<br>P&amp;L <b style=\"color:" + col + "\">\u20b9" + Math.round(t.pnl||0).toLocaleString("en-IN") + "</b><br>Reason <b style=\"color:#ddd\">" + (t.reason||"?") + "</b> \u00b7 Bars " + (t.bars_held||0);
+        return;
+      }
+    }
+    tip.style.display = "none";
+  }
+  function init(){
+    makePanel();
+    canvas = document.getElementById("p98f-scatter-canvas");
+    if (canvas){ canvas.addEventListener("mousemove", hover); canvas.addEventListener("mouseleave", function(){ const tip = document.getElementById("p98f-scatter-tip"); if (tip) tip.style.display = "none"; }); }
+    update(); setInterval(update, 30000);
+    let rT; window.addEventListener("resize", function(){ clearTimeout(rT); rT = setTimeout(drawScatter, 200); });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
