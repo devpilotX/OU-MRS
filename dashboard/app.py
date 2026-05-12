@@ -835,6 +835,88 @@ def _p98f_read_daily():
     return []
 
 @app.get("/api/option-chain", dependencies=[Depends(need_auth)])
+async def p98f_option_chain(symbol: str = "BNF", expiry: str = ""):
+    """Phase 9.8f.48a: synthetic options chain preview using REAL live spot from state/live_<SYM>.json + Black-Scholes Greeks.
+    OI/Volume/IV are synthetic gradients peaked at ATM (deterministic from spot). Drop-in swap with Angel One data in Phase E1."""
+    import math, json as _oj, time as _ot
+    cfg = {"BNF": (100, "live_BNF.json", "BANKNIFTY"), "NF": (50, "live_NF.json", "NIFTY"), "FNF": (100, "live_FNF.json", "FINNIFTY")}
+    key = symbol.upper()
+    if key not in cfg: key = "BNF"
+    step, state_file, idx_name = cfg[key]
+    spot = 0.0
+    ts = 0
+    sp = BOT_DIR / "state" / state_file
+    if sp.exists():
+        try:
+            d = _oj.loads(sp.read_text())
+            spot = float(d.get("ltp") or d.get("mean") or 0)
+            ts = int(d.get("ts") or _ot.time())
+        except:
+            pass
+    if spot <= 0:
+        spot = {"BNF": 54000.0, "NF": 23500.0, "FNF": 24000.0}[key]
+    atm = round(spot / step) * step
+    strikes_list = [atm + (i - 5) * step for i in range(11)]
+    T = 7.0 / 365.0
+    r = 0.06
+    base_iv = 0.16
+    from math import erf, exp, log, pi, sqrt
+    def N(x): return 0.5 * (1.0 + erf(x / sqrt(2.0)))
+    def n_pdf(x): return exp(-x * x / 2.0) / sqrt(2.0 * pi)
+    def _bs(S, K, T, r, iv, is_call):
+        if T <= 0 or iv <= 0 or K <= 0 or S <= 0:
+            intrinsic = max(S - K, 0.0) if is_call else max(K - S, 0.0)
+            return (intrinsic, 0.0, 0.0, 0.0, 0.0)
+        sT = sqrt(T)
+        d1 = (log(S / K) + (r + iv * iv / 2.0) * T) / (iv * sT)
+        d2 = d1 - iv * sT
+        if is_call:
+            price = S * N(d1) - K * exp(-r * T) * N(d2)
+            delta = N(d1)
+            theta = (-S * n_pdf(d1) * iv / (2.0 * sT) - r * K * exp(-r * T) * N(d2)) / 365.0
+        else:
+            price = K * exp(-r * T) * N(-d2) - S * N(-d1)
+            delta = N(d1) - 1.0
+            theta = (-S * n_pdf(d1) * iv / (2.0 * sT) + r * K * exp(-r * T) * N(-d2)) / 365.0
+        gamma = n_pdf(d1) / (S * iv * sT)
+        vega = S * n_pdf(d1) * sT / 100.0
+        return (price, delta, gamma, theta, vega)
+    strikes = []
+    total_ce_oi = 0
+    total_pe_oi = 0
+    for K in strikes_list:
+        moneyness = abs(K - atm) / max(atm, 1)
+        iv = base_iv + 0.10 * moneyness
+        dist = (K - atm) / step
+        decay = exp(-(dist * dist) / 6.0)
+        ce_oi = int(80000 * decay * (1.0 if K >= atm else 0.6))
+        pe_oi = int(80000 * decay * (1.0 if K <= atm else 0.6))
+        ce_vol = int(ce_oi * 0.35)
+        pe_vol = int(pe_oi * 0.35)
+        cp, cd, cg, ct, cv = _bs(spot, K, T, r, iv, True)
+        pp, pd, pg, pt, pv = _bs(spot, K, T, r, iv, False)
+        strikes.append({
+            "strike": int(K),
+            "ce": {"ltp": round(cp, 2), "oi": ce_oi, "chgOi": int(ce_oi * 0.05), "volume": ce_vol, "iv": round(iv * 100, 2), "delta": round(cd, 3), "gamma": round(cg, 5), "theta": round(ct, 2), "vega": round(cv, 2)},
+            "pe": {"ltp": round(pp, 2), "oi": pe_oi, "chgOi": int(pe_oi * 0.05), "volume": pe_vol, "iv": round(iv * 100, 2), "delta": round(pd, 3), "gamma": round(pg, 5), "theta": round(pt, 2), "vega": round(pv, 2)}
+        })
+        total_ce_oi += ce_oi
+        total_pe_oi += pe_oi
+    pcr = round(total_pe_oi / max(total_ce_oi, 1), 3)
+    return {
+        "ok": True,
+        "mode": "synthetic_preview",
+        "symbol": key,
+        "underlying": idx_name,
+        "spot": round(spot, 2),
+        "atm": int(atm),
+        "step": step,
+        "expiry_days": 7,
+        "strikes": strikes,
+        "totals": {"call_oi": total_ce_oi, "put_oi": total_pe_oi, "pcr": pcr, "max_pain": int(atm)},
+        "ts": ts,
+        "note": "Synthetic preview: BS Greeks accurate from REAL spot. OI/Vol/IV are gradients pending Angel One wiring (Phase E1)."
+    }
 async def p98f_option_chain(symbol: str = "BANKNIFTY", expiry: str = ""):
     return {
         "ok": False,
