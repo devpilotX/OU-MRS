@@ -60,3 +60,20 @@ bt_out_backup_*/
 bt_out_index*/
 bt_out_fut*/
 dashboard/static/preview.html
+
+# Phase 9.8f.46: prevent runtime data files from being swept into commits
+data/bhavcopies/
+data/historical_tokens/
+data/ticks/
+data/option_chain_cache/
+data/*.db
+data/*.parquet
+data/*.zip
+# editor/sidecar backups
+*.bak.*
+# python cruft
+*.pyc
+__pycache__/
+.pytest_cache/
+# venv (should already be ignored but belt-and-braces)
+venv/

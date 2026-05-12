@@ -60,7 +60,7 @@ function _ecGaugeUpdate(id, pct, sev, valStr){
   valEl.className = 'ec-gauge-val ec-' + sev;
 }
 
-async function refreshChallenge(){ return refreshRisk(); }
+async function refreshChallenge(){ /* legacy noop - Risk panel now self-polls via P98F IIFE */ }
 async function refreshHealth(){
   const h=await fetchJSON("/api/health");if(!h)return;
   const c=$("#health-chip");
