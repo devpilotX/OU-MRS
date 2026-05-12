@@ -69,3 +69,53 @@
 #reason-mix-body, .rmix-body, .rmix-symbol, .rmix-row {
   word-spacing: 0.25em;
 }
+
+/* ===== Phase 9.8e B-CAL-1: P&L value text inside heatmap cells ===== */
+.heatmap-cell{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.94);
+  letter-spacing: -0.3px;
+  line-height: 1;
+  overflow: hidden;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+}
+.heatmap-cell.empty,
+.heatmap-cell[style*="visibility: hidden"]{ color: transparent; text-shadow: none; }
+.hm-legend-cells .heatmap-cell{ color: transparent; text-shadow: none; font-size: 0; }
+[data-theme="light"] .heatmap-cell.win-1,
+[data-theme="light"] .heatmap-cell.loss-1{ color: rgba(15,23,42,0.78); text-shadow: none; }
+[data-theme="light"] .heatmap-cell.win-2,
+[data-theme="light"] .heatmap-cell.loss-2{ color: rgba(15,23,42,0.88); text-shadow: none; }
+
+/* ===== Phase 9.8e B-CAL-3: trade-table date filter banner ===== */
+.trade-filter-banner{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(99,102,241,0.12);
+  border: 1px solid rgba(99,102,241,0.38);
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin: 8px 0 12px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+.trade-filter-banner b{ color: var(--accent); font-weight: 700; }
+.hm-clear-btn{
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.hm-clear-btn:hover{ color: var(--text); border-color: var(--accent); background: rgba(99,102,241,0.08); }

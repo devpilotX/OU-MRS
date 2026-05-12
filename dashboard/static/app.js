@@ -729,6 +729,49 @@ async function refreshSymbols() {
 setInterval(refreshSymbols, 5000);
 refreshSymbols();
 
+// Phase 9.8e B-CAL-1: compact money formatter for heatmap cells
+function fmtCalCell(v){
+  if(v == null || isNaN(v) || v === 0) return "";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "−" : "+";
+  if(abs >= 100000) return sign + (abs/100000).toFixed(1) + "L";
+  if(abs >= 1000)   return sign + Math.round(abs/1000) + "k";
+  return sign + Math.round(abs);
+}
+
+// Phase 9.8e B-CAL-3: filter trade table to specific date
+function filterTradesByDate(dateStr){
+  const tt = document.getElementById("trades-table");
+  if(tt) tt.scrollIntoView({behavior:"smooth", block:"start"});
+  const rows = document.querySelectorAll("#trades-table tbody tr");
+  let matched = 0;
+  rows.forEach(r => {
+    const cells = r.querySelectorAll("td");
+    if(cells.length < 2){ r.style.display = "none"; return; }
+    const ts = (cells[1].textContent || "").trim();
+    const match = ts.startsWith(dateStr);
+    r.style.display = match ? "" : "none";
+    if(match) matched++;
+  });
+  let bn = document.getElementById("hm-trade-filter-banner");
+  if(!bn){
+    bn = document.createElement("div");
+    bn.id = "hm-trade-filter-banner";
+    bn.className = "trade-filter-banner";
+    const tbl = document.getElementById("trades-table");
+    if(tbl && tbl.parentNode) tbl.parentNode.insertBefore(bn, tbl);
+  }
+  bn.innerHTML = '<span>Showing <b>' + matched + '</b> trade' + (matched===1?'':'s') + ' for <b>' + dateStr + '</b></span>' +
+                 '<button class="hm-clear-btn" onclick="clearTradeDateFilter()">× clear filter</button>';
+  bn.style.display = "flex";
+}
+
+function clearTradeDateFilter(){
+  document.querySelectorAll("#trades-table tbody tr").forEach(r => r.style.display = "");
+  const bn = document.getElementById("hm-trade-filter-banner");
+  if(bn) bn.style.display = "none";
+}
+
 // Phase 8q · Premium daily P&L heatmap (GitHub-contrib style)
 async function refreshHeatmap(){
   const t0 = performance.now();
@@ -782,6 +825,7 @@ async function refreshHeatmap(){
         const ratio = Math.abs(pnl) / maxAbs;
         const tier = ratio >= 0.75 ? 4 : ratio >= 0.45 ? 3 : ratio >= 0.18 ? 2 : 1;
         cell.classList.add(pnl >= 0 ? "win-"+tier : "loss-"+tier);
+        cell.textContent = fmtCalCell(pnl);  // Phase 9.8e B-CAL-1
       }
       cell.dataset.date = key;
       cell.dataset.pnl = pnl != null ? pnl : "";
@@ -789,6 +833,11 @@ async function refreshHeatmap(){
       cell.dataset.wins = rec ? rec.wins : 0;
       cell.dataset.live = rec ? (rec.live||0) : 0;
       cell.dataset.bt = rec ? (rec.bt||0) : 0;
+      // Phase 9.8e B-CAL-3: click cell -> filter trade table to that date
+      if(pnl != null && rec && rec.trades > 0){
+        cell.style.cursor = "pointer";
+        cell.addEventListener("click", () => filterTradesByDate(key));
+      }
       cells.push(cell);
       grid.appendChild(cell);
     }
