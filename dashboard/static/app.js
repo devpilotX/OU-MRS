@@ -2866,7 +2866,7 @@ setTimeout(refreshTickChip, 1500);
     ]).then(function(arr){
       const sym = arr[0] || {}; const strat = arr[1] || {};
       const grid = document.getElementById("p98f-risk-grid"); if (grid == null) return;
-      const symbols = (sym.symbols) || [];
+      const _so=sym.symbols||{};const symbols=Array.isArray(_so)?_so:Object.entries(_so).map(function(kv){return Object.assign({key:kv[0]},kv[1]);});
       const cap = Number(strat.capital || 3750000);
       const tier = strat.capital_tier || "GROWTH";
       const lossLimit = -cap * (DAILY_LOSS_PCT / 100);
