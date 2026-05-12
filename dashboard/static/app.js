@@ -2920,7 +2920,7 @@ setTimeout(refreshTickChip, 1500);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
 
-/* ===== Phase 9.8f.48b: Bloomberg-style Options Chain panel ===== */
+/* ===== Phase 9.8f.48b v2: Bloomberg-style Options Chain panel (fixed JS string escaping) ===== */
 (function _p98f_oc(){
   if (window.__P98F_OC__) return;
   window.__P98F_OC__ = true;
@@ -2955,7 +2955,7 @@ setTimeout(refreshTickChip, 1500);
         const wrap = document.getElementById("p98f-oc-wrap");
         if (wrap == null) return;
         if (d == null || d.ok !== true) {
-          wrap.innerHTML = "<div class='muted'>option chain unavailable</div>";
+          wrap.innerHTML = '<div class="muted">option chain unavailable</div>';
           return;
         }
         const info = document.getElementById("p98f-oc-info");
@@ -2974,22 +2974,24 @@ setTimeout(refreshTickChip, 1500);
           const isATM = s.strike === d.atm;
           const ceITM = s.strike < d.atm;
           const peITM = s.strike > d.atm;
-          const rowBg = isATM ? "background:rgba(255,200,51,.08)" : "";
+          const rowBg = isATM ? 'background:rgba(255,200,51,.08)' : '';
           const ceHeat = Math.min(1, s.ce.oi / maxOI);
           const peHeat = Math.min(1, s.pe.oi / maxOI);
-          const ceOIbg = "background:linear-gradient(to right, rgba(60,224,79," + (ceHeat * 0.22).toFixed(2) + ") " + (ceHeat * 100).toFixed(0) + "%, transparent " + (ceHeat * 100).toFixed(0) + "%)";
-          const peOIbg = "background:linear-gradient(to left, rgba(255,85,102," + (peHeat * 0.22).toFixed(2) + ") " + (peHeat * 100).toFixed(0) + "%, transparent " + (peHeat * 100).toFixed(0) + "%)";
-          const ceTint = ceITM ? "color:#3ce04f" : "color:#888";
-          const peTint = peITM ? "color:#ff5566" : "color:#888";
+          const ceOIbg = 'background:linear-gradient(to right, rgba(60,224,79,' + (ceHeat * 0.22).toFixed(2) + ') ' + (ceHeat * 100).toFixed(0) + '%, transparent ' + (ceHeat * 100).toFixed(0) + '%)';
+          const peOIbg = 'background:linear-gradient(to left, rgba(255,85,102,' + (peHeat * 0.22).toFixed(2) + ') ' + (peHeat * 100).toFixed(0) + '%, transparent ' + (peHeat * 100).toFixed(0) + '%)';
+          const ceTint = ceITM ? 'color:#3ce04f' : 'color:#888';
+          const peTint = peITM ? 'color:#ff5566' : 'color:#888';
+          const strikeStyle = isATM ? 'color:#ffc833;font-size:13px' : 'color:#fff';
+          const atmTag = isATM ? ' <span style="font-size:9px;color:#ffc833">ATM</span>' : '';
           html += '<tr style="text-align:right;border-bottom:1px solid rgba(128,128,128,.06);' + rowBg + '">';
           html += '<td style="padding:5px 6px;' + ceOIbg + ';' + ceTint + ';font-weight:600">' + fmtN(s.ce.oi) + '</td>';
           html += '<td style="padding:5px 6px;color:#666;font-size:10px">+' + fmtN(s.ce.chgOi) + '</td>';
           html += '<td style="padding:5px 6px;' + ceTint + '">' + fmtN(s.ce.volume) + '</td>';
           html += '<td style="padding:5px 6px;color:#aaa">' + s.ce.iv.toFixed(1) + '</td>';
           html += '<td style="padding:5px 6px;color:#aaa">' + s.ce.delta.toFixed(2) + '</td>';
-          html += '<td style="padding:5px 6px;font-weight:700;' + (ceITM ? "color:#3ce04f" : "color:#ddd") + '">' + fmtPx(s.ce.ltp) + '</td>';
-          html += '<td style="padding:5px 10px;text-align:center;font-weight:700;background:rgba(255,255,255,.04);' + (isATM ? "color:#ffc833;font-size:13px" : "color:#fff") + '">' + fmtN(s.strike) + (isATM ? " <span style=\\"font-size:9px;color:#ffc833\\">ATM</span>" : "") + '</td>';
-          html += '<td style="padding:5px 6px;text-align:left;font-weight:700;' + (peITM ? "color:#ff5566" : "color:#ddd") + '">' + fmtPx(s.pe.ltp) + '</td>';
+          html += '<td style="padding:5px 6px;font-weight:700;' + (ceITM ? 'color:#3ce04f' : 'color:#ddd') + '">' + fmtPx(s.ce.ltp) + '</td>';
+          html += '<td style="padding:5px 10px;text-align:center;font-weight:700;background:rgba(255,255,255,.04);' + strikeStyle + '">' + fmtN(s.strike) + atmTag + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;font-weight:700;' + (peITM ? 'color:#ff5566' : 'color:#ddd') + '">' + fmtPx(s.pe.ltp) + '</td>';
           html += '<td style="padding:5px 6px;text-align:left;color:#aaa">' + s.pe.delta.toFixed(2) + '</td>';
           html += '<td style="padding:5px 6px;text-align:left;color:#aaa">' + s.pe.iv.toFixed(1) + '</td>';
           html += '<td style="padding:5px 6px;text-align:left;' + peTint + '">' + fmtN(s.pe.volume) + '</td>';
@@ -3002,15 +3004,15 @@ setTimeout(refreshTickChip, 1500);
         const foot = document.getElementById("p98f-oc-foot");
         if (foot != null) {
           const pcr = d.totals.pcr;
-          const pcrColor = pcr > 1.2 ? "#3ce04f" : (pcr < 0.8 ? "#ff5566" : "#ffc833");
-          const pcrLabel = pcr > 1.2 ? "bullish bias" : (pcr < 0.8 ? "bearish bias" : "neutral");
+          const pcrColor = pcr > 1.2 ? '#3ce04f' : (pcr < 0.8 ? '#ff5566' : '#ffc833');
+          const pcrLabel = pcr > 1.2 ? 'bullish bias' : (pcr < 0.8 ? 'bearish bias' : 'neutral');
           foot.innerHTML = 'Total Call OI <b style="color:#3ce04f">' + fmtN(d.totals.call_oi) + '</b> \u00b7 Total Put OI <b style="color:#ff5566">' + fmtN(d.totals.put_oi) + '</b> \u00b7 PCR <b style="color:' + pcrColor + '">' + pcr.toFixed(2) + '</b> <span style="color:#888">(' + pcrLabel + ')</span> \u00b7 Max Pain <b style="color:#ffc833">' + fmtN(d.totals.max_pain) + '</b> \u00b7 last refresh <b>' + new Date().toLocaleTimeString("en-IN") + '</b>';
         }
       })
       .catch(function(e){
         console.error("P98F_OC fail", e);
         const w = document.getElementById("p98f-oc-wrap");
-        if (w != null) w.innerHTML = "<div class='muted'>error: " + (e && e.message ? e.message : String(e)) + "</div>";
+        if (w != null) w.innerHTML = '<div class="muted">error: ' + (e && e.message ? e.message : String(e)) + '</div>';
       });
   }
   function init(){ makePanel(); update(); setInterval(update, 10000); }
