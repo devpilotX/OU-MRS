@@ -898,3 +898,14 @@ def _p98f_read_daily():
                     if p > 0: days[d]["wins"] += 1
         except Exception: pass
     return [dict(date=d, pnl=round(v["pnl"], 2), trades=v["trades"], wins=v["wins"]) for d, v in sorted(days.items())]
+
+@app.get("/api/monte-carlo")
+def api_monte_carlo():
+    import json as _json_mc
+    path = BOT_DIR / "bt_out" / "monte_carlo.json"
+    if not path.exists():
+        return {"ok": False, "error": "monte_carlo.json not found"}
+    try:
+        return {"ok": True, "data": _json_mc.loads(path.read_text())}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}

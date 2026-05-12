@@ -2539,3 +2539,61 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 3000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.40: Monte Carlo Distribution panel ===== */
+(function _p98f_mc(){
+  if (window.__P98F_MC__) return;
+  window.__P98F_MC__ = true;
+  function makePanel(){
+    if (document.getElementById("p98f-mc-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-mc-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Monte Carlo Distribution</h2><span class=\"muted\">10k-sim bootstrap \u00b7 p5/p25/p50/p75/p95 fan \u00b7 source: /api/monte-carlo</span></div><span class=\"panel-badge\" style=\"background:rgba(180,120,255,.12);color:#b478ff\">BOOTSTRAP</span></div><div id=\"p98f-mc-box\" style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:14px;font-family:JetBrains Mono,Consolas,monospace\"><div class=\"muted\">loading\u2026</div></div><div style=\"margin-top:18px;padding-top:14px;border-top:1px solid rgba(128,128,128,.18)\"><div style=\"font-size:10px;color:#888;letter-spacing:.5px;margin-bottom:10px;font-family:JetBrains Mono,monospace\">PROP-FIRM &amp; OUTCOME PROBABILITIES</div><div id=\"p98f-mc-prop\" style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-family:JetBrains Mono,Consolas,monospace\"></div></div><div id=\"p98f-mc-foot\" class=\"muted\" style=\"margin-top:14px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace\"></div>";
+    const anchor = document.getElementById("p98f-z-panel") || document.getElementById("p98f-scatter-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function renderBox(metric, vals, fmt, color){
+    const min = vals.p5, max = vals.p95; const range = (max - min) || 1;
+    function pct(v){ return Math.max(0, Math.min(100, ((v - min) / range) * 100)); }
+    const p25P = pct(vals.p25), p50P = pct(vals.p50), p75P = pct(vals.p75);
+    let h = "<div style=\"padding:12px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid rgba(255,255,255,.06)\">";
+    h += "<div style=\"font-weight:700;color:#ddd;letter-spacing:.5px;font-size:10px;margin-bottom:4px;text-transform:uppercase\">" + metric + "</div>";
+    h += "<div style=\"font-size:24px;font-weight:700;color:" + color + ";line-height:1;font-variant-numeric:tabular-nums;margin-bottom:14px\">" + fmt(vals.p50) + " <span style=\"font-size:9px;color:#888;font-weight:400;letter-spacing:.4px\">MEDIAN</span></div>";
+    h += "<div style=\"position:relative;height:28px;margin:8px 4px\">";
+    h += "<div style=\"position:absolute;top:50%;left:0;right:0;height:1px;background:" + color + "99;transform:translateY(-50%)\"></div>";
+    h += "<div style=\"position:absolute;top:25%;bottom:25%;left:0;width:2px;background:" + color + "\"></div>";
+    h += "<div style=\"position:absolute;top:25%;bottom:25%;right:0;width:2px;background:" + color + "\"></div>";
+    h += "<div style=\"position:absolute;top:15%;bottom:15%;left:" + p25P.toFixed(1) + "%;width:" + (p75P - p25P).toFixed(1) + "%;background:" + color + "33;border:1px solid " + color + ";border-radius:2px\"></div>";
+    h += "<div style=\"position:absolute;top:5%;bottom:5%;left:" + p50P.toFixed(1) + "%;width:2px;background:" + color + "\"></div>";
+    h += "</div>";
+    h += "<div style=\"display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#666;letter-spacing:.3px\"><span><b style=\"color:#888\">p5</b> " + fmt(vals.p5) + "</span><span><b style=\"color:#888\">p25</b> " + fmt(vals.p25) + "</span><span><b style=\"color:" + color + "\">p50</b> " + fmt(vals.p50) + "</span><span><b style=\"color:#888\">p75</b> " + fmt(vals.p75) + "</span><span><b style=\"color:#888\">p95</b> " + fmt(vals.p95) + "</span></div>";
+    h += "<div style=\"margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.05);font-size:9px;color:#666;text-align:right;letter-spacing:.3px\">\u03bc " + fmt(vals.mean) + " \u00b7 \u03c3 " + fmt(vals.std) + "</div>";
+    h += "</div>"; return h;
+  }
+  function renderProp(label, pct, lowerBetter){
+    const eff = lowerBetter ? (100 - pct) : pct;
+    const color = eff >= 60 ? "#3ce04f" : (eff >= 40 ? "#ff8c00" : (eff >= 25 ? "#ffc833" : "#ff5566"));
+    let h = "<div style=\"padding:10px;background:rgba(255,255,255,.02);border-radius:5px;border:1px solid rgba(255,255,255,.06);text-align:center\">";
+    h += "<div style=\"font-size:20px;font-weight:700;color:" + color + ";line-height:1;font-variant-numeric:tabular-nums\">" + pct.toFixed(1) + "<span style=\"font-size:11px;font-weight:400\">%</span></div>";
+    h += "<div style=\"font-size:9px;color:#888;letter-spacing:.4px;margin-top:5px;text-transform:uppercase\">" + label + "</div>";
+    h += "</div>"; return h;
+  }
+  function update(){
+    fetch("/api/monte-carlo").then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      if (!j || !j.ok || !j.data) return;
+      const d = j.data;
+      const fmtPct = function(v){ return v.toFixed(2) + "%"; };
+      const fmtNum = function(v){ return v.toFixed(2); };
+      const box = document.getElementById("p98f-mc-box"); if (!box) return;
+      box.innerHTML = renderBox("Return %", d.return_pct, fmtPct, "#3ce04f") + renderBox("Sharpe", d.sharpe, fmtNum, "#00bfff") + renderBox("Max Drawdown %", d.max_dd_pct, fmtPct, "#ff5566");
+      const prop = document.getElementById("p98f-mc-prop"); if (!prop || !d.prop_firm) return;
+      const pf = d.prop_firm;
+      prop.innerHTML = renderProp("FTMO 1st", pf.prob_pass_ftmo_1st || 0) + renderProp("FTMO 2p1", pf.prob_pass_ftmo_2p1 || 0) + renderProp("TopStep", pf.prob_pass_topstep || 0) + renderProp("Hola", pf.prob_pass_hola || 0) + renderProp("Return \u2265 5%", pf.prob_return_ge_5 || 0) + renderProp("Return \u2265 10%", pf.prob_return_ge_10 || 0) + renderProp("Losing Month", pf.prob_losing_month || 0, true) + renderProp("DD safe 8%", pf.prob_dd_safe_8 || 0);
+      const f = document.getElementById("p98f-mc-foot"); if (!f) return;
+      const wr = ((d.input_trades||{}).win_rate || 0) * 100;
+      const mp = Math.round((d.input_trades||{}).mean_pnl || 0);
+      f.innerHTML = "Bootstrap from <b style=\"color:#ddd\">" + (d.n_trades||0) + "</b> backtest trades \u00b7 <b style=\"color:#ddd\">" + (d.n_sims||0).toLocaleString("en-IN") + "</b> simulations \u00b7 input win-rate <b style=\"color:#ddd\">" + wr.toFixed(1) + "%</b> \u00b7 mean P&amp;L/trade <b style=\"color:#ddd\">\u20b9" + mp.toLocaleString("en-IN") + "</b>";
+    }).catch(function(){});
+  }
+  function init(){ makePanel(); update(); setInterval(update, 60000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
