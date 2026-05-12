@@ -2665,3 +2665,74 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 30000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.42: Daily P&L Calendar Heatmap ===== */
+(function _p98f_cal(){
+  if (window.__P98F_CAL__) return;
+  window.__P98F_CAL__ = true;
+  function makePanel(){
+    if (document.getElementById("p98f-cal-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-cal-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Daily P&amp;L Heatmap</h2><span class=\"muted\">Last 13 weeks (91 days) \u00b7 color = sign \u00d7 intensity \u00b7 hover for detail \u00b7 source: /api/daily-pnl</span></div><span class=\"panel-badge\" style=\"background:rgba(60,224,79,.12);color:#3ce04f\">HEATMAP</span></div><div id=\"p98f-cal-wrap\" style=\"margin-top:14px;font-family:JetBrains Mono,Consolas,monospace\"><div class=\"muted\">loading\u2026</div></div><div id=\"p98f-cal-foot\" class=\"muted\" style=\"margin-top:14px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace\"></div>";
+    const anchor = document.getElementById("p98f-reasons-panel") || document.getElementById("p98f-mc-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function isoDate(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const dd=String(d.getDate()).padStart(2,"0"); return y+"-"+m+"-"+dd; }
+  function update(){
+    fetch("/api/daily-pnl", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      const wrap = document.getElementById("p98f-cal-wrap"); if (!wrap) return;
+      if (!d) { wrap.innerHTML = "<div class=\"muted\">no data\u2014auth?</div>"; return; }
+      const rows = d.days || d.daily || d.rows || d.data || [];
+      const map = {};
+      rows.forEach(function(x){ const dt = x.date || x.day || x.dt; if (dt) { const k = String(dt).slice(0,10); map[k] = {pnl: Number(x.pnl||x.daily_pnl||0), trades: Number(x.trades||x.n||x.count||0)}; } });
+      const today = new Date(); today.setHours(0,0,0,0);
+      const lastSat = new Date(today); lastSat.setDate(lastSat.getDate() + (6 - lastSat.getDay()));
+      const NW = 13;
+      const startDate = new Date(lastSat); startDate.setDate(startDate.getDate() - (NW * 7 - 1));
+      let maxAbs = 1;
+      Object.keys(map).forEach(function(k){ if (Math.abs(map[k].pnl) > maxAbs) maxAbs = Math.abs(map[k].pnl); });
+      const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const DOW = ["","Mon","","Wed","","Fri",""];
+      let h = "<div style=\"display:flex;gap:14px;align-items:flex-start\">";
+      h += "<div style=\"display:grid;grid-template-rows:repeat(7,15px);gap:2px;padding-top:18px;font-size:9px;color:#666;line-height:15px\">";
+      DOW.forEach(function(lbl){ h += "<div>" + lbl + "</div>"; });
+      h += "</div><div>";
+      h += "<div style=\"display:grid;grid-template-columns:repeat(" + NW + ",15px);gap:2px;height:16px;font-size:9px;color:#888;margin-bottom:2px\">";
+      let prevMonth = -1;
+      for (let wi = 0; wi < NW; wi++){ const cd = new Date(startDate); cd.setDate(cd.getDate() + wi * 7); const m = cd.getMonth(); if (m !== prevMonth) { h += "<div>" + MONTHS[m] + "</div>"; prevMonth = m; } else { h += "<div></div>"; } }
+      h += "</div>";
+      h += "<div style=\"display:grid;grid-template-columns:repeat(" + NW + ",15px);grid-template-rows:repeat(7,15px);gap:2px\">";
+      const todayKey = isoDate(today);
+      for (let i = 0; i < NW * 7; i++){
+        const cd = new Date(startDate); cd.setDate(cd.getDate() + i);
+        const wk = Math.floor(i / 7); const dow = i % 7;
+        const key = isoDate(cd); const entry = map[key]; const future = cd > today;
+        let bg = "rgba(128,128,128,0.06)"; let title = key + " \u00b7 no data";
+        if (entry && (entry.pnl !== 0 || entry.trades > 0)){
+          const intensity = Math.min(1, Math.abs(entry.pnl) / maxAbs);
+          const alpha = (0.18 + 0.72 * intensity).toFixed(2);
+          bg = entry.pnl > 0 ? "rgba(60,224,79," + alpha + ")" : (entry.pnl < 0 ? "rgba(255,85,102," + alpha + ")" : "rgba(128,128,128,0.18)");
+          title = key + " \u00b7 \u20b9" + Math.round(entry.pnl).toLocaleString("en-IN") + (entry.trades ? " \u00b7 " + entry.trades + " trades" : "");
+        }
+        const border = todayKey === key ? "1.5px solid rgba(255,255,255,.7)" : "1px solid rgba(255,255,255,.04)";
+        const opacity = future ? "0.12" : "1";
+        h += "<div title=\"" + title + "\" style=\"grid-column:" + (wk + 1) + ";grid-row:" + (dow + 1) + ";background:" + bg + ";border:" + border + ";border-radius:2px;opacity:" + opacity + "\"></div>";
+      }
+      h += "</div></div>";
+      h += "<div style=\"margin-left:auto;display:flex;align-items:flex-start;gap:18px;padding-top:18px\"><div><div style=\"font-size:9px;color:#666;letter-spacing:.4px;margin-bottom:5px\">PROFIT</div><div style=\"display:flex;gap:2px\"><div style=\"width:12px;height:12px;background:rgba(60,224,79,.18);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(60,224,79,.35);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(60,224,79,.55);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(60,224,79,.75);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(60,224,79,.90);border-radius:2px\"></div></div></div><div><div style=\"font-size:9px;color:#666;letter-spacing:.4px;margin-bottom:5px\">LOSS</div><div style=\"display:flex;gap:2px\"><div style=\"width:12px;height:12px;background:rgba(255,85,102,.18);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(255,85,102,.35);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(255,85,102,.55);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(255,85,102,.75);border-radius:2px\"></div><div style=\"width:12px;height:12px;background:rgba(255,85,102,.90);border-radius:2px\"></div></div></div></div>";
+      h += "</div>";
+      wrap.innerHTML = h;
+      const entries = Object.entries(map);
+      const profitD = entries.filter(function(e){ return e[1].pnl > 0; });
+      const lossD = entries.filter(function(e){ return e[1].pnl < 0; });
+      const total = entries.reduce(function(a,b){ return a + b[1].pnl; }, 0);
+      const sorted = entries.slice().sort(function(a,b){ return b[1].pnl - a[1].pnl; });
+      const best = sorted[0]; const worst = sorted[sorted.length - 1];
+      const fmtR = function(x){ return "\u20b9" + Math.round(x).toLocaleString("en-IN"); };
+      const f = document.getElementById("p98f-cal-foot"); if (!f) return;
+      f.innerHTML = "<b style=\"color:#ddd\">" + entries.length + "</b> trading days \u00b7 <b style=\"color:#3ce04f\">" + profitD.length + "</b> profitable \u00b7 <b style=\"color:#ff5566\">" + lossD.length + "</b> losing \u00b7 best <b style=\"color:#3ce04f\">" + (best ? (best[0] + " " + fmtR(best[1].pnl)) : "\u2014") + "</b> \u00b7 worst <b style=\"color:#ff5566\">" + (worst ? (worst[0] + " " + fmtR(worst[1].pnl)) : "\u2014") + "</b> \u00b7 net <b style=\"color:" + (total > 0 ? "#3ce04f" : "#ff5566") + "\">" + fmtR(total) + "</b>";
+    }).catch(function(){});
+  }
+  function init(){ makePanel(); update(); setInterval(update, 60000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
