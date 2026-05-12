@@ -90,13 +90,19 @@ async function refreshStrategy(){
 
 async function refreshTrades(){
   const d=await fetchJSON("/api/trades");if(!d)return;
-  const pnl=d.total_pnl||0;
-  const el=$("#total-pnl");el.textContent=fmtMoney(pnl);
-  el.className="kpi-value "+(pnl>0?"positive":pnl<0?"negative":"");
-  $("#pnl-pct").textContent=fmtPct(pnl/(window.__CAPITAL__||3750000));
+  const livePnl=d.total_pnl||0;
+  // Phase 9.8e B6: Top KPI is ALL-TIME (csv backtest + jsonl live + unrealized) from /api/risk
+  let allTimePnl=livePnl;
+  try {
+    const r=await fetchJSON("/api/risk");
+    if(r && typeof r.cumulative_pnl==="number") allTimePnl=r.cumulative_pnl;
+  } catch(e){}
+  const el=$("#total-pnl");el.textContent=fmtMoney(allTimePnl);
+  el.className="kpi-value "+(allTimePnl>0?"positive":allTimePnl<0?"negative":"");
+  $("#pnl-pct").textContent=fmtPct(allTimePnl/(window.__CAPITAL__||3750000));
   $("#trade-count").textContent=d.count;
   $("#win-rate").textContent="Win: "+fmtPct(d.win_rate);
-  $("#trade-summary").textContent=`${d.count} trades · ${fmtMoney(pnl)} · win ${fmtPct(d.win_rate)}`;
+  $("#trade-summary").textContent=`${d.count} trades · ${fmtMoney(livePnl)} · win ${fmtPct(d.win_rate)}`;
   renderTradeTable(d.trades||[]);
 }
 
