@@ -77,3 +77,6 @@ __pycache__/
 .pytest_cache/
 # venv (should already be ignored but belt-and-braces)
 venv/
+data/activity_log.db
+data/*.db-shm
+data/*.db-wal
