@@ -131,15 +131,6 @@
           <div class="pfm-cell"><span class="pfm-lbl">Target Progress</span><span class="pfm-val" id="pfm-prog">--</span><div class="pfm-bar"><div class="pfm-bar-fill" id="pfm-prog-bar" style="width:0%"></div></div></div>
         </div>
       </section>
-      <section class="panel">
-    <div class="panel-header"><div><h2>Equity Curve</h2><span id="equity-range" class="muted">--</span></div><span class="panel-badge">BACKTEST · 37d</span></div>
-    <div class="regime-legend">
-            <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch TREND"></span>TREND</span>
-            <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch RANGE"></span>RANGE</span>
-            <span class="regime-legend-item"><span class="regime-legend-swatch regime-swatch CHOP"></span>CHOP</span>
-          </div>
-          <div id="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
-  </section>
   <section class="grid-2">
     <div class="panel"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
     <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
@@ -153,15 +144,6 @@
     <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
     <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
   </section>
-  <section class="panel" id="panel-reason-mix">
-        <div class="panel-header">
-          <div><h2>Trade Exit Reason Mix</h2><span class="muted">How positions actually closed · per symbol</span></div>
-          <span class="panel-badge" id="rmix-badge">ALL TIME</span>
-        </div>
-        <div id="reason-mix-body" class="rmix-body">
-          <div class="muted">Loading...</div>
-        </div>
-      </section>
       <section class="panel" id="panel-log">
     <div class="panel-header">
       <div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
@@ -248,7 +230,7 @@
   </div>
   <div class="heatmap-tooltip" id="hm-tooltip"></div>
 </section>
-<script src="/static/app.js?v=56"></script>
+<script src="/static/app.js?v=57"></script>
     <script src="/static/sse-ticks.js"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>
