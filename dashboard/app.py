@@ -847,14 +847,14 @@ async def p98f_rolling_metrics(window: int = 20):
 
 @app.get("/api/regime-transitions")
 async def p98f_regime_transitions():
-    rm_file = _p98f_path.Path("bt_out/regime_metrics.json")
+    rm_file = _p98f_path.Path("bt_out/regime_timeseries.json")
     if not rm_file.exists():
-        return {"ok": False, "message": "bt_out/regime_metrics.json not found"}
+        return {"ok": False, "message": "bt_out/regime_timeseries.json not found"}
     try:
         rm = _p98f_json.loads(rm_file.read_text())
     except Exception as e:
         return {"ok": False, "message": str(e)}
-    seq = rm.get("sequence") or rm.get("regimes") or []
+    seq = [r.get("regime") for r in rm.get("rows", [])]
     regimes = ["TREND", "RANGE", "CHOP"]
     counts = {a: {b: 0 for b in regimes} for a in regimes}
     totals = {a: 0 for a in regimes}
@@ -865,3 +865,36 @@ async def p98f_regime_transitions():
             totals[a] += 1
     probs = {a: {b: (round(counts[a][b] / totals[a], 4) if totals[a] else 0) for b in regimes} for a in regimes}
     return {"ok": True, "regimes": regimes, "counts": counts, "probs": probs, "n_obs": len(seq)}
+
+# ===== Phase 9.8f.29: re-bind _p98f_read_daily to real trade sources =====
+def _p98f_read_daily():
+    import csv as _csv
+    from collections import defaultdict as _dd
+    days = _dd(lambda: {"pnl": 0.0, "trades": 0, "wins": 0})
+    bt_path = _p98f_path.Path("bt_out/trades.csv")
+    if bt_path.exists():
+        try:
+            with bt_path.open() as f:
+                for row in _csv.DictReader(f):
+                    d = (row.get("exit_ts") or row.get("entry_ts") or "")[:10]
+                    if not d: continue
+                    try: p = float(row.get("pnl") or 0)
+                    except: p = 0
+                    days[d]["pnl"] += p; days[d]["trades"] += 1
+                    if p > 0: days[d]["wins"] += 1
+        except Exception: pass
+    live_path = _p98f_path.Path("trades.jsonl")
+    if live_path.exists():
+        try:
+            with live_path.open() as f:
+                for line in f:
+                    try: row = _p98f_json.loads(line)
+                    except: continue
+                    d = (row.get("exit_ts") or row.get("entry_ts") or "")[:10]
+                    if not d: continue
+                    try: p = float(row.get("pnl") or 0)
+                    except: p = 0
+                    days[d]["pnl"] += p; days[d]["trades"] += 1
+                    if p > 0: days[d]["wins"] += 1
+        except Exception: pass
+    return [dict(date=d, pnl=round(v["pnl"], 2), trades=v["trades"], wins=v["wins"]) for d, v in sorted(days.items())]
