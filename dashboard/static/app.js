@@ -2736,3 +2736,95 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 60000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.43: Equity Curve & Drawdown panel ===== */
+(function _p98f_equity(){
+  if (window.__P98F_EQUITY__) return;
+  window.__P98F_EQUITY__ = true;
+  function makePanel(){
+    if (document.getElementById("p98f-equity-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-equity-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Equity Curve &amp; Drawdown</h2><span class=\"muted\">Cumulative equity (top) \u00b7 drawdown from peak (bottom) \u00b7 underwater chart \u00b7 source: /api/drawdown</span></div><span class=\"panel-badge\" style=\"background:rgba(60,224,79,.12);color:#3ce04f\">CURVE</span></div><canvas id=\"p98f-equity-canvas\" style=\"width:100%;height:380px;display:block;margin-top:14px\"></canvas><div id=\"p98f-equity-foot\" class=\"muted\" style=\"margin-top:14px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace\"></div>";
+    const anchor = document.getElementById("p98f-cal-panel") || document.getElementById("p98f-reasons-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function draw(canvas, dates, eqs, dds){
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width || 1000, H = 380;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    const ctx = canvas.getContext("2d"); ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, W, H);
+    const padL = 75, padR = 30, padT = 18, padB = 38, gap = 14;
+    const pw = W - padL - padR;
+    const totalPlotH = H - padT - padB - gap;
+    const eqH = Math.round(totalPlotH * 0.66);
+    const ddH = totalPlotH - eqH;
+    const eqY0 = padT, eqY1 = padT + eqH;
+    const ddY0 = eqY1 + gap, ddY1 = ddY0 + ddH;
+    const n = eqs.length; if (!n) return;
+    const eqMin = Math.min.apply(null, eqs), eqMax = Math.max.apply(null, eqs);
+    const eqPad = (eqMax - eqMin) * 0.05 || 1;
+    const eqLo = eqMin - eqPad, eqHi = eqMax + eqPad, eqRange = eqHi - eqLo;
+    const ddMin = Math.min(0, Math.min.apply(null, dds));
+    const xAt = function(i){ return padL + (i / Math.max(n - 1, 1)) * pw; };
+    const eqYAt = function(v){ return eqY0 + (1 - (v - eqLo) / eqRange) * eqH; };
+    const ddYAt = function(v){ return ddY0 + (v === 0 ? 0 : (v / ddMin) * ddH); };
+    ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++){ const y = eqY0 + (i / 4) * eqH; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + pw, y); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(padL, ddY0); ctx.lineTo(padL + pw, ddY0); ctx.stroke();
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){ const x = xAt(i), y = eqYAt(eqs[i]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.lineTo(padL + pw, eqY1); ctx.lineTo(padL, eqY1); ctx.closePath();
+    const grad = ctx.createLinearGradient(0, eqY0, 0, eqY1);
+    grad.addColorStop(0, "rgba(60,224,79,0.28)"); grad.addColorStop(1, "rgba(60,224,79,0.02)");
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){ const x = xAt(i), y = eqYAt(eqs[i]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.strokeStyle = "#3ce04f"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, ddY0);
+    for (let i = 0; i < n; i++){ ctx.lineTo(xAt(i), ddYAt(dds[i])); }
+    ctx.lineTo(padL + pw, ddY0); ctx.closePath();
+    ctx.fillStyle = "rgba(255,85,102,0.28)"; ctx.fill();
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){ const x = xAt(i), y = ddYAt(dds[i]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.strokeStyle = "#ff5566"; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = "#888"; ctx.font = "10px JetBrains Mono, monospace"; ctx.textAlign = "right";
+    for (let i = 0; i <= 4; i++){ const y = eqY0 + (i / 4) * eqH; const val = eqHi - (i / 4) * eqRange; ctx.fillText("\u20b9" + (val / 100000).toFixed(2) + "L", padL - 8, y + 3); }
+    ctx.fillText("0%", padL - 8, ddY0 + 3);
+    ctx.fillText(ddMin.toFixed(2) + "%", padL - 8, ddY1 + 3);
+    ctx.fillText(((ddMin / 2)).toFixed(2) + "%", padL - 8, ddY0 + ddH / 2 + 3);
+    ctx.fillStyle = "#666"; ctx.font = "9px JetBrains Mono, monospace"; ctx.textAlign = "left";
+    ctx.fillText("EQUITY", padL, eqY0 - 5);
+    ctx.fillText("DRAWDOWN", padL, ddY0 - 5);
+    ctx.fillStyle = "#888"; ctx.font = "10px JetBrains Mono, monospace"; ctx.textAlign = "center";
+    const tickN = Math.min(8, n);
+    for (let i = 0; i < tickN; i++){ const idx = Math.round(i * (n - 1) / Math.max(tickN - 1, 1)); const x = xAt(idx); const ds = (dates[idx] || "").slice(5); ctx.fillText(ds, x, ddY1 + 16); }
+    const peakIdx = eqs.indexOf(eqMax);
+    if (peakIdx >= 0){ const x = xAt(peakIdx), y = eqYAt(eqMax); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#3ce04f"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = 1; ctx.stroke(); }
+    const ddMinIdx = dds.indexOf(ddMin);
+    if (ddMinIdx >= 0 && ddMin < 0){ const x = xAt(ddMinIdx), y = ddYAt(ddMin); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#ff5566"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+  function update(){
+    fetch("/api/drawdown", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if (!d || !d.rows || !d.rows.length) return;
+      const rows = d.rows;
+      const dates = rows.map(function(r){ return String(r.date || "").slice(0,10); });
+      const eqs = rows.map(function(r){ return Number(r.equity || 0); });
+      const dds = rows.map(function(r){ return Number(r.dd_pct || 0); });
+      const canvas = document.getElementById("p98f-equity-canvas"); if (!canvas) return;
+      draw(canvas, dates, eqs, dds);
+      const peak = Math.max.apply(null, eqs);
+      const terminal = eqs[eqs.length - 1];
+      const totalRet = peak !== 0 ? ((terminal - eqs[0]) / Math.max(Math.abs(eqs[0]), 1) * 100) : 0;
+      const maxDd = Math.min.apply(null, dds);
+      const currentDd = dds[dds.length - 1];
+      const calmar = maxDd < 0 ? (totalRet / Math.abs(maxDd)) : 0;
+      const fmtR = function(x){ return "\u20b9" + Math.round(x).toLocaleString("en-IN"); };
+      const f = document.getElementById("p98f-equity-foot"); if (!f) return;
+      f.innerHTML = "<b style=\"color:#ddd\">" + rows.length + "</b> data points \u00b7 terminal <b style=\"color:#3ce04f\">" + fmtR(terminal) + "</b> \u00b7 peak <b style=\"color:#3ce04f\">" + fmtR(peak) + "</b> \u00b7 total return <b style=\"color:" + (totalRet >= 0 ? "#3ce04f" : "#ff5566") + "\">" + totalRet.toFixed(2) + "%</b> \u00b7 max DD <b style=\"color:#ff5566\">" + maxDd.toFixed(2) + "%</b> \u00b7 current DD <b style=\"color:" + (currentDd < -0.5 ? "#ff5566" : "#ddd") + "\">" + currentDd.toFixed(2) + "%</b> \u00b7 calmar <b style=\"color:#ddd\">" + calmar.toFixed(2) + "</b>";
+    }).catch(function(){});
+  }
+  function init(){ makePanel(); update(); setInterval(update, 60000); window.addEventListener("resize", update); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
