@@ -247,7 +247,7 @@ async function refreshEquity(){
   $("#equity-range").textContent=`${labels[0]} → ${labels[labels.length-1]}  ·  Final ₹${Math.round(finalEq).toLocaleString("en-IN")} (${pnl>=0?"+":""}${(pnl/cap*100).toFixed(2)}%)`;
   if(equityChart)equityChart.destroy();
   const dark=document.documentElement.getAttribute("data-theme")!=="light";const{grid,axis}=chartCommon(dark);
-  equityChart=new Chart(($("#equity-chart")||document.createElement("canvas")).getContext("2d"),{type:"line",data:{labels,datasets:[{label:"Equity",data:equity,borderColor:"rgba(99,102,241,1)",backgroundColor:"rgba(99,102,241,0.12)",fill:true,stepped:"before",pointRadius:0,pointHoverRadius:5,borderWidth:2},{label:"Capital (₹150k)",data:baseline,borderColor:"rgba(139,148,158,0.55)",borderDash:[6,6],pointRadius:0,borderWidth:1.2,fill:false}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},interaction:{intersect:false,mode:"index"},plugins:{legend:{position:"top",align:"end",labels:{color:axis,font:{size:11},usePointStyle:true,boxWidth:8}},tooltip:{backgroundColor:dark?"rgba(18,24,38,.95)":"rgba(255,255,255,.98)",titleColor:dark?"#e6edf3":"#0f172a",bodyColor:dark?"#e6edf3":"#0f172a",borderColor:dark?"#1f2937":"#e2e8f0",borderWidth:1,padding:10,callbacks:{label:c=>c.dataset.label+": ₹"+Math.round(c.parsed.y).toLocaleString("en-IN"),afterBody:it=>{if(it.length&&it[0].dataset.label.startsWith("Equity")){const v=it[0].parsed.y,diff=v-cap;return["","P&L: "+(diff>=0?"+":"")+"₹"+Math.round(diff).toLocaleString("en-IN")+" ("+(diff/cap*100).toFixed(2)+"%)"];}return[];}}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{min:Math.max(0,minV-pad),max:maxV+pad,ticks:{color:axis,font:{size:10},callback:v=>"₹"+(v/1000).toFixed(0)+"k"},grid:{color:grid}}}}});
+  equityChart=new Chart($("#equity-chart").getContext("2d"),{type:"line",data:{labels,datasets:[{label:"Equity",data:equity,borderColor:"rgba(99,102,241,1)",backgroundColor:"rgba(99,102,241,0.12)",fill:true,stepped:"before",pointRadius:0,pointHoverRadius:5,borderWidth:2},{label:"Capital (₹150k)",data:baseline,borderColor:"rgba(139,148,158,0.55)",borderDash:[6,6],pointRadius:0,borderWidth:1.2,fill:false}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},interaction:{intersect:false,mode:"index"},plugins:{legend:{position:"top",align:"end",labels:{color:axis,font:{size:11},usePointStyle:true,boxWidth:8}},tooltip:{backgroundColor:dark?"rgba(18,24,38,.95)":"rgba(255,255,255,.98)",titleColor:dark?"#e6edf3":"#0f172a",bodyColor:dark?"#e6edf3":"#0f172a",borderColor:dark?"#1f2937":"#e2e8f0",borderWidth:1,padding:10,callbacks:{label:c=>c.dataset.label+": ₹"+Math.round(c.parsed.y).toLocaleString("en-IN"),afterBody:it=>{if(it.length&&it[0].dataset.label.startsWith("Equity")){const v=it[0].parsed.y,diff=v-cap;return["","P&L: "+(diff>=0?"+":"")+"₹"+Math.round(diff).toLocaleString("en-IN")+" ("+(diff/cap*100).toFixed(2)+"%)"];}return[];}}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{min:Math.max(0,minV-pad),max:maxV+pad,ticks:{color:axis,font:{size:10},callback:v=>"₹"+(v/1000).toFixed(0)+"k"},grid:{color:grid}}}}});
 }
 
 async function refreshDailyPnl(){
@@ -256,7 +256,7 @@ async function refreshDailyPnl(){
   const colors=data.map(v=>v>=0?"rgba(16,185,129,0.8)":"rgba(239,68,68,0.8)");
   if(pnlChart)pnlChart.destroy();
   const dark=document.documentElement.getAttribute("data-theme")!=="light";const{grid,axis}=chartCommon(dark);
-  pnlChart=new Chart(($("#daily-pnl-chart")||document.createElement("canvas")).getContext("2d"),{type:"bar",data:{labels,datasets:[{label:"Daily P&L",data,backgroundColor:colors,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>"₹"+Math.round(c.parsed.y).toLocaleString("en-IN")}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{ticks:{color:axis,font:{size:10},callback:v=>"₹"+(v/1000).toFixed(1)+"k"},grid:{color:grid}}}}});
+  pnlChart=new Chart($("#daily-pnl-chart").getContext("2d"),{type:"bar",data:{labels,datasets:[{label:"Daily P&L",data,backgroundColor:colors,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>"₹"+Math.round(c.parsed.y).toLocaleString("en-IN")}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{ticks:{color:axis,font:{size:10},callback:v=>"₹"+(v/1000).toFixed(1)+"k"},grid:{color:grid}}}}});
 }
 
 async function refreshDrawdown(){
@@ -266,7 +266,7 @@ async function refreshDrawdown(){
   $("#current-dd").textContent=`Current: ${cur.toFixed(2)}%  ·  Max: ${mx.toFixed(2)}%`;
   if(ddChart)ddChart.destroy();
   const dark=document.documentElement.getAttribute("data-theme")!=="light";const{grid,axis}=chartCommon(dark);
-  ddChart=new Chart(($("#drawdown-chart")||document.createElement("canvas")).getContext("2d"),{type:"line",data:{labels,datasets:[{label:"Drawdown %",data:dd,borderColor:"rgba(239,68,68,1)",backgroundColor:"rgba(239,68,68,0.15)",fill:true,pointRadius:0,borderWidth:1.5,stepped:"before"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(2)+"%"}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{max:0,ticks:{color:axis,font:{size:10},callback:v=>v.toFixed(1)+"%"},grid:{color:grid}}}}});
+  ddChart=new Chart($("#drawdown-chart").getContext("2d"),{type:"line",data:{labels,datasets:[{label:"Drawdown %",data:dd,borderColor:"rgba(239,68,68,1)",backgroundColor:"rgba(239,68,68,0.15)",fill:true,pointRadius:0,borderWidth:1.5,stepped:"before"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(2)+"%"}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{max:0,ticks:{color:axis,font:{size:10},callback:v=>v.toFixed(1)+"%"},grid:{color:grid}}}}});
 }
 
 async function refreshPortfolio(){
@@ -3118,26 +3118,4 @@ setTimeout(refreshTickChip, 1500);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', waitForTape);
   else waitForTape();
-})();
-
-/* ===== Phase 9.8f.50: Bloomberg theme as DEFAULT (user loves it - lock it in on first visit) ===== */
-(function _p98f_theme_default(){
-  if (window.__P98F_THEME_DEFAULT__) return;
-  window.__P98F_THEME_DEFAULT__ = true;
-  try {
-    var saved = localStorage.getItem('bb-theme');
-    if (saved === null || saved === undefined) {
-      document.documentElement.setAttribute('data-theme', 'bloomberg');
-      localStorage.setItem('bb-theme', 'bloomberg');
-      console.log('[P98F_THEME] Bloomberg theme set as default (first visit)');
-    } else if (saved === 'bloomberg') {
-      document.documentElement.setAttribute('data-theme', 'bloomberg');
-    }
-    var te = document.getElementById('bb-tape-theme');
-    if (te != null) {
-      te.textContent = (document.documentElement.getAttribute('data-theme') === 'bloomberg') ? 'BLOOMBERG' : 'DEFAULT';
-    }
-  } catch(e){
-    console.warn('[P98F_THEME] init failed', e);
-  }
 })();
