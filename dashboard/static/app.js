@@ -1823,65 +1823,82 @@ setTimeout(refreshTickChip, 1500);
   else setTimeout(start, 1800);
 })();
 
-// ===== Phase 9.8e B-CAL-7: heatmap legend + B-CAL-8: streak markers =====
-(function _p98e_calLegend(){
-  if (window.__P98E_CAL_LEGEND__) return;
-  window.__P98E_CAL_LEGEND__ = true;
+// ===== Phase 9.8e B-CAL-7+8 v2: full-width legend + observable streak markers =====
+(function _p98e_calLegend_v2(){
+  if (window.__P98E_CAL_LEGEND_V2__) return;
+  window.__P98E_CAL_LEGEND_V2__ = true;
 
   function injectLegend(){
-    const hm = document.getElementById('heatmap') || document.querySelector('.heatmap-grid') || document.querySelector('[id*="heatmap"]');
-    if (!hm) return false;
-    const host = hm.parentNode;
-    if (!host || host.querySelector('.hm-legend')) return true;
+    const panel = document.getElementById('heatmap-panel');
+    if (!panel) return false;
+    if (panel.querySelector('.p98e-cal-legend')) return true;
     const leg = document.createElement('div');
-    leg.className = 'hm-legend';
+    leg.className = 'p98e-cal-legend';
     leg.innerHTML =
       '<span class="hm-leg-lbl">P&amp;L bins:</span>' +
       '<span class="hm-leg-item"><span class="hm-leg-sw t-loss-2"></span>&lt; &minus;&#8377;5k</span>' +
       '<span class="hm-leg-item"><span class="hm-leg-sw t-loss-1"></span>&minus;&#8377;5k..0</span>' +
-      '<span class="hm-leg-item"><span class="hm-leg-sw t-flat"></span>0</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-flat"></span>&#8377;0</span>' +
       '<span class="hm-leg-item"><span class="hm-leg-sw t-win-1"></span>0..+&#8377;5k</span>' +
       '<span class="hm-leg-item"><span class="hm-leg-sw t-win-2"></span>+&#8377;5k..+&#8377;25k</span>' +
       '<span class="hm-leg-item"><span class="hm-leg-sw t-win-3"></span>&gt; +&#8377;25k</span>' +
       '<span class="hm-leg-sep">&middot;</span>' +
-      '<span class="hm-leg-item"><span class="hm-leg-emoji">&#128293;</span>3+ win streak</span>' +
-      '<span class="hm-leg-item"><span class="hm-leg-emoji">&#10052;</span>3+ loss streak</span>';
-    hm.insertAdjacentElement('afterend', leg);
+      '<span class="hm-leg-item"><span class="hm-leg-emoji">\uD83D\uDD25</span>3+ win streak</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-emoji">\u2744\uFE0F</span>3+ loss streak</span>';
+    panel.appendChild(leg);
     return true;
   }
 
   function markStreaks(){
-    const cells = Array.from(document.querySelectorAll('.heatmap-cell, .hm-cell, [data-pnl]'));
+    const grid = document.getElementById('heatmap-grid');
+    if (!grid) return;
+    const cells = Array.from(grid.querySelectorAll('.heatmap-cell'));
     if (!cells.length) return;
-    // Sort by date attribute if present
-    cells.sort(function(a,b){
-      const da = a.getAttribute('data-date') || '';
-      const db = b.getAttribute('data-date') || '';
-      return da.localeCompare(db);
-    });
+    const dated = cells.filter(c => c.dataset.date);
+    dated.sort((a,b) => a.dataset.date.localeCompare(b.dataset.date));
     let run = 0, runSign = 0;
-    cells.forEach(function(c, i){
-      // remove previous marker
+    dated.forEach((c, i) => {
       const prev = c.querySelector('.hm-streak-emoji');
       if (prev) prev.remove();
-      const pnl = parseFloat(c.getAttribute('data-pnl') || '0');
-      if (!pnl) { run = 0; runSign = 0; return; }
-      const sign = pnl > 0 ? 1 : pnl < 0 ? -1 : 0;
-      if (sign === runSign && sign !== 0) {
-        run++;
-      } else {
-        run = 1;
-        runSign = sign;
+      const pnlAttr = c.dataset.pnl;
+      if (pnlAttr === '' || pnlAttr == null) { run = 0; runSign = 0; return; }
+      const pnl = parseFloat(pnlAttr);
+      if (!isFinite(pnl) || pnl === 0) { run = 0; runSign = 0; return; }
+      const sign = pnl > 0 ? 1 : -1;
+      if (sign === runSign) run++;
+      else { run = 1; runSign = sign; }
+      const next = dated[i+1];
+      let endsRun = true;
+      if (next) {
+        const np = parseFloat(next.dataset.pnl || '');
+        const ns = isFinite(np) && np !== 0 ? (np > 0 ? 1 : -1) : 0;
+        endsRun = (ns !== sign);
       }
-      // Mark the cell that completes a streak of 3+ — and continues marking each subsequent
-      const isLastInRun = (i === cells.length - 1) ||
-                          (function(){
-                            const next = cells[i+1];
-                            if (!next) return true;
-                            const np = parseFloat(next.getAttribute('data-pnl') || '0');
-                            const ns = np > 0 ? 1 : np < 0 ? -1 : 0;
-                            return ns !== sign;
-                          })();
+      if (run >= 3 && endsRun) {
+        const em = document.createElement('span');
+        em.className = 'hm-streak-emoji ' + (sign > 0 ? 'streak-win' : 'streak-loss');
+        em.textContent = sign > 0 ? '\uD83D\uDD25' : '\u2744\uFE0F';
+        em.title = (sign > 0 ? 'Win' : 'Loss') + ' streak: ' + run + ' days';
+        c.appendChild(em);
+      }
+    });
+  }
+
+  function setupObserver(){
+    const grid = document.getElementById('heatmap-grid');
+    if (!grid) { setTimeout(setupObserver, 500); return; }
+    const obs = new MutationObserver(() => {
+      clearTimeout(window.__p98eStreakTimer__);
+      window.__p98eStreakTimer__ = setTimeout(markStreaks, 80);
+    });
+    obs.observe(grid, { childList: true });
+    injectLegend();
+    setTimeout(markStreaks, 300);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupObserver);
+  else setTimeout(setupObserver, 1000);
+})();
       if (run >= 3 && isLastInRun) {
         const em = document.createElement('span');
         em.className = 'hm-streak-emoji';
