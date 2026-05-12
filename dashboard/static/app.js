@@ -2277,3 +2277,61 @@ setTimeout(refreshTickChip, 1500);
   style.textContent = "#p98f-rolling-chart{padding-bottom:8px}#p98f-rolling-chart .u-legend{font-family:JetBrains Mono,Consolas,monospace !important;font-size:11px !important;padding:10px 0 4px !important;border-top:1px solid rgba(128,128,128,.18) !important;margin-top:10px !important;background:transparent !important;text-align:left !important}#p98f-rolling-chart .u-legend th{color:#999 !important;font-weight:500 !important;padding-right:14px !important}#p98f-rolling-chart .u-legend td{padding-right:18px !important}#p98f-rolling-summary{border-top:1px solid rgba(128,128,128,.18) !important;padding-top:12px !important;letter-spacing:.3px}";
   document.head.appendChild(style);
 })();
+
+/* ===== Phase 9.8f.36: Intraday sparklines (375-bar session from intraday_candles) ===== */
+(function _p98f_spark_intraday(){
+  if (window.__P98F_SPARK_INTRADAY__) return;
+  window.__P98F_SPARK_INTRADAY__ = true;
+  const SYMS = ["BNF","NF","FNF"];
+  const css = document.createElement("style");
+  css.textContent = ".sc-spark{width:100%;height:46px;display:block;margin:8px 0 6px;border-radius:3px}";
+  document.head.appendChild(css);
+  function drawSpark(canvas, candles, openPrice){
+    if (!canvas || !candles || !candles.length) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.max(rect.width || canvas.parentElement.clientWidth || 200, 100);
+    const H = Math.max(rect.height || 46, 32);
+    canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    const ctx = canvas.getContext("2d"); ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, W, H);
+    const closes = candles.map(function(c){ return c[4]; });
+    const n = closes.length;
+    let min = Math.min.apply(null, closes); let max = Math.max.apply(null, closes);
+    min = Math.min(min, openPrice); max = Math.max(max, openPrice);
+    const pad = (max - min) * 0.12 || 1; min -= pad; max += pad;
+    const last = closes[n - 1];
+    const isUp = last >= openPrice;
+    const color = isUp ? "#3ce04f" : "#ff5566";
+    const fill = isUp ? "rgba(60,224,79,0.12)" : "rgba(255,85,102,0.12)";
+    const baseY = H - ((openPrice - min) / (max - min)) * H;
+    ctx.beginPath(); ctx.setLineDash([2,3]); ctx.strokeStyle = "rgba(160,160,160,0.45)"; ctx.lineWidth = 1; ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){ const x = (i / Math.max(n - 1, 1)) * W; const y = H - ((closes[i] - min) / (max - min)) * H; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){ const x = (i / Math.max(n - 1, 1)) * W; const y = H - ((closes[i] - min) / (max - min)) * H; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.lineJoin = "round"; ctx.stroke();
+    const lastX = W - 2; const lastY = H - ((last - min) / (max - min)) * H;
+    ctx.beginPath(); ctx.arc(lastX, lastY, 2.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+    ctx.beginPath(); ctx.arc(lastX, lastY, 5, 0, Math.PI * 2); ctx.strokeStyle = color; ctx.globalAlpha = 0.35; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  async function update(){
+    try {
+      const r = await fetch("/api/symbols", {credentials:"same-origin"});
+      if (!r.ok) return;
+      const d = await r.json();
+      const syms = d.symbols || {};
+      SYMS.forEach(function(s){
+        const sd = syms[s]; if (!sd) return;
+        const canvas = document.getElementById("spark-" + s);
+        const candles = sd.intraday_candles || [];
+        const openPrice = (sd.ohlc_today && sd.ohlc_today.o) || (candles[0] && candles[0][1]) || sd.ltp;
+        if (openPrice != null) drawSpark(canvas, candles, +openPrice);
+      });
+    } catch(e){ console.warn("spark intraday:", e); }
+  }
+  setTimeout(update, 700);
+  setInterval(update, 5000);
+  let rT; window.addEventListener("resize", function(){ clearTimeout(rT); rT = setTimeout(update, 200); });
+})();
