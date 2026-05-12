@@ -893,31 +893,55 @@ async function refreshHeatmap(){
   }
   setText("hm-streak-sub", streak === 0 ? "no streak" : (streak === 1 ? "1 day" : streak + " days"));
 
-  // Tooltip
+  // Phase 9.8e B-CAL-2: rich tooltip — day-of-week, win%, avg/trade, smart positioning
   const tip = document.getElementById("hm-tooltip");
+  const _DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const _MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   cells.forEach(cell => {
     cell.addEventListener("mouseenter", () => {
       const date = cell.dataset.date;
       const pnl = cell.dataset.pnl;
-      const trades = cell.dataset.trades;
-      const wins = cell.dataset.wins;
+      const trades = parseInt(cell.dataset.trades)||0;
+      const wins = parseInt(cell.dataset.wins)||0;
+      const losses = Math.max(0, trades - wins);
       const live = parseInt(cell.dataset.live)||0;
       const bt = parseInt(cell.dataset.bt)||0;
-      let html = '<div class="ht-date">' + date + '</div>';
-      if(pnl === ""){ html += '<div class="ht-row">no trades</div>'; }
-      else {
+      let prettyDate = date;
+      try {
+        const dt = new Date(date + "T00:00:00");
+        prettyDate = _DOW[dt.getDay()] + " · " + dt.getDate() + " " + _MON[dt.getMonth()] + " " + dt.getFullYear();
+      } catch(e){}
+      let html = '<div class="ht-date">' + prettyDate + '</div>';
+      if(pnl === "" || trades === 0){
+        html += '<div class="ht-empty">no trades this day</div>';
+      } else {
         const p = parseFloat(pnl);
-        html += '<div class="ht-pnl ' + (p>=0?"pos":"neg") + '">' + (p>=0?"+":"") + "Rs " + Math.round(p).toLocaleString("en-IN") + '</div>';
-        html += '<div class="ht-row">' + trades + ' trade' + (trades==1?"":"s") + ' · ' + wins + ' win' + (wins==1?"":"s") + '</div>';
-        if(live > 0) html += '<span class="ht-tag live">LIVE ' + live + '</span>';
-        if(bt > 0) html += '<span class="ht-tag bt">BT ' + bt + '</span>';
+        const avg = trades > 0 ? p / trades : 0;
+        const winPct = trades > 0 ? (wins / trades * 100) : 0;
+        html += '<div class="ht-pnl ' + (p>=0?"pos":"neg") + '">' + (p>=0?"+":"−") + "₹" + Math.abs(Math.round(p)).toLocaleString("en-IN") + '</div>';
+        html += '<div class="ht-grid">';
+        html +=   '<div class="ht-k">Trades</div><div class="ht-v">' + trades + '</div>';
+        html +=   '<div class="ht-k">Win rate</div><div class="ht-v">' + winPct.toFixed(0) + '% (' + wins + 'W / ' + losses + 'L)</div>';
+        html +=   '<div class="ht-k">Avg/trade</div><div class="ht-v ' + (avg>=0?"pos":"neg") + '">' + (avg>=0?"+":"−") + "₹" + Math.abs(Math.round(avg)).toLocaleString("en-IN") + '</div>';
+        html += '</div>';
+        const tags = [];
+        if(live > 0) tags.push('<span class="ht-tag live">LIVE ×' + live + '</span>');
+        if(bt > 0)   tags.push('<span class="ht-tag bt">BT ×' + bt + '</span>');
+        if(tags.length) html += '<div class="ht-tags">' + tags.join("") + '</div>';
+        html += '<div class="ht-hint">→ click to filter trade table</div>';
       }
       tip.innerHTML = html;
       tip.classList.add("show");
     });
     cell.addEventListener("mousemove", (e) => {
-      tip.style.left = Math.min(window.innerWidth - 200, e.clientX + 14) + "px";
-      tip.style.top = (e.clientY + 14) + "px";
+      const tw = tip.offsetWidth || 220;
+      const th = tip.offsetHeight || 100;
+      let x = e.clientX + 14;
+      let y = e.clientY + 14;
+      if(x + tw > window.innerWidth - 8) x = e.clientX - tw - 14;
+      if(y + th > window.innerHeight - 8) y = e.clientY - th - 14;
+      tip.style.left = Math.max(8, x) + "px";
+      tip.style.top = Math.max(8, y) + "px";
     });
     cell.addEventListener("mouseleave", () => { tip.classList.remove("show"); });
   });

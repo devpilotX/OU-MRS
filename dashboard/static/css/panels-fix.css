@@ -119,3 +119,20 @@
   transition: all .15s;
 }
 .hm-clear-btn:hover{ color: var(--text); border-color: var(--accent); background: rgba(99,102,241,0.08); }
+
+/* ===== Phase 9.8e B-CAL-2: rich heatmap tooltip ===== */
+.heatmap-tooltip{ min-width: 220px !important; max-width: 280px; }
+.heatmap-tooltip .ht-pnl{ font-size: 16px; font-weight: 700; margin: 6px 0 8px; letter-spacing: -0.3px; line-height: 1.1; }
+.heatmap-tooltip .ht-pnl.pos{ color: var(--green); }
+.heatmap-tooltip .ht-pnl.neg{ color: var(--red); }
+.heatmap-tooltip .ht-grid{ display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 6px 0 4px; }
+.heatmap-tooltip .ht-k{ color: var(--muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.heatmap-tooltip .ht-v{ color: var(--text); font-size: 11px; text-align: right; font-weight: 600; }
+.heatmap-tooltip .ht-v.pos{ color: var(--green); }
+.heatmap-tooltip .ht-v.neg{ color: var(--red); }
+.heatmap-tooltip .ht-tags{ display: flex; gap: 5px; margin: 8px 0 4px; flex-wrap: wrap; }
+.heatmap-tooltip .ht-tag{ display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; }
+.heatmap-tooltip .ht-tag.live{ background: rgba(16,185,129,0.18); color: var(--green); border: 1px solid rgba(16,185,129,0.35); }
+.heatmap-tooltip .ht-tag.bt{ background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid rgba(99,102,241,0.35); }
+.heatmap-tooltip .ht-hint{ font-size: 9px; color: var(--muted); margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); text-align: center; letter-spacing: 0.3px; }
+.heatmap-tooltip .ht-empty{ color: var(--muted); font-style: italic; font-size: 11px; padding: 6px 0; text-align: center; }
