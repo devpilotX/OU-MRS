@@ -136,3 +136,82 @@
 .heatmap-tooltip .ht-tag.bt{ background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid rgba(99,102,241,0.35); }
 .heatmap-tooltip .ht-hint{ font-size: 9px; color: var(--muted); margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); text-align: center; letter-spacing: 0.3px; }
 .heatmap-tooltip .ht-empty{ color: var(--muted); font-style: italic; font-size: 11px; padding: 6px 0; text-align: center; }
+
+/* ===== Phase 9.8e B8: sample-size guard styling ===== */
+.regime-stats .ns-small {
+  color: var(--muted, #888);
+  font-style: italic;
+  cursor: help;
+  border-bottom: 1px dotted var(--muted, #888);
+}
+.regime-stats .ns-trades {
+  color: var(--muted, #888);
+  font-style: italic;
+}
+[data-theme="light"] .regime-stats .ns-small,
+[data-theme="light"] .regime-stats .ns-trades {
+  color: #94a3b8;
+}
+
+/* ===== Phase 9.8e B7: paper-mode portfolio panel ===== */
+.pf-paper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.pf-paper-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 3px 10px;
+  background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+  border: 1px solid rgba(245,158,11,0.4);
+  border-radius: 3px;
+  color: #f59e0b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.pf-paper-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(128,128,128,0.15);
+  font-size: 12px;
+}
+.pf-paper-row:last-of-type {
+  border-bottom: none;
+}
+.pf-paper-row .mk {
+  color: var(--muted, #94a3b8);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.pf-paper-row .pf-val {
+  color: var(--text, #e5e7eb);
+  font-weight: 600;
+}
+.pf-paper-row .pf-muted {
+  color: var(--muted, #6b7280);
+  font-style: italic;
+  font-size: 11px;
+}
+.pf-paper-hint {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted, #6b7280);
+  font-style: italic;
+  font-family: 'Inter', sans-serif;
+}
+[data-theme="light"] .pf-paper-badge {
+  color: #b45309;
+  background: linear-gradient(90deg, rgba(245,158,11,0.10), rgba(245,158,11,0.02));
+}
+[data-theme="light"] .pf-paper-row .pf-val { color: #1f2937; }
+[data-theme="light"] .pf-paper-row .mk,
+[data-theme="light"] .pf-paper-row .pf-muted,
+[data-theme="light"] .pf-paper-hint { color: #64748b; }

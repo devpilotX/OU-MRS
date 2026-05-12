@@ -273,8 +273,23 @@ async function refreshPortfolio(){
   const p=await fetchJSON("/api/portfolio");if(!p)return;
   const el=$("#portfolio-view");
   if(!p.ok){el.innerHTML=`<div class="muted">Angel: ${p.error||"--"}</div>`;return;}
-  const rms=p.rms||{};const f=k=>fmtMoney(Number(rms[k]||0));
-  el.innerHTML=`<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
+  // Phase 9.8e B7: detect inactive bot / paper mode - rms null or all-zero means no live broker data
+  const rms=p.rms||null;
+  const hasReal = rms && Object.keys(rms).some(k => Number(rms[k]||0) !== 0);
+  if(!hasReal){
+    const cap = Number(window.__CAPITAL__||3750000);
+    const capStr = "Rs " + cap.toLocaleString("en-IN");
+    el.innerHTML = `<div class="pf-paper">
+      <div class="pf-paper-badge">PAPER MODE &middot; BOT INACTIVE</div>
+      <div class="pf-paper-row"><span class="mk">Simulated capital</span><span class="pf-val">${capStr}</span></div>
+      <div class="pf-paper-row"><span class="mk">Broker positions</span><span class="pf-muted">none (paper)</span></div>
+      <div class="pf-paper-row"><span class="mk">Next wakeup</span><span class="pf-val">Wed 13 May &middot; 09:14 IST</span></div>
+      <div class="pf-paper-hint">Live broker data will populate when bot session is active.</div>
+    </div>`;
+  } else {
+    const f=k=>fmtMoney(Number(rms[k]||0));
+    el.innerHTML=`<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
+  }
   $("#portfolio-ts").textContent=new Date().toLocaleTimeString();
 }
 
@@ -1025,13 +1040,24 @@ async function refreshRegime(){
   const tEl = document.getElementById('regime-table');
   if(tEl){
     var html = '<table class="regime-stats"><thead><tr><th>Regime</th><th>Trades</th><th>WR</th><th>Total PnL</th><th>Avg</th><th>PF</th></tr></thead><tbody>';
+    // Phase 9.8e B8: sample-size guard - WR/PF unreliable when n<5
+    var SAMPLE_MIN = 5;
     keys.forEach(function(k){
       var m = regimes[k] || {};
+      var n = m.trades || 0;
       var pnlStr = m.total_pnl != null ? 'Rs ' + Math.round(m.total_pnl).toLocaleString() : '--';
       var avgStr = m.avg_pnl != null ? 'Rs ' + Math.round(m.avg_pnl).toLocaleString() : '--';
-      var wrStr = m.win_rate != null ? (m.win_rate * 100).toFixed(0) + '%' : '--';
-      var pfStr = m.profit_factor != null ? (m.profit_factor >= 999 ? 'inf' : m.profit_factor.toFixed(2)) : '--';
-      html += '<tr><td><span class="regime-pill regime-' + k.toLowerCase() + '">' + k + '</span></td><td>' + (m.trades || 0) + '</td><td>' + wrStr + '</td><td class="num">' + pnlStr + '</td><td class="num">' + avgStr + '</td><td>' + pfStr + '</td></tr>';
+      var wrStr, pfStr;
+      if (n < SAMPLE_MIN) {
+        var tip = 'needs &ge;' + SAMPLE_MIN + ' trades (n=' + n + ')';
+        wrStr = '<span class="ns-small" title="' + tip + '">&mdash;</span>';
+        pfStr = '<span class="ns-small" title="' + tip + '">&mdash;</span>';
+      } else {
+        wrStr = m.win_rate != null ? (m.win_rate * 100).toFixed(0) + '%' : '&mdash;';
+        pfStr = m.profit_factor != null ? (m.profit_factor >= 999 ? '&infin;' : m.profit_factor.toFixed(2)) : '&mdash;';
+      }
+      var nCell = (n < SAMPLE_MIN) ? '<span class="ns-trades">' + n + '</span>' : String(n);
+      html += '<tr><td><span class="regime-pill regime-' + k.toLowerCase() + '">' + k + '</span></td><td>' + nCell + '</td><td>' + wrStr + '</td><td class="num">' + pnlStr + '</td><td class="num">' + avgStr + '</td><td>' + pfStr + '</td></tr>';
     });
     html += '</tbody></table>';
     tEl.innerHTML = html;
