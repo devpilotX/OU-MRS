@@ -2919,3 +2919,100 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 5000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.48b: Bloomberg-style Options Chain panel ===== */
+(function _p98f_oc(){
+  if (window.__P98F_OC__) return;
+  window.__P98F_OC__ = true;
+  let currentSym = "BNF";
+  function makePanel(){
+    if (document.getElementById("p98f-oc-panel")) return;
+    const sec = document.createElement("section");
+    sec.className = "panel";
+    sec.id = "p98f-oc-panel";
+    sec.innerHTML = '<div class="panel-header"><div><h2>Options Chain</h2><span class="muted">Live spot \u00b7 Black-Scholes Greeks \u00b7 synthetic OI/Vol/IV preview pending Angel One wiring</span></div><div style="display:flex;gap:8px;align-items:center"><span class="panel-badge" style="background:rgba(255,200,51,.12);color:#ffc833">PREVIEW</span><div id="p98f-oc-tabs" style="display:flex;gap:4px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px"><button data-sym="BNF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:#333;color:#fff;cursor:pointer;border-radius:3px;font-weight:700">BNF</button><button data-sym="NF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;border-radius:3px">NF</button><button data-sym="FNF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;border-radius:3px">FNF</button></div></div></div><div id="p98f-oc-info" class="muted" style="margin-top:10px;font-size:11px;font-family:JetBrains Mono,Consolas,monospace"></div><div id="p98f-oc-wrap" style="margin-top:10px;overflow-x:auto;max-height:520px;overflow-y:auto"><div class="muted">loading\u2026</div></div><div id="p98f-oc-foot" class="muted" style="margin-top:10px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace"></div>';
+    const anchor = document.getElementById("p98f-risk-panel") || document.getElementById("p98f-equity-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+    sec.querySelectorAll(".oc-tab").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        currentSym = btn.getAttribute("data-sym");
+        sec.querySelectorAll(".oc-tab").forEach(function(b){
+          const active = b === btn;
+          b.style.background = active ? "#333" : "transparent";
+          b.style.color = active ? "#fff" : "#888";
+          b.style.fontWeight = active ? "700" : "400";
+        });
+        update();
+      });
+    });
+  }
+  function fmtN(x){ return Number(x || 0).toLocaleString("en-IN"); }
+  function fmtPx(x){ return Number(x || 0).toFixed(2); }
+  function update(){
+    fetch("/api/option-chain?symbol=" + currentSym, {credentials:"same-origin"})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        const wrap = document.getElementById("p98f-oc-wrap");
+        if (wrap == null) return;
+        if (d == null || d.ok !== true) {
+          wrap.innerHTML = "<div class='muted'>option chain unavailable</div>";
+          return;
+        }
+        const info = document.getElementById("p98f-oc-info");
+        if (info != null) {
+          info.innerHTML = '<b style="color:#3ce04f">' + d.underlying + '</b> spot <b style="color:#fff;font-size:13px">' + fmtN(d.spot) + '</b> \u00b7 ATM <b style="color:#ffc833;font-size:13px">' + fmtN(d.atm) + '</b> \u00b7 expiry T+' + d.expiry_days + 'd \u00b7 step ' + d.step + ' \u00b7 mode <b style="color:#ffc833">' + d.mode + '</b>';
+        }
+        let maxOI = 1;
+        d.strikes.forEach(function(s){
+          if (s.ce.oi > maxOI) maxOI = s.ce.oi;
+          if (s.pe.oi > maxOI) maxOI = s.pe.oi;
+        });
+        let html = '<table style="width:100%;font-family:JetBrains Mono,Consolas,monospace;font-size:11px;border-collapse:collapse;font-variant-numeric:tabular-nums">';
+        html += '<thead><tr style="border-bottom:1px solid rgba(128,128,128,.25)"><th colspan="6" style="text-align:center;color:#3ce04f;font-weight:700;padding:6px;background:rgba(60,224,79,.06);letter-spacing:.5px">CALL</th><th style="text-align:center;color:#fff;font-weight:700;background:rgba(255,255,255,.05);padding:6px">STRIKE</th><th colspan="6" style="text-align:center;color:#ff5566;font-weight:700;padding:6px;background:rgba(255,85,102,.06);letter-spacing:.5px">PUT</th></tr>';
+        html += '<tr style="color:#888;text-align:right;font-size:10px;border-bottom:1px solid rgba(128,128,128,.2)"><th style="padding:4px 6px">OI</th><th style="padding:4px 6px">CHG</th><th style="padding:4px 6px">VOL</th><th style="padding:4px 6px">IV%</th><th style="padding:4px 6px">\u0394</th><th style="padding:4px 6px">LTP</th><th style="padding:4px 6px;color:#fff;background:rgba(255,255,255,.04);text-align:center">PRICE</th><th style="padding:4px 6px;text-align:left">LTP</th><th style="padding:4px 6px;text-align:left">\u0394</th><th style="padding:4px 6px;text-align:left">IV%</th><th style="padding:4px 6px;text-align:left">VOL</th><th style="padding:4px 6px;text-align:left">CHG</th><th style="padding:4px 6px;text-align:left">OI</th></tr></thead><tbody>';
+        d.strikes.forEach(function(s){
+          const isATM = s.strike === d.atm;
+          const ceITM = s.strike < d.atm;
+          const peITM = s.strike > d.atm;
+          const rowBg = isATM ? "background:rgba(255,200,51,.08)" : "";
+          const ceHeat = Math.min(1, s.ce.oi / maxOI);
+          const peHeat = Math.min(1, s.pe.oi / maxOI);
+          const ceOIbg = "background:linear-gradient(to right, rgba(60,224,79," + (ceHeat * 0.22).toFixed(2) + ") " + (ceHeat * 100).toFixed(0) + "%, transparent " + (ceHeat * 100).toFixed(0) + "%)";
+          const peOIbg = "background:linear-gradient(to left, rgba(255,85,102," + (peHeat * 0.22).toFixed(2) + ") " + (peHeat * 100).toFixed(0) + "%, transparent " + (peHeat * 100).toFixed(0) + "%)";
+          const ceTint = ceITM ? "color:#3ce04f" : "color:#888";
+          const peTint = peITM ? "color:#ff5566" : "color:#888";
+          html += '<tr style="text-align:right;border-bottom:1px solid rgba(128,128,128,.06);' + rowBg + '">';
+          html += '<td style="padding:5px 6px;' + ceOIbg + ';' + ceTint + ';font-weight:600">' + fmtN(s.ce.oi) + '</td>';
+          html += '<td style="padding:5px 6px;color:#666;font-size:10px">+' + fmtN(s.ce.chgOi) + '</td>';
+          html += '<td style="padding:5px 6px;' + ceTint + '">' + fmtN(s.ce.volume) + '</td>';
+          html += '<td style="padding:5px 6px;color:#aaa">' + s.ce.iv.toFixed(1) + '</td>';
+          html += '<td style="padding:5px 6px;color:#aaa">' + s.ce.delta.toFixed(2) + '</td>';
+          html += '<td style="padding:5px 6px;font-weight:700;' + (ceITM ? "color:#3ce04f" : "color:#ddd") + '">' + fmtPx(s.ce.ltp) + '</td>';
+          html += '<td style="padding:5px 10px;text-align:center;font-weight:700;background:rgba(255,255,255,.04);' + (isATM ? "color:#ffc833;font-size:13px" : "color:#fff") + '">' + fmtN(s.strike) + (isATM ? " <span style=\\"font-size:9px;color:#ffc833\\">ATM</span>" : "") + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;font-weight:700;' + (peITM ? "color:#ff5566" : "color:#ddd") + '">' + fmtPx(s.pe.ltp) + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;color:#aaa">' + s.pe.delta.toFixed(2) + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;color:#aaa">' + s.pe.iv.toFixed(1) + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;' + peTint + '">' + fmtN(s.pe.volume) + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;color:#666;font-size:10px">+' + fmtN(s.pe.chgOi) + '</td>';
+          html += '<td style="padding:5px 6px;text-align:left;' + peOIbg + ';' + peTint + ';font-weight:600">' + fmtN(s.pe.oi) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+        const foot = document.getElementById("p98f-oc-foot");
+        if (foot != null) {
+          const pcr = d.totals.pcr;
+          const pcrColor = pcr > 1.2 ? "#3ce04f" : (pcr < 0.8 ? "#ff5566" : "#ffc833");
+          const pcrLabel = pcr > 1.2 ? "bullish bias" : (pcr < 0.8 ? "bearish bias" : "neutral");
+          foot.innerHTML = 'Total Call OI <b style="color:#3ce04f">' + fmtN(d.totals.call_oi) + '</b> \u00b7 Total Put OI <b style="color:#ff5566">' + fmtN(d.totals.put_oi) + '</b> \u00b7 PCR <b style="color:' + pcrColor + '">' + pcr.toFixed(2) + '</b> <span style="color:#888">(' + pcrLabel + ')</span> \u00b7 Max Pain <b style="color:#ffc833">' + fmtN(d.totals.max_pain) + '</b> \u00b7 last refresh <b>' + new Date().toLocaleTimeString("en-IN") + '</b>';
+        }
+      })
+      .catch(function(e){
+        console.error("P98F_OC fail", e);
+        const w = document.getElementById("p98f-oc-wrap");
+        if (w != null) w.innerHTML = "<div class='muted'>error: " + (e && e.message ? e.message : String(e)) + "</div>";
+      });
+  }
+  function init(){ makePanel(); update(); setInterval(update, 10000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
