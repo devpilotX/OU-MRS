@@ -2173,3 +2173,46 @@ setTimeout(refreshTickChip, 1500);
   setTimeout(update, 500);
   setInterval(update, 2500);
 })();
+
+/* ===== Phase 9.8f.33: Rolling Risk-Adjusted Returns panel ===== */
+(function _p98f_rolling_panel(){
+  if (window.__P98F_ROLLING__) return;
+  window.__P98F_ROLLING__ = true;
+  function loadUplot(cb){
+    if (typeof uPlot !== "undefined") return cb(true);
+    const css = document.createElement("link"); css.rel="stylesheet"; css.href="https://unpkg.com/uplot@1.6.30/dist/uPlot.min.css"; document.head.appendChild(css);
+    const s = document.createElement("script"); s.src="https://unpkg.com/uplot@1.6.30/dist/uPlot.iife.min.js"; s.onload=function(){cb(true);}; s.onerror=function(){cb(false);}; document.head.appendChild(s);
+  }
+  function makePanel(){
+    if (document.getElementById("p98f-rolling-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-rolling-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Rolling Risk-Adjusted Returns</h2><span class=\"muted\">20-day rolling \u00b7 annualized \u00d7 \u221a252 \u00b7 source: /api/rolling-metrics</span></div><span class=\"panel-badge\" style=\"background:rgba(255,140,0,.12);color:#ff8c00\">QUANT</span></div><div id=\"p98f-rolling-chart\" style=\"width:100%;height:300px;position:relative\"></div><div id=\"p98f-rolling-summary\" class=\"muted\" style=\"margin-top:8px;font-family:JetBrains Mono,Consolas,monospace;font-size:12px\">loading\u2026</div>";
+    const anchors = document.querySelectorAll(".grid-2");
+    const target = anchors[anchors.length - 1] || document.querySelector("main");
+    if (target && target.parentNode) target.parentNode.insertBefore(sec, target.nextSibling);
+    else if (target) target.appendChild(sec);
+  }
+  async function render(){
+    try {
+      const r = await fetch("/api/rolling-metrics?window=20", {credentials:"same-origin"});
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!d.ok || !d.rows || !d.rows.length){ const s=document.getElementById("p98f-rolling-summary"); if(s) s.textContent = "no data: " + (d.message||"empty"); return; }
+      const xs = d.rows.map(function(rr){ return Math.floor(new Date(rr.date).getTime()/1000); });
+      const sh = d.rows.map(function(rr){ return rr.sharpe; });
+      const so = d.rows.map(function(rr){ return rr.sortino; });
+      const ca = d.rows.map(function(rr){ return rr.calmar; });
+      const el = document.getElementById("p98f-rolling-chart"); if (!el) return;
+      const last = d.rows[d.rows.length - 1];
+      const summ = document.getElementById("p98f-rolling-summary");
+      if (summ) summ.innerHTML = "LATEST " + last.date + " \u00b7 Sharpe <b style=\"color:#00bfff\">" + (last.sharpe!=null?last.sharpe:"n/a") + "</b> \u00b7 Sortino <b style=\"color:#00ff7f\">" + (last.sortino!=null?last.sortino:"n/a") + "</b> \u00b7 Calmar <b style=\"color:#ff8c00\">" + (last.calmar!=null?last.calmar:"n/a") + "</b> \u00b7 n=" + last.n + " \u00b7 obs=" + d.rows.length;
+      if (typeof uPlot === "undefined"){ el.innerHTML = "<div class=\"muted\" style=\"padding:20px\">uPlot CDN unavailable \u2014 see summary below</div>"; return; }
+      el.innerHTML = "";
+      const w = el.clientWidth || el.parentElement.clientWidth || 800;
+      const opts = {width:w, height:300, scales:{x:{time:true}, y:{auto:true}, c:{auto:true}}, series:[{},{label:"Sharpe",stroke:"#00bfff",width:2},{label:"Sortino",stroke:"#00ff7f",width:2},{label:"Calmar",stroke:"#ff8c00",width:2,scale:"c"}], axes:[{stroke:"#888"},{stroke:"#888"},{scale:"c",side:1,stroke:"#ff8c00"}]};
+      new uPlot(opts, [xs, sh, so, ca], el);
+    } catch(e){ console.warn("rolling panel:", e); }
+  }
+  function init(){ makePanel(); loadUplot(function(){ render(); setInterval(render, 60000); }); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
