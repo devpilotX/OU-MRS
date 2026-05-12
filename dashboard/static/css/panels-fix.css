@@ -292,3 +292,83 @@ body.p98e-has-statusbar { padding-top: 26px !important; }
 .flash-up   { animation: p98eFlashUp   0.9s ease-out; border-radius: 3px; }
 .flash-down { animation: p98eFlashDown 0.9s ease-out; border-radius: 3px; }
 .flash-eq   { animation: p98eFlashEq   0.9s ease-out; border-radius: 3px; }
+
+/* ===== Phase 9.8e B-UI-2: KPI sparklines ===== */
+.p98e-spark-host {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  line-height: 0;
+  opacity: 0.75;
+  transition: opacity 0.2s;
+}
+.p98e-spark-host:hover { opacity: 1; }
+.p98e-spark { display: block; }
+.p98e-spark-up   { color: #10b981; }
+.p98e-spark-down { color: #ef4444; }
+.p98e-spark-flat { color: #94a3b8; }
+.kpi-value { display: inline-block; }
+.kpi-card .kpi-value + .p98e-spark-host,
+.kpi .kpi-value + .p98e-spark-host {
+  margin-left: 6px;
+}
+
+/* ===== Phase 9.8e B-CAL-7: heatmap legend ===== */
+.hm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  background: rgba(15,23,42,0.35);
+  border: 1px solid rgba(148,163,184,0.15);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+.hm-leg-lbl {
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.hm-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.hm-leg-sw {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.hm-leg-sw.t-loss-2 { background: #dc2626; }
+.hm-leg-sw.t-loss-1 { background: #f87171; }
+.hm-leg-sw.t-flat   { background: #475569; }
+.hm-leg-sw.t-win-1  { background: #86efac; }
+.hm-leg-sw.t-win-2  { background: #22c55e; }
+.hm-leg-sw.t-win-3  { background: #15803d; }
+.hm-leg-sep { color: #475569; margin: 0 4px; }
+.hm-leg-emoji { font-size: 12px; }
+[data-theme="light"] .hm-legend {
+  background: rgba(241,245,249,0.7);
+  color: #475569;
+}
+
+/* ===== Phase 9.8e B-CAL-8: streak markers ===== */
+.hm-streak-emoji {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+  z-index: 2;
+}
+.heatmap-cell, .hm-cell { position: relative; }

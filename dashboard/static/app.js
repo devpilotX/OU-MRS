@@ -1745,3 +1745,157 @@ setTimeout(refreshTickChip, 1500);
   setTimeout(attachFlash, 1500);
   setInterval(attachFlash, 5000);
 })();
+
+// ===== Phase 9.8e B-UI-2: KPI mini sparklines (SVG, no deps) =====
+(function _p98e_sparklines(){
+  if (window.__P98E_SPARK__) return;
+  window.__P98E_SPARK__ = true;
+  const HIST_KEY = 'p98e_kpi_hist_v1';
+  const MAX = 40;
+  function loadHist(){
+    try { return JSON.parse(localStorage.getItem(HIST_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function saveHist(h){
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(h)); } catch(e){}
+  }
+  function parseNum(s){
+    if (s == null) return null;
+    const cleaned = String(s).replace(/[,\s₹Rs%]/g,'').replace(/[^\d.\-+]/g,'');
+    if (!cleaned || cleaned === '-' || cleaned === '+') return null;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+  function buildSvg(vals, w, h){
+    if (!vals || vals.length < 2) return '';
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = max - min || 1;
+    const pad = 2;
+    const step = (w - pad*2) / (vals.length - 1);
+    const pts = vals.map(function(v, i){
+      const x = pad + i*step;
+      const y = h - pad - ((v - min) / range) * (h - pad*2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const last = vals[vals.length-1], first = vals[0];
+    const trend = last > first ? 'up' : last < first ? 'down' : 'flat';
+    const lastX = pad + (vals.length-1)*step;
+    const lastY = h - pad - ((last - min) / range) * (h - pad*2);
+    return '<svg class="p98e-spark p98e-spark-' + trend + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.6" fill="currentColor"/>' +
+      '</svg>';
+  }
+  const TARGETS = [
+    { sel: '#total-pnl', key: 'total_pnl' },
+    { sel: '#pnl-pct', key: 'pnl_pct' },
+    { sel: '#trade-count', key: 'trade_count' },
+    { sel: '#win-rate', key: 'win_rate' }
+  ];
+  function tick(){
+    const hist = loadHist();
+    let changed = false;
+    TARGETS.forEach(function(t){
+      const el = document.querySelector(t.sel);
+      if (!el) return;
+      const n = parseNum(el.textContent);
+      if (n == null) return;
+      hist[t.key] = hist[t.key] || [];
+      const last = hist[t.key][hist[t.key].length - 1];
+      if (last !== n) {
+        hist[t.key].push(n);
+        if (hist[t.key].length > MAX) hist[t.key].shift();
+        changed = true;
+      }
+      // attach or update spark
+      let sp = el.parentNode.querySelector('.p98e-spark-host[data-key="' + t.key + '"]');
+      if (!sp) {
+        sp = document.createElement('span');
+        sp.className = 'p98e-spark-host';
+        sp.setAttribute('data-key', t.key);
+        el.insertAdjacentElement('afterend', sp);
+      }
+      sp.innerHTML = buildSvg(hist[t.key], 56, 16);
+    });
+    if (changed) saveHist(hist);
+  }
+  function start(){ tick(); setInterval(tick, 5500); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else setTimeout(start, 1800);
+})();
+
+// ===== Phase 9.8e B-CAL-7: heatmap legend + B-CAL-8: streak markers =====
+(function _p98e_calLegend(){
+  if (window.__P98E_CAL_LEGEND__) return;
+  window.__P98E_CAL_LEGEND__ = true;
+
+  function injectLegend(){
+    const hm = document.getElementById('heatmap') || document.querySelector('.heatmap-grid') || document.querySelector('[id*="heatmap"]');
+    if (!hm) return false;
+    const host = hm.parentNode;
+    if (!host || host.querySelector('.hm-legend')) return true;
+    const leg = document.createElement('div');
+    leg.className = 'hm-legend';
+    leg.innerHTML =
+      '<span class="hm-leg-lbl">P&amp;L bins:</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-loss-2"></span>&lt; &minus;&#8377;5k</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-loss-1"></span>&minus;&#8377;5k..0</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-flat"></span>0</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-win-1"></span>0..+&#8377;5k</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-win-2"></span>+&#8377;5k..+&#8377;25k</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-sw t-win-3"></span>&gt; +&#8377;25k</span>' +
+      '<span class="hm-leg-sep">&middot;</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-emoji">&#128293;</span>3+ win streak</span>' +
+      '<span class="hm-leg-item"><span class="hm-leg-emoji">&#10052;</span>3+ loss streak</span>';
+    hm.insertAdjacentElement('afterend', leg);
+    return true;
+  }
+
+  function markStreaks(){
+    const cells = Array.from(document.querySelectorAll('.heatmap-cell, .hm-cell, [data-pnl]'));
+    if (!cells.length) return;
+    // Sort by date attribute if present
+    cells.sort(function(a,b){
+      const da = a.getAttribute('data-date') || '';
+      const db = b.getAttribute('data-date') || '';
+      return da.localeCompare(db);
+    });
+    let run = 0, runSign = 0;
+    cells.forEach(function(c, i){
+      // remove previous marker
+      const prev = c.querySelector('.hm-streak-emoji');
+      if (prev) prev.remove();
+      const pnl = parseFloat(c.getAttribute('data-pnl') || '0');
+      if (!pnl) { run = 0; runSign = 0; return; }
+      const sign = pnl > 0 ? 1 : pnl < 0 ? -1 : 0;
+      if (sign === runSign && sign !== 0) {
+        run++;
+      } else {
+        run = 1;
+        runSign = sign;
+      }
+      // Mark the cell that completes a streak of 3+ — and continues marking each subsequent
+      const isLastInRun = (i === cells.length - 1) ||
+                          (function(){
+                            const next = cells[i+1];
+                            if (!next) return true;
+                            const np = parseFloat(next.getAttribute('data-pnl') || '0');
+                            const ns = np > 0 ? 1 : np < 0 ? -1 : 0;
+                            return ns !== sign;
+                          })();
+      if (run >= 3 && isLastInRun) {
+        const em = document.createElement('span');
+        em.className = 'hm-streak-emoji';
+        em.textContent = sign > 0 ? '\uD83D\uDD25' : '\u2744';
+        em.title = (sign > 0 ? 'Win' : 'Loss') + ' streak: ' + run + ' days';
+        c.appendChild(em);
+      }
+    });
+  }
+
+  function tick(){
+    injectLegend();
+    markStreaks();
+  }
+  setTimeout(tick, 2200);
+  setInterval(tick, 8000);
+})();
