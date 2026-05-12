@@ -2828,3 +2828,94 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 60000); window.addEventListener("resize", update); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.44: Risk Limits & Trading Guardrails ===== */
+(function _p98f_risk(){
+  if (window.__P98F_RISK__) return;
+  window.__P98F_RISK__ = true;
+  const DAILY_LOSS_PCT = 3.0;
+  const MAX_DD_PCT = 5.0;
+  const MAX_TRADES_PER_SYM = 10;
+  function makePanel(){
+    if (document.getElementById("p98f-risk-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-risk-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Risk Limits &amp; Trading Guardrails</h2><span class=\"muted\">Live proximity to safety thresholds \u00b7 auto-kill if breached \u00b7 source: /api/symbols + /api/strategy</span></div><span class=\"panel-badge\" style=\"background:rgba(255,85,102,.12);color:#ff5566\">SAFETY</span></div><div id=\"p98f-risk-grid\" style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px;font-family:JetBrains Mono,Consolas,monospace\"><div class=\"muted\">loading\u2026</div></div><div id=\"p98f-risk-foot\" class=\"muted\" style=\"margin-top:14px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace\"></div>";
+    const anchor = document.getElementById("p98f-equity-panel") || document.getElementById("p98f-cal-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function tile(label, valueHtml, subHtml, ratio, breach){
+    const r = Math.max(0, Math.min(1.5, ratio));
+    const pct = (r / 1.5 * 100).toFixed(1);
+    const c = breach ? "#ff3322" : (r >= 0.7 ? "#ff8c00" : (r >= 0.4 ? "#ffc833" : "#3ce04f"));
+    const badge = breach ? "BREACH" : (r >= 0.7 ? "WARN" : (r >= 0.4 ? "WATCH" : "SAFE"));
+    let h = "<div style=\"padding:14px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid " + (breach ? "rgba(255,51,34,.4)" : "rgba(255,255,255,.06)") + "\">";
+    h += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px\"><div style=\"font-size:10px;color:#888;letter-spacing:.5px;text-transform:uppercase\">" + label + "</div><div style=\"font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:" + c + "22;color:" + c + "\">" + badge + "</div></div>";
+    h += "<div style=\"font-size:22px;font-weight:700;color:" + c + ";line-height:1.1;font-variant-numeric:tabular-nums;margin-bottom:4px\">" + valueHtml + "</div>";
+    h += "<div style=\"font-size:10px;color:#777;margin-bottom:8px\">" + subHtml + "</div>";
+    h += "<div style=\"position:relative;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden\">";
+    h += "<div style=\"position:absolute;top:0;left:0;height:100%;width:" + pct + "%;background:" + c + ";border-radius:3px;transition:width .4s\"></div>";
+    h += "<div style=\"position:absolute;top:0;left:66.66%;width:1px;height:100%;background:rgba(255,255,255,.25)\"></div>";
+    h += "</div></div>"; return h;
+  }
+  function fmtR(x){ return (x < 0 ? "-\u20b9" : "\u20b9") + Math.abs(Math.round(x)).toLocaleString("en-IN"); }
+  function update(){
+    Promise.all([
+      fetch("/api/symbols", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }),
+      fetch("/api/strategy", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; })
+    ]).then(function(arr){
+      const sym = arr[0] || {}; const strat = arr[1] || {};
+      const grid = document.getElementById("p98f-risk-grid"); if (!grid) return;
+      const symbols = (sym.symbols) || [];
+      const cap = Number(strat.capital || 3750000);
+      const tier = strat.capital_tier || "GROWTH";
+      const lossLimit = -cap * (DAILY_LOSS_PCT / 100);
+      const ddLimit = -cap * (MAX_DD_PCT / 100);
+      let totalPnl = 0, totalTrades = 0, totalLots = 0, maxLotsTotal = 0, killCount = 0;
+      const killBySym = [];
+      symbols.forEach(function(s){
+        const pnl = Number(s.pnl_today || 0);
+        const tr = Number(s.trades_today || 0);
+        const pos = s.position || {}; const lots = Math.abs(Number(pos.qty || pos.lots || 0)); 
+        const maxL = Number(s.max_lots || 1);
+        const kill = !!s.kill;
+        totalPnl += pnl; totalTrades += tr; totalLots += lots; maxLotsTotal += maxL;
+        if (kill) killCount++;
+        killBySym.push({key: s.key || s.symbol || "?", kill: kill});
+      });
+      const trMax = symbols.length * MAX_TRADES_PER_SYM || MAX_TRADES_PER_SYM;
+      const lossRatio = lossLimit !== 0 ? Math.max(0, -totalPnl) / Math.abs(lossLimit) : 0;
+      const lossBreach = totalPnl <= lossLimit;
+      const ddPct = cap > 0 ? (totalPnl / cap * 100) : 0;
+      const ddRatio = Math.max(0, -ddPct) / MAX_DD_PCT;
+      const ddBreach = ddPct <= -MAX_DD_PCT;
+      const trRatio = totalTrades / trMax;
+      const trBreach = totalTrades >= trMax;
+      const posRatio = maxLotsTotal > 0 ? totalLots / maxLotsTotal : 0;
+      const posBreach = totalLots >= maxLotsTotal;
+      const killRatio = symbols.length ? killCount / symbols.length : 0;
+      const killBreach = killCount > 0;
+      const TIERS = ["SEED","GROWTH","INSTITUTIONAL","HEDGE_FUND","QUANT_ELITE"];
+      const TIER_THR = [0, 200000, 1500000, 2500000, 5000000, 99999999];
+      const ti = Math.max(0, TIERS.indexOf(tier));
+      const tierLo = TIER_THR[ti], tierHi = TIER_THR[ti + 1];
+      const tierProg = (cap - tierLo) / Math.max(tierHi - tierLo, 1);
+      let html = "";
+      html += tile("DAILY P&amp;L vs LOSS LIMIT", "<span>" + fmtR(totalPnl) + "</span> <span style=\"font-size:11px;color:#888;font-weight:400\">/ " + fmtR(lossLimit) + "</span>", "ratio " + (lossRatio * 100).toFixed(0) + "% \u00b7 " + DAILY_LOSS_PCT + "% capital floor", lossRatio, lossBreach);
+      html += tile("INTRADAY DRAWDOWN", ddPct.toFixed(2) + "%<span style=\"font-size:11px;color:#888;font-weight:400\"> / -" + MAX_DD_PCT + "%</span>", "ratio " + (ddRatio * 100).toFixed(0) + "% \u00b7 portfolio P&L / capital", ddRatio, ddBreach);
+      html += tile("TRADES TODAY", totalTrades + "<span style=\"font-size:11px;color:#888;font-weight:400\"> / " + trMax + " max</span>", "across " + symbols.length + " symbols \u00b7 " + MAX_TRADES_PER_SYM + "/sym cap", trRatio, trBreach);
+      html += tile("POSITION EXPOSURE", totalLots + "<span style=\"font-size:11px;color:#888;font-weight:400\"> / " + maxLotsTotal + " lots</span>", "currently open \u00b7 sum of max_lots across symbols", posRatio, posBreach);
+      let killHtml = killBySym.map(function(k){ const c = k.kill ? "#ff3322" : "#3ce04f"; const lbl = k.kill ? "ARM" : "OK"; return "<span style=\"display:inline-block;padding:2px 7px;margin-right:5px;border-radius:3px;background:" + c + "22;color:" + c + ";font-size:11px;font-weight:700;letter-spacing:.3px\">" + k.key + " " + lbl + "</span>"; }).join("");
+      html += tile("KILL SWITCHES", killHtml || "<span style=\"color:#3ce04f\">ALL CLEAR</span>", killCount + " of " + symbols.length + " armed \u00b7 trading halted on armed symbols", killRatio, killBreach);
+      const tierColor = ti >= 3 ? "#b478ff" : (ti >= 2 ? "#00bfff" : (ti >= 1 ? "#3ce04f" : "#ffc833"));
+      const tierTile = "<div style=\"padding:14px;background:rgba(255,255,255,.02);border-radius:6px;border:1px solid rgba(255,255,255,.06)\"><div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px\"><div style=\"font-size:10px;color:#888;letter-spacing:.5px;text-transform:uppercase\">CAPITAL TIER</div><div style=\"font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:" + tierColor + "22;color:" + tierColor + "\">" + tier + "</div></div><div style=\"font-size:22px;font-weight:700;color:" + tierColor + ";line-height:1.1;font-variant-numeric:tabular-nums;margin-bottom:4px\">" + fmtR(cap) + "</div><div style=\"font-size:10px;color:#777;margin-bottom:8px\">" + (tierHi < 99999999 ? "next tier at " + fmtR(tierHi) + " \u00b7 " + (tierProg * 100).toFixed(1) + "% progress" : "max tier reached") + "</div><div style=\"position:relative;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden\"><div style=\"position:absolute;top:0;left:0;height:100%;width:" + Math.min(100, tierProg * 100).toFixed(1) + "%;background:" + tierColor + ";border-radius:3px;transition:width .4s\"></div></div></div>";
+      html += tierTile;
+      grid.innerHTML = html;
+      const f = document.getElementById("p98f-risk-foot"); if (!f) return;
+      const breachCount = [lossBreach, ddBreach, trBreach, posBreach, killBreach].filter(Boolean).length;
+      const status = breachCount > 0 ? "<b style=\"color:#ff3322\">" + breachCount + " BREACH" + (breachCount > 1 ? "ES" : "") + "</b>" : "<b style=\"color:#3ce04f\">ALL LIMITS OK</b>";
+      f.innerHTML = status + " \u00b7 capital <b style=\"color:#ddd\">" + fmtR(cap) + "</b> \u00b7 portfolio P&L <b style=\"color:" + (totalPnl >= 0 ? "#3ce04f" : "#ff5566") + "\">" + fmtR(totalPnl) + "</b> \u00b7 daily loss floor <b style=\"color:#ff5566\">" + fmtR(lossLimit) + "</b> \u00b7 DD floor <b style=\"color:#ff5566\">-" + MAX_DD_PCT + "%</b> \u00b7 last refresh <b>" + new Date().toLocaleTimeString("en-IN") + "</b>";
+    }).catch(function(){});
+  }
+  function init(){ makePanel(); update(); setInterval(update, 5000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
