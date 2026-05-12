@@ -834,7 +834,7 @@ def _p98f_read_daily():
                 continue
     return []
 
-@app.get("/api/option-chain")
+@app.get("/api/option-chain", dependencies=[Depends(need_auth)])
 async def p98f_option_chain(symbol: str = "BANKNIFTY", expiry: str = ""):
     return {
         "ok": False,
@@ -849,7 +849,7 @@ async def p98f_option_chain(symbol: str = "BANKNIFTY", expiry: str = ""):
         }
     }
 
-@app.get("/api/rolling-metrics")
+@app.get("/api/rolling-metrics", dependencies=[Depends(need_auth)])
 async def p98f_rolling_metrics(window: int = 20):
     daily = _p98f_read_daily()
     if not daily:
@@ -881,7 +881,7 @@ async def p98f_rolling_metrics(window: int = 20):
         out.append({"date": dates[i], "sharpe": round(sharpe, 3) if sharpe is not None else None, "sortino": round(sortino, 3) if sortino is not None else None, "calmar": round(calmar, 3) if calmar is not None else None, "n": n})
     return {"ok": True, "rows": out, "window": window}
 
-@app.get("/api/regime-transitions")
+@app.get("/api/regime-transitions", dependencies=[Depends(need_auth)])
 async def p98f_regime_transitions():
     rm_file = _p98f_path.Path("bt_out/regime_timeseries.json")
     if not rm_file.exists():
@@ -935,7 +935,7 @@ def _p98f_read_daily():
         except Exception: pass
     return [dict(date=d, pnl=round(v["pnl"], 2), trades=v["trades"], wins=v["wins"]) for d, v in sorted(days.items())]
 
-@app.get("/api/monte-carlo")
+@app.get("/api/monte-carlo", dependencies=[Depends(need_auth)])
 def api_monte_carlo():
     import json as _json_mc
     path = BOT_DIR / "bt_out" / "monte_carlo.json"
