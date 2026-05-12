@@ -165,6 +165,18 @@ def api_trades():
         cum += pnl
         if pnl > 0: wins += 1
         t["cum_pnl"] = cum
+        # Phase 9.8e B4: derive bars_held from entry_ts/exit_ts (3-min bars) when missing
+        if not t.get('bars_held'):
+            try:
+                from datetime import datetime as _dt_b4
+                _ets = (t.get('entry_ts') or '').strip().replace(' ', 'T', 1)
+                _xts = (t.get('exit_ts') or '').strip().replace(' ', 'T', 1)
+                if _ets and _xts:
+                    _e = _dt_b4.fromisoformat(_ets)
+                    _x = _dt_b4.fromisoformat(_xts)
+                    t['bars_held'] = max(1, int((_x - _e).total_seconds() / 180))
+            except Exception:
+                pass
     return {"trades": trades[-200:], "count": len(trades),
             "total_pnl": cum, "win_rate": wins/len(trades) if trades else 0}
 
