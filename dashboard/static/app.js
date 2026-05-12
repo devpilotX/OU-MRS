@@ -2597,3 +2597,71 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 60000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.41: Exit Reasons Breakdown donut ===== */
+(function _p98f_reasons(){
+  if (window.__P98F_REASONS__) return;
+  window.__P98F_REASONS__ = true;
+  const COLORS = {"TARGET":"#3ce04f","STOP_LOSS":"#ff5566","TIME_STOP_HL":"#ff8c00","TIME_STOP_LL":"#ffc833","Z_VEL_STALL":"#00bfff","EOD":"#b478ff","KILL_SWITCH":"#ff3322","MANUAL":"#888"};
+  function colorFor(r){ return COLORS[r] || "#888"; }
+  function makePanel(){
+    if (document.getElementById("p98f-reasons-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-reasons-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Exit Reasons Breakdown</h2><span class=\"muted\">Distribution of trade exit triggers \u00b7 donut + per-reason P&amp;L attribution \u00b7 source: /api/trades</span></div><span class=\"panel-badge\" style=\"background:rgba(255,200,0,.12);color:#ffc833\">FORENSIC</span></div><div style=\"display:grid;grid-template-columns:300px 1fr;gap:24px;margin-top:14px;align-items:center;font-family:JetBrains Mono,Consolas,monospace\"><canvas id=\"p98f-reasons-canvas\" style=\"width:280px;height:280px;display:block;margin:0 auto\"></canvas><div id=\"p98f-reasons-legend\"><div class=\"muted\">loading\u2026</div></div></div>";
+    const anchor = document.getElementById("p98f-mc-panel") || document.getElementById("p98f-z-panel");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function drawDonut(reasons, total, winCount){
+    const canvas = document.getElementById("p98f-reasons-canvas"); if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1; const W = 280, H = 280;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    canvas.style.width = W+"px"; canvas.style.height = H+"px";
+    const ctx = canvas.getContext("2d"); ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+    const cx = W/2, cy = H/2, rOut = 110, rIn = 70;
+    let start = -Math.PI/2;
+    reasons.forEach(function(r){
+      const frac = r.count / total; const end = start + frac * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(cx, cy, rOut, start, end); ctx.arc(cx, cy, rIn, end, start, true); ctx.closePath();
+      ctx.fillStyle = colorFor(r.name); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = 1.5; ctx.stroke();
+      start = end;
+    });
+    ctx.fillStyle = "#ddd"; ctx.font = "bold 28px JetBrains Mono, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("N=" + total, cx, cy - 12);
+    const wr = total ? Math.round(winCount/total*100) : 0;
+    ctx.fillStyle = wr >= 50 ? "#3ce04f" : "#ff8c00"; ctx.font = "13px JetBrains Mono, monospace";
+    ctx.fillText(wr + "% WIN", cx, cy + 14);
+  }
+  function update(){
+    fetch("/api/trades", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if (!d || !d.trades) return;
+      const counts = {}, pnlByR = {};
+      let winCount = 0;
+      d.trades.forEach(function(t){
+        const r = t.reason || "OTHER";
+        counts[r] = (counts[r] || 0) + 1;
+        pnlByR[r] = (pnlByR[r] || 0) + (t.pnl || 0);
+        if ((t.pnl || 0) > 0) winCount++;
+      });
+      const reasons = Object.keys(counts).map(function(k){ return {name: k, count: counts[k], pnl: pnlByR[k]}; }).sort(function(a,b){ return b.count - a.count; });
+      const total = d.trades.length;
+      drawDonut(reasons, total, winCount);
+      const leg = document.getElementById("p98f-reasons-legend"); if (!leg) return;
+      let lh = "<table style=\"width:100%;border-collapse:collapse;font-size:11px\"><thead><tr style=\"color:#888;font-size:9px;letter-spacing:.4px\"><th style=\"text-align:left;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.12)\">REASON</th><th style=\"text-align:right;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.12)\">COUNT</th><th style=\"text-align:right;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.12)\">SHARE</th><th style=\"text-align:right;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.12)\">P&amp;L</th><th style=\"text-align:right;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.12)\">AVG</th></tr></thead><tbody>";
+      reasons.forEach(function(r){
+        const pct = (r.count / total * 100).toFixed(1);
+        const color = colorFor(r.name);
+        const pnlCol = r.pnl > 0 ? "#3ce04f" : (r.pnl < 0 ? "#ff5566" : "#888");
+        const avg = r.count ? r.pnl/r.count : 0;
+        lh += "<tr style=\"border-bottom:1px solid rgba(255,255,255,.04)\"><td style=\"padding:8px 0;color:#ddd\"><span style=\"display:inline-block;width:10px;height:10px;background:" + color + ";border-radius:2px;margin-right:8px;vertical-align:middle\"></span>" + r.name + "</td><td style=\"text-align:right;color:#ddd;padding:8px 0\">" + r.count + "</td><td style=\"text-align:right;color:#888;padding:8px 0\">" + pct + "%</td><td style=\"text-align:right;color:" + pnlCol + ";padding:8px 0;font-weight:600\">\u20b9" + Math.round(r.pnl).toLocaleString("en-IN") + "</td><td style=\"text-align:right;color:" + pnlCol + ";padding:8px 0\">\u20b9" + Math.round(avg).toLocaleString("en-IN") + "</td></tr>";
+      });
+      const totPnl = reasons.reduce(function(a,b){ return a + b.pnl; }, 0);
+      const totCol = totPnl > 0 ? "#3ce04f" : "#ff5566";
+      lh += "<tr style=\"border-top:1px solid rgba(255,255,255,.18)\"><td style=\"padding:8px 0;color:#aaa;letter-spacing:.4px;font-size:10px\">TOTAL</td><td style=\"text-align:right;color:#ddd;padding:8px 0;font-weight:700\">" + total + "</td><td style=\"text-align:right;color:#888;padding:8px 0\">100%</td><td style=\"text-align:right;color:" + totCol + ";padding:8px 0;font-weight:700\">\u20b9" + Math.round(totPnl).toLocaleString("en-IN") + "</td><td style=\"text-align:right;color:" + totCol + ";padding:8px 0\">\u20b9" + Math.round(total ? totPnl/total : 0).toLocaleString("en-IN") + "</td></tr>";
+      lh += "</tbody></table>";
+      leg.innerHTML = lh;
+    }).catch(function(){});
+  }
+  function init(){ makePanel(); update(); setInterval(update, 30000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
