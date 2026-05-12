@@ -215,3 +215,80 @@
 [data-theme="light"] .pf-paper-row .mk,
 [data-theme="light"] .pf-paper-row .pf-muted,
 [data-theme="light"] .pf-paper-hint { color: #64748b; }
+
+/* ===== Phase 9.8e B-UI-4: Bloomberg-grade status bar ===== */
+.p98e-statusbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  height: 26px;
+  display: flex; align-items: stretch;
+  background: linear-gradient(180deg, #0a0e14 0%, #060a10 100%);
+  border-bottom: 1px solid rgba(245,158,11,0.35);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+  padding: 0;
+  user-select: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+body.p98e-has-statusbar { padding-top: 26px !important; }
+.p98e-statusbar .sb-cell {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px;
+  border-right: 1px solid rgba(31,41,55,0.8);
+  height: 100%;
+  white-space: nowrap;
+}
+.p98e-statusbar .sb-cell:last-child { border-right: none; }
+.p98e-statusbar .sb-grow { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.p98e-statusbar .sb-brand {
+  color: #f59e0b; font-weight: 700; letter-spacing: 1.4px;
+  font-size: 11px;
+  background: rgba(245,158,11,0.08);
+}
+.p98e-statusbar .sb-lbl {
+  color: #64748b; font-size: 9px; letter-spacing: 0.6px;
+  text-transform: uppercase; font-weight: 600;
+}
+.p98e-statusbar .sb-val { color: #e5e7eb; font-weight: 600; }
+.p98e-statusbar .sb-mono { font-variant-numeric: tabular-nums; }
+.p98e-statusbar .sb-pos { color: #10b981; }
+.p98e-statusbar .sb-neg { color: #ef4444; }
+.p98e-statusbar .sb-mkt-open { color: #10b981; text-shadow: 0 0 4px rgba(16,185,129,0.5); }
+.p98e-statusbar .sb-mkt-preopen { color: #f59e0b; }
+.p98e-statusbar .sb-mkt-closed { color: #6b7280; }
+.p98e-statusbar .sb-pulse-cell { padding: 0 12px; }
+.p98e-statusbar .sb-pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981, 0 0 12px rgba(16,185,129,0.4);
+  opacity: 0.75;
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+.p98e-statusbar .sb-pulse.beat {
+  transform: scale(1.7);
+  opacity: 1;
+}
+[data-theme="light"] .p98e-statusbar {
+  background: linear-gradient(180deg, #0f172a 0%, #0a0f1c 100%);
+  border-bottom-color: rgba(245,158,11,0.5);
+}
+
+/* ===== Phase 9.8e B-UI-1: flash highlights on numeric change ===== */
+@keyframes p98eFlashUp {
+  0%   { background-color: rgba(16,185,129,0); box-shadow: 0 0 0 rgba(16,185,129,0); }
+  15%  { background-color: rgba(16,185,129,0.40); box-shadow: 0 0 10px rgba(16,185,129,0.5); }
+  100% { background-color: rgba(16,185,129,0); box-shadow: 0 0 0 rgba(16,185,129,0); }
+}
+@keyframes p98eFlashDown {
+  0%   { background-color: rgba(239,68,68,0); box-shadow: 0 0 0 rgba(239,68,68,0); }
+  15%  { background-color: rgba(239,68,68,0.40); box-shadow: 0 0 10px rgba(239,68,68,0.5); }
+  100% { background-color: rgba(239,68,68,0); box-shadow: 0 0 0 rgba(239,68,68,0); }
+}
+@keyframes p98eFlashEq {
+  0%   { background-color: rgba(148,163,184,0); }
+  15%  { background-color: rgba(148,163,184,0.25); }
+  100% { background-color: rgba(148,163,184,0); }
+}
+.flash-up   { animation: p98eFlashUp   0.9s ease-out; border-radius: 3px; }
+.flash-down { animation: p98eFlashDown 0.9s ease-out; border-radius: 3px; }
+.flash-eq   { animation: p98eFlashEq   0.9s ease-out; border-radius: 3px; }

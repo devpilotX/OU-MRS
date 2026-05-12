@@ -1616,3 +1616,132 @@ setTimeout(refreshTickChip, 1500);
   setTimeout(refreshPfmStrong, 1500);
   setTimeout(refreshPfmStrong, 4000);
 })();
+
+// ===== Phase 9.8e B-UI-4 + B-UI-1: Bloomberg status bar + flash highlights =====
+(function _p98e_premium(){
+  if (window.__P98E_PREMIUM__) return;
+  window.__P98E_PREMIUM__ = true;
+
+  // ---------- B-UI-4: dense top status bar ----------
+  function injectBar(){
+    if (document.getElementById('p98e-statusbar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'p98e-statusbar';
+    bar.className = 'p98e-statusbar';
+    bar.innerHTML =
+      '<div class="sb-cell sb-brand">OU-MRS</div>' +
+      '<div class="sb-cell"><span class="sb-lbl">IST</span><span class="sb-val sb-mono" id="sb-clock">--:--:--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">MKT</span><span class="sb-val" id="sb-mkt">--</span></div>' +
+      '<div class="sb-cell sb-grow"><span class="sb-lbl">SESSION</span><span class="sb-val" id="sb-session">--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">CUM P&amp;L</span><span class="sb-val" id="sb-cum">--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">TODAY</span><span class="sb-val" id="sb-day">--</span></div>' +
+      '<div class="sb-cell"><span class="sb-lbl">LAT</span><span class="sb-val" id="sb-lat">--</span></div>' +
+      '<div class="sb-cell sb-pulse-cell"><span class="sb-pulse" id="sb-pulse" title="live heartbeat"></span></div>';
+    document.body.insertBefore(bar, document.body.firstChild);
+    document.body.classList.add('p98e-has-statusbar');
+  }
+  function pad(n,k){ return String(n).padStart(k,'0'); }
+  function istNow(){
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset()*60000;
+    return new Date(utcMs + 5.5*3600*1000);
+  }
+  function marketState(d){
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) return {state:'CLOSED', cls:'closed', sub:'Weekend market closed'};
+    const m = d.getHours()*60 + d.getMinutes();
+    const openM = 9*60+15, closeM = 15*60+30;
+    if (m < openM){
+      const mins = openM - m;
+      return {state:'PRE-OPEN', cls:'preopen', sub:'Opens in ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm'};
+    }
+    if (m < closeM){
+      const mins = closeM - m;
+      return {state:'OPEN', cls:'open', sub:'Closes in ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm'};
+    }
+    return {state:'CLOSED', cls:'closed', sub:'After-hours / next open 09:15 IST'};
+  }
+  function tick(){
+    const d = istNow();
+    const ck = document.getElementById('sb-clock');
+    if (ck) ck.textContent = pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);
+    const ms = marketState(d);
+    const mk = document.getElementById('sb-mkt');
+    if (mk){ mk.textContent = ms.state; mk.className = 'sb-val sb-mkt-' + ms.cls; }
+    const ss = document.getElementById('sb-session');
+    if (ss) ss.textContent = ms.sub;
+    // mirror Top KPI cumulative
+    const tot = document.getElementById('total-pnl');
+    const sbc = document.getElementById('sb-cum');
+    if (tot && sbc){
+      sbc.textContent = (tot.textContent || '--').trim();
+      const pos = /positive/.test(tot.className), neg = /negative/.test(tot.className);
+      sbc.className = 'sb-val ' + (pos ? 'sb-pos' : neg ? 'sb-neg' : '');
+    }
+    // mirror today's PnL — try common ids
+    const day = document.getElementById('today-pnl') || document.getElementById('pnl-today') || document.getElementById('day-pnl');
+    const sbd = document.getElementById('sb-day');
+    if (sbd){
+      if (day){
+        sbd.textContent = (day.textContent || '--').trim();
+        const dpos = /positive/.test(day.className), dneg = /negative/.test(day.className);
+        sbd.className = 'sb-val ' + (dpos ? 'sb-pos' : dneg ? 'sb-neg' : '');
+      } else {
+        sbd.textContent = '--';
+      }
+    }
+    // mirror latency chip
+    const lat = document.getElementById('latency-chip');
+    const sbl = document.getElementById('sb-lat');
+    if (sbl){
+      if (lat) sbl.textContent = (lat.textContent || '--').replace(/^API\s+/i,'');
+      else sbl.textContent = '--';
+    }
+  }
+  function startBar(){
+    injectBar();
+    tick();
+    setInterval(tick, 1000);
+    setInterval(function(){
+      const p = document.getElementById('sb-pulse');
+      if (p){ p.classList.add('beat'); setTimeout(function(){ p.classList.remove('beat'); }, 300); }
+    }, 2000);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startBar);
+  else startBar();
+
+  // ---------- B-UI-1: flash highlights on numeric change ----------
+  function parseNum(s){
+    if (s == null) return NaN;
+    const cleaned = String(s).replace(/[,\s₹Rs]/g,'').replace(/[^\d.\-+]/g,'');
+    if (!cleaned) return NaN;
+    return parseFloat(cleaned);
+  }
+  function attachFlash(){
+    const sel = '.kpi-value, #total-pnl, #pnl-pct, #trade-count, #win-rate, #pfm-cum, #pfm-peak, #sb-cum, #sb-day';
+    document.querySelectorAll(sel).forEach(function(el){
+      if (el.dataset.p98eFlash) return;
+      el.dataset.p98eFlash = '1';
+      el.dataset.lastTxt = el.textContent;
+      const obs = new MutationObserver(function(){
+        const newT = el.textContent;
+        const oldT = el.dataset.lastTxt || '';
+        if (newT === oldT) return;
+        el.dataset.lastTxt = newT;
+        const n1 = parseNum(oldT), n2 = parseNum(newT);
+        let cls;
+        if (isNaN(n1) || isNaN(n2)) cls = 'flash-eq';
+        else if (n2 > n1) cls = 'flash-up';
+        else if (n2 < n1) cls = 'flash-down';
+        else cls = 'flash-eq';
+        el.classList.remove('flash-up','flash-down','flash-eq');
+        void el.offsetWidth; // restart animation
+        el.classList.add(cls);
+        setTimeout(function(){ el.classList.remove(cls); }, 900);
+      });
+      obs.observe(el, {childList:true, characterData:true, subtree:true});
+    });
+  }
+  setTimeout(attachFlash, 1500);
+  setInterval(attachFlash, 5000);
+})();
