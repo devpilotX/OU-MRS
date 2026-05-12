@@ -2186,7 +2186,7 @@ setTimeout(refreshTickChip, 1500);
   function makePanel(){
     if (document.getElementById("p98f-rolling-panel")) return;
     const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-rolling-panel";
-    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Rolling Risk-Adjusted Returns</h2><span class=\"muted\">20-day rolling \u00b7 annualized \u00d7 \u221a252 \u00b7 source: /api/rolling-metrics</span></div><span class=\"panel-badge\" style=\"background:rgba(255,140,0,.12);color:#ff8c00\">QUANT</span></div><div id=\"p98f-rolling-chart\" style=\"width:100%;height:300px;position:relative\"></div><div id=\"p98f-rolling-summary\" class=\"muted\" style=\"margin-top:8px;font-family:JetBrains Mono,Consolas,monospace;font-size:12px\">loading\u2026</div>";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Rolling Risk-Adjusted Returns</h2><span class=\"muted\">20-day rolling \u00b7 annualized \u00d7 \u221a252 \u00b7 source: /api/rolling-metrics</span></div><span class=\"panel-badge\" style=\"background:rgba(255,140,0,.12);color:#ff8c00\">QUANT</span></div><div id=\"p98f-rolling-chart\" style=\"width:100%;height:380px;position:relative\"></div><div id=\"p98f-rolling-summary\" class=\"muted\" style=\"margin-top:24px;font-family:JetBrains Mono,Consolas,monospace;font-size:12px\">loading\u2026</div>";
     const anchors = document.querySelectorAll(".grid-2");
     const target = anchors[anchors.length - 1] || document.querySelector("main");
     if (target && target.parentNode) target.parentNode.insertBefore(sec, target.nextSibling);
@@ -2209,7 +2209,7 @@ setTimeout(refreshTickChip, 1500);
       if (typeof uPlot === "undefined"){ el.innerHTML = "<div class=\"muted\" style=\"padding:20px\">uPlot CDN unavailable \u2014 see summary below</div>"; return; }
       el.innerHTML = "";
       const w = el.clientWidth || el.parentElement.clientWidth || 800;
-      const opts = {width:w, height:300, scales:{x:{time:true}, y:{auto:true}, c:{auto:true}}, series:[{},{label:"Sharpe",stroke:"#00bfff",width:2},{label:"Sortino",stroke:"#00ff7f",width:2},{label:"Calmar",stroke:"#ff8c00",width:2,scale:"c"}], axes:[{stroke:"#888"},{stroke:"#888"},{scale:"c",side:1,stroke:"#ff8c00"}]};
+      const opts = {width:w, height:340, scales:{x:{time:true}, y:{auto:true}, c:{auto:true}}, series:[{},{label:"Sharpe",stroke:"#00bfff",width:2},{label:"Sortino",stroke:"#00ff7f",width:2},{label:"Calmar",stroke:"#ff8c00",width:2,scale:"c"}], axes:[{stroke:"#888"},{stroke:"#888"},{scale:"c",side:1,stroke:"#ff8c00"}]};
       new uPlot(opts, [xs, sh, so, ca], el);
     } catch(e){ console.warn("rolling panel:", e); }
   }
@@ -2267,4 +2267,13 @@ setTimeout(refreshTickChip, 1500);
   }
   function init(){ makePanel(); render(); setInterval(render, 60000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+
+/* ===== Phase 9.8f.35: uPlot legend styling + overlap fix ===== */
+(function _p98f_legend_css(){
+  if (window.__P98F_LEGEND_CSS__) return;
+  window.__P98F_LEGEND_CSS__ = true;
+  const style = document.createElement("style");
+  style.textContent = "#p98f-rolling-chart{padding-bottom:8px}#p98f-rolling-chart .u-legend{font-family:JetBrains Mono,Consolas,monospace !important;font-size:11px !important;padding:10px 0 4px !important;border-top:1px solid rgba(128,128,128,.18) !important;margin-top:10px !important;background:transparent !important;text-align:left !important}#p98f-rolling-chart .u-legend th{color:#999 !important;font-weight:500 !important;padding-right:14px !important}#p98f-rolling-chart .u-legend td{padding-right:18px !important}#p98f-rolling-summary{border-top:1px solid rgba(128,128,128,.18) !important;padding-top:12px !important;letter-spacing:.3px}";
+  document.head.appendChild(style);
 })();
