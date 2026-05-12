@@ -2216,3 +2216,55 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); loadUplot(function(){ render(); setInterval(render, 60000); }); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.34: Regime Transition Matrix panel ===== */
+(function _p98f_regime_hm(){
+  if (window.__P98F_REGIME_HM__) return;
+  window.__P98F_REGIME_HM__ = true;
+  const REGIMES = ["TREND","RANGE","CHOP"];
+  const COLORS = {TREND:"#00bfff", RANGE:"#ffa500", CHOP:"#ff4444"};
+  function makePanel(){
+    if (document.getElementById("p98f-regime-hm-panel")) return;
+    const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-regime-hm-panel";
+    sec.innerHTML = "<div class=\"panel-header\"><div><h2>Regime Transition Matrix</h2><span class=\"muted\">Markov chain \u00b7 daily ADX-14 split \u00b7 TREND/RANGE/CHOP \u00b7 source: /api/regime-transitions</span></div><span class=\"panel-badge\" style=\"background:rgba(0,191,255,.12);color:#00bfff\">MARKOV</span></div><div id=\"p98f-regime-hm-grid\" style=\"display:grid;grid-template-columns:90px repeat(3,1fr);gap:6px;margin-top:14px;font-family:JetBrains Mono,Consolas,monospace;font-size:13px\"></div><div id=\"p98f-regime-hm-note\" class=\"muted\" style=\"margin-top:10px;font-size:12px;line-height:1.6\">loading\u2026</div>";
+    const anchor = document.getElementById("p98f-rolling-panel") || document.querySelectorAll(".grid-2")[document.querySelectorAll(".grid-2").length-1];
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+  }
+  function cellBg(p, color){
+    const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+    return "rgba(" + r + "," + g + "," + b + "," + (0.08 + 0.72*p).toFixed(3) + ")";
+  }
+  async function render(){
+    try {
+      const r = await fetch("/api/regime-transitions", {credentials:"same-origin"});
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!d.ok){ const nn=document.getElementById("p98f-regime-hm-note"); if(nn) nn.textContent="no data: "+(d.message||"empty"); return; }
+      const grid = document.getElementById("p98f-regime-hm-grid"); if (!grid) return;
+      const counts = d.counts || {}, probs = d.probs || {};
+      let html = "<div></div>";
+      REGIMES.forEach(function(to){ html += "<div style=\"text-align:center;color:" + COLORS[to] + ";font-weight:700;padding:8px;letter-spacing:.5px\">\u2192 " + to + "</div>"; });
+      REGIMES.forEach(function(from){
+        html += "<div style=\"color:" + COLORS[from] + ";font-weight:700;padding:8px;display:flex;align-items:center;letter-spacing:.5px\">" + from + " \u2192</div>";
+        REGIMES.forEach(function(to){
+          const p = (probs[from] && probs[from][to] != null) ? probs[from][to] : 0;
+          const c = (counts[from] && counts[from][to] != null) ? counts[from][to] : 0;
+          const isDiag = (from === to);
+          const cellColor = isDiag ? "#666666" : COLORS[to];
+          html += "<div title=\"" + from + " \u2192 " + to + ": " + (p*100).toFixed(2) + "% (" + c + " obs)\" style=\"background:" + cellBg(p,cellColor) + ";padding:16px 12px;text-align:center;border-radius:6px;border:1px solid rgba(255,255,255,.08);transition:transform 0.2s\" onmouseover=\"this.style.transform=\u0027scale(1.03)\u0027\" onmouseout=\"this.style.transform=\u0027scale(1)\u0027\"><div style=\"font-size:20px;font-weight:800;color:" + (isDiag ? "#888" : COLORS[to]) + "\">" + (p*100).toFixed(1) + "%</div><div class=\"muted\" style=\"font-size:11px;margin-top:4px\">n=" + c + "</div></div>";
+        });
+      });
+      grid.innerHTML = html;
+      const note = document.getElementById("p98f-regime-hm-note");
+      if (note){
+        const trToRa = (probs.TREND && probs.TREND.RANGE) || 0;
+        const raToTr = (probs.RANGE && probs.RANGE.TREND) || 0;
+        const meanRev = (trToRa + raToTr) / 2;
+        const verdict = meanRev > 0.4 ? "<b style=\"color:#00ff7f\">CONFIRMED</b>" : (meanRev > 0.25 ? "<b style=\"color:#ffa500\">MODERATE</b>" : "<b style=\"color:#ff4444\">WEAK</b>");
+        note.innerHTML = "OBS " + (d.n_obs||0) + " transitions \u00b7 TREND\u2192RANGE <b style=\"color:#ffa500\">" + (trToRa*100).toFixed(1) + "%</b> \u00b7 RANGE\u2192TREND <b style=\"color:#00bfff\">" + (raToTr*100).toFixed(1) + "%</b> \u00b7 mean-reversion thesis: " + verdict + " (avg " + (meanRev*100).toFixed(1) + "%)";
+      }
+    } catch(e){ console.warn("regime hm:", e); }
+  }
+  function init(){ makePanel(); render(); setInterval(render, 60000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
