@@ -1,0 +1,200 @@
+[
+  {
+    "token": "99926000",
+    "symbol": "Nifty 50",
+    "name": "NIFTY",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926002",
+    "symbol": "Nifty50 PR 2x Lev",
+    "name": "NIFTY50 PR 2X LEV",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926004",
+    "symbol": "Nifty 500",
+    "name": "NIFTY 500",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926009",
+    "symbol": "Nifty Bank",
+    "name": "BANKNIFTY",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926038",
+    "symbol": "Nifty50 Div Point",
+    "name": "NIFTY50 DIV POINT",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926042",
+    "symbol": "Nifty50 PR 1x Inv",
+    "name": "NIFTY50 PR 1X INV",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926043",
+    "symbol": "Nifty50 TR 2x Lev",
+    "name": "NIFTY50 TR 2X LEV",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926044",
+    "symbol": "Nifty50 TR 1x Inv",
+    "name": "NIFTY50 TR 1X INV",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926045",
+    "symbol": "Nifty50 Value 20",
+    "name": "NIFTY50 VALUE 20",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "99926056",
+    "symbol": "NIFTY50 EQL Wgt",
+    "name": "NIFTY50 EQL WGT",
+    "expiry": "",
+    "strike": "0.000000",
+    "lotsize": "1",
+    "instrumenttype": "AMXIDX",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "19237",
+    "symbol": "MONIFTY500-EQ",
+    "name": "MONIFTY500",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "",
+    "exch_seg": "NSE",
+    "tick_size": "1.000000"
+  },
+  {
+    "token": "25258",
+    "symbol": "EBANKNIFTY-EQ",
+    "name": "EBANKNIFTY",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "",
+    "exch_seg": "NSE",
+    "tick_size": "1.000000"
+  },
+  {
+    "token": "5851",
+    "symbol": "BANKNIFTY1-EQ",
+    "name": "BANKNIFTY1",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "",
+    "exch_seg": "NSE",
+    "tick_size": "1.000000"
+  },
+  {
+    "token": "26009",
+    "symbol": "BANKNIFTY",
+    "name": "BANKNIFTY",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "",
+    "exch_seg": "NSE",
+    "tick_size": "0.000000"
+  },
+  {
+    "token": "13",
+    "symbol": "NIFTYFUTURESMIDMONTH",
+    "name": "NIFTYFUTM2",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "INDEX",
+    "exch_seg": "CDS",
+    "tick_size": "25000.000000"
+  },
+  {
+    "token": "5",
+    "symbol": "NIFTYFUTURESNEARMONTH",
+    "name": "NIFTYFUTM1",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "INDEX",
+    "exch_seg": "CDS",
+    "tick_size": "25000.000000"
+  },
+  {
+    "token": "14",
+    "symbol": "NIFTYFUTURESFARMONTH",
+    "name": "NIFTYFUTM3",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "INDEX",
+    "exch_seg": "CDS",
+    "tick_size": "25000.000000"
+  },
+  {
+    "token": "2",
+    "symbol": "NIFTY50",
+    "name": "NIFTY",
+    "expiry": "",
+    "strike": "-1.000000",
+    "lotsize": "1",
+    "instrumenttype": "INDEX",
+    "exch_seg": "CDS",
+    "tick_size": "25000.000000"
+  }
+]

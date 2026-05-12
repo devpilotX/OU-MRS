@@ -82,6 +82,15 @@ try:
 except Exception as _e:
     log.warning(f"8p.2 policy override on PARAMS skipped: {_e}")
 
+# Phase 9.7j: per-symbol z_stop overrides (BNF tighter due to higher absolute 1-sigma moves)
+_Z_STOP_PER_SYM = {
+    "BNF": float(os.environ.get("OU_Z_STOP_BNF", getattr(PARAMS, "z_stop", 3.5))),
+    "NF":  float(os.environ.get("OU_Z_STOP_NF",  getattr(PARAMS, "z_stop", 3.5))),
+    "FNF": float(os.environ.get("OU_Z_STOP_FNF", getattr(PARAMS, "z_stop", 3.5))),
+}
+def _z_stop_for_sym(sym):
+    return _Z_STOP_PER_SYM.get(sym, getattr(PARAMS, "z_stop", 3.5))
+
 HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
 STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
@@ -523,7 +532,7 @@ def main():
                     _profitable = _mtm > 0
                     if   runner.position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
                     elif runner.position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
-                    elif abs(z) > PARAMS.z_stop and (
+                    elif abs(z) > _z_stop_for_sym(runner.symbol) and (  # Phase 9.7j: per-symbol z_stop
                         (runner.position["side"] == "BUY"  and z < 0) or
                         (runner.position["side"] == "SELL" and z > 0)):
                         reason = "STOP"

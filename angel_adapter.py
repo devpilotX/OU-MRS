@@ -10,6 +10,24 @@ from SmartApi import SmartConnect
 
 log = logging.getLogger("angel")
 
+import random as _random
+
+# --- _retry_v2 (2026-05-11) — rate-limit / auth-fail classification ---
+_RATE_LIMIT_UNTIL = [0.0]  # shared epoch deadline across all AngelBroker instances
+_RATE_LIMIT_SIGS = ("access rate", "exceeding", "exceed access", "rate limit")
+_AUTH_FAIL_SIGS = ("invalid token", "session expired", "unauthorized",
+                   "invalid_token", "token expired", "session is invalid")
+
+def _is_rate_limit_err(err) -> bool:
+    s = str(err).lower()
+    return any(sig in s for sig in _RATE_LIMIT_SIGS)
+
+def _is_auth_fail_err(err) -> bool:
+    s = str(err).lower()
+    return any(sig in s for sig in _AUTH_FAIL_SIGS)
+# --- end _retry_v2 helpers ---
+
+
 class AngelBroker:
     def __init__(self):
         self.api_key = os.environ["ANGEL_API_KEY"]
@@ -43,8 +61,23 @@ class AngelBroker:
 
     # ---------- MARKET DATA ----------
     def get_candles(self, start_dt, end_dt, interval):
-        # _retry_v1 — Angel candle API is flaky; retry 4x with backoff + relogin
-        import time, logging
+        """_retry_v2 (2026-05-11): rate-limit aware retry.
+        - Rate-limit (Angel 'access rate' / 'exceeding'): long backoff (30/60/120/240s + jitter),
+          NO re-login. Re-login during rate-limit storm just consumes more quota.
+        - Auth failure (token/session expired): re-login + short retry.
+        - Other (network/parse): short backoff, NO re-login.
+        - Pre-call jitter 0-2.5s to de-sync from other Angel-API consumers (tick_capture, dashboard).
+        - Global cool-down: if ANY recent call hit rate-limit, all callers wait it out.
+        """
+        # Honor global cool-down set by any prior rate-limited call
+        now_ts = time.time()
+        if now_ts < _RATE_LIMIT_UNTIL[0]:
+            cool = _RATE_LIMIT_UNTIL[0] - now_ts + _random.uniform(0, 2)
+            log.warning(f"global rate-limit cool-down active, waiting {cool:.1f}s before call")
+            time.sleep(cool)
+        # De-sync jitter
+        time.sleep(_random.uniform(0.0, 2.5))
+
         params = {
             "exchange": getattr(self, "exchange", "NFO"),
             "symboltoken": self.token,
@@ -52,7 +85,6 @@ class AngelBroker:
             "fromdate": start_dt.strftime("%Y-%m-%d %H:%M"),
             "todate": end_dt.strftime("%Y-%m-%d %H:%M"),
         }
-        log = logging.getLogger()
         last_err = None
         for attempt in range(4):
             try:
@@ -62,18 +94,34 @@ class AngelBroker:
                 last_err = RuntimeError(f"bad response: {resp}")
             except Exception as e:
                 last_err = e
-            wait = 2 ** (attempt + 1)  # 2, 4, 8, 16 seconds
-            log.warning(f"get_candles attempt {attempt+1}/4 failed: {last_err}; retry in {wait}s")
-            time.sleep(wait)
-            if attempt >= 1:
-                for mname in ("login", "_login", "connect", "reauth"):
-                    if hasattr(self, mname):
-                        try:
-                            getattr(self, mname)()
-                            log.info(f"re-authenticated via {mname}()")
-                            break
-                        except Exception as le:
-                            log.warning(f"re-auth via {mname} failed: {le}")
+
+            is_rate = _is_rate_limit_err(last_err)
+            is_auth = _is_auth_fail_err(last_err)
+
+            if is_rate:
+                # Long backoff: 30, 60, 120, 240s (+ jitter). Set global cool-down.
+                wait = (30 * (2 ** attempt)) + _random.uniform(0, 5)
+                _RATE_LIMIT_UNTIL[0] = time.time() + wait
+                log.warning(f"get_candles attempt {attempt+1}/4 RATE-LIMIT: {last_err}; "
+                            f"cool-down {wait:.1f}s (no relogin)")
+                time.sleep(wait)
+            elif is_auth:
+                wait = 2 * (attempt + 1)
+                log.warning(f"get_candles attempt {attempt+1}/4 AUTH-FAIL: {last_err}; "
+                            f"relogin + retry in {wait}s")
+                time.sleep(wait)
+                try:
+                    self.login()
+                    log.info("re-authenticated via login()")
+                except Exception as le:
+                    log.warning(f"re-login failed: {le}")
+            else:
+                wait = 2 ** (attempt + 1)
+                log.warning(f"get_candles attempt {attempt+1}/4 OTHER: {last_err}; "
+                            f"retry in {wait}s (no relogin for unknown errors)")
+                time.sleep(wait)
+                # NOTE: no relogin for unknown errors — preserve quota
+
         raise last_err or RuntimeError("get_candles failed after 4 retries")
 
     # ---------- ORDERS ----------

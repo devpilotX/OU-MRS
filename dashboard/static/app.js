@@ -2914,7 +2914,7 @@ setTimeout(refreshTickChip, 1500);
       const breachCount = [lossBreach, ddBreach, trBreach, posBreach, killBreach].filter(Boolean).length;
       const status = breachCount > 0 ? '<b style="color:#ff3322">' + breachCount + ' BREACH' + (breachCount > 1 ? 'ES' : '') + '</b>' : '<b style="color:#3ce04f">ALL LIMITS OK</b>';
       f.innerHTML = status + ' \u00b7 capital <b style="color:#ddd">' + fmtR(cap) + '</b> \u00b7 portfolio P&L <b style="color:' + (totalPnl >= 0 ? '#3ce04f' : '#ff5566') + '">' + fmtR(totalPnl) + '</b> \u00b7 daily loss floor <b style="color:#ff5566">' + fmtR(lossLimit) + '</b> \u00b7 DD floor <b style="color:#ff5566">-' + MAX_DD_PCT + '%</b> \u00b7 last refresh <b>' + new Date().toLocaleTimeString("en-IN") + '</b>';
-    }).catch(function(){});
+    }).catch(function(e){console.error("P98F_RISK fail",e);var g=document.getElementById("p98f-risk-grid");if(g)g.innerHTML="<div class=muted>error: "+(e&&e.message?e.message:String(e))+"</div>";});
   }
   function init(){ makePanel(); update(); setInterval(update, 5000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

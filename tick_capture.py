@@ -28,6 +28,7 @@ INSTRUMENTS = {
 }
 TOKEN_TO_SYM = {v: k for k, v in INSTRUMENTS.items()}
 
+_SWS = [None]  # holds SmartWebSocketV2 instance for callbacks
 BUFFER = defaultdict(list)
 LAST_FLUSH = [time.time()]
 FLUSH_SEC = 60
@@ -84,7 +85,7 @@ def on_data(_wsapp, message):
 def on_open(wsapp):
     log.info("WS open, subscribing")
     tokens = [{"exchangeType": 2, "tokens": list(INSTRUMENTS.values())}]
-    wsapp.subscribe("p99a_capture", 1, tokens)
+    _SWS[0].subscribe("p99a_capture", 1, tokens)
 
 
 def on_error(_w, e):
@@ -110,12 +111,19 @@ def main():
     auth = sess["data"]["jwtToken"]
     feed = smart.getfeedToken()
     log.info("Angel login OK")
+    # --- shim: websocket-client>=1.0 passes (ws,code,reason); SmartApi<=1.5.5 expects (ws) ---
+    _orig_oc = SmartWebSocketV2._on_close
+    def _patched_oc(self, wsapp, *a, **kw):
+        return _orig_oc(self, wsapp)
+    SmartWebSocketV2._on_close = _patched_oc
+    # --- end shim ---
     sws = SmartWebSocketV2(
         auth,
         os.environ["ANGEL_API_KEY"],
         os.environ["ANGEL_CLIENT_CODE"],
         feed,
     )
+    _SWS[0] = sws
     sws.on_open = on_open
     sws.on_data = on_data
     sws.on_error = on_error

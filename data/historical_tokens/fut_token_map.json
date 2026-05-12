@@ -1,0 +1,16 @@
+{
+  "BANKNIFTY": {
+    "MAY26": {
+      "symbol": "BANKNIFTY26MAY26FUT",
+      "token": "66068",
+      "expiry": "26MAY2026"
+    }
+  },
+  "NIFTY": {
+    "MAY26": {
+      "symbol": "NIFTY26MAY26FUT",
+      "token": "66071",
+      "expiry": "26MAY2026"
+    }
+  }
+}
