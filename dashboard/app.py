@@ -778,3 +778,97 @@ def api_export_trades():
     w.writerow(cols)
     for r in rows: w.writerow([r.get(k,"") for k in cols])
     return Response(content=buf.getvalue(), media_type="text/csv", headers={"Content-Disposition":"attachment; filename=trades_live.csv"})
+import math as _p98f_math
+import json as _p98f_json
+import pathlib as _p98f_path
+def _p98f_read_daily():
+"""Re-read daily P&L from any of the known data source locations."""
+candidates = [
+_p98f_path.Path("data/daily_pnl.json"),
+_p98f_path.Path("bt_out/daily_pnl.json"),
+_p98f_path.Path("data/pfm.json"),
+]
+for c in candidates:
+if c.exists():
+try:
+d = _p98f_json.loads(c.read_text())
+rows = d.get("rows") if isinstance(d, dict) else d
+if isinstance(rows, list):
+return rows
+except Exception:
+continue
+return []
+@app.get("/api/option-chain")
+async def p98f_option_chain(symbol: str = "BANKNIFTY", expiry: str = ""):
+"""Option chain stub until Angel One integration (Phase 9.8f task E1)."""
+return {
+"ok": False,
+"status": "not_wired",
+"symbol": symbol,
+"expiry": expiry,
+"message": "Angel One option chain pending - Phase 9.8f task E1",
+"schema": {
+"strikes": "[{strike, ce:{ltp,oi,chgOi,iv,delta,gamma,theta,vega,volume}, pe:{...}}]",
+"underlying": "{spot, atm, futPrem}",
+"totals": "{call_oi, put_oi, pcr}"
+}
+}
+@app.get("/api/rolling-metrics")
+async def p98f_rolling_metrics(window: int = 20):
+"""Rolling Sharpe / Sortino / Calmar over the last N trading days (annualized x sqrt(252))."""
+daily = _p98f_read_daily()
+if not daily:
+return {"ok": True, "rows": [], "window": window, "message": "no daily P&L data found"}
+pnls = [(r.get("pnl") or 0) for r in daily]
+dates = [r.get("date") for r in daily]
+rows = []
+for i in range(len(pnls)):
+lo = max(0, i - window + 1)
+win = pnls[lo:i+1]
+n = len(win)
+if n < 2:
+rows.append({"date": dates[i], "sharpe": None, "sortino": None, "calmar": None, "n": n})
+continue
+mean = sum(win) / n
+var = sum((x - mean)  2 for x in win) / max(1, n - 1)
+sd = _p98f_math.sqrt(var) if var > 0 else 0
+neg = [x for x in win if x < 0]
+downvar = (sum(x * x for x in neg) / max(1, len(neg))) if neg else 0
+downsd = _p98f_math.sqrt(downvar) if downvar > 0 else 0
+sharpe = (mean / sd * _p98f_math.sqrt(252)) if sd > 0 else None
+sortino = (mean / downsd * _p98f_math.sqrt(252)) if downsd > 0 else None
+cum = 0; peak = 0; mdd = 0
+for x in win:
+cum += x
+peak = max(peak, cum)
+mdd = min(mdd, cum - peak)
+calmar = (mean * 252 / abs(mdd)) if mdd < 0 else None
+rows.append({
+"date": dates[i],
+"sharpe": round(sharpe, 3) if sharpe is not None else None,
+"sortino": round(sortino, 3) if sortino is not None else None,
+"calmar": round(calmar, 3) if calmar is not None else None,
+"n": n
+})
+return {"ok": True, "rows": rows, "window": window}
+@app.get("/api/regime-transitions")
+async def p98f_regime_transitions():
+"""Regime transition probability matrix from bt_out/regime_metrics.json sequence."""
+rm_file = _p98f_path.Path("bt_out/regime_metrics.json")
+if not rm_file.exists():
+return {"ok": False, "message": "bt_out/regime_metrics.json not found"}
+try:
+rm = _p98f_json.loads(rm_file.read_text())
+except Exception as e:
+return {"ok": False, "message": str(e)}
+seq = rm.get("sequence") or rm.get("regimes") or []
+regimes = ["TREND", "RANGE", "CHOP"]
+counts = {a: {b: 0 for b in regimes} for a in regimes}
+totals = {a: 0 for a in regimes}
+for i in range(len(seq) - 1):
+a, b = seq[i], seq[i+1]
+if a in counts and b in counts[a]:
+counts[a][b] += 1
+totals[a] += 1
+probs = {a: {b: (round(counts[a][b] / totals[a], 4) if totals[a] else 0) for b in regimes} for a in regimes}
+return {"ok": True, "regimes": regimes, "counts": counts, "probs": probs, "n_obs": len(seq)}

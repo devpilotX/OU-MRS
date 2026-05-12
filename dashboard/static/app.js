@@ -1899,3 +1899,234 @@ setTimeout(refreshTickChip, 1500);
   setTimeout(tick, 2200);
   setInterval(tick, 8000);
 })();
+
+// ===== Phase 9.8f Bloomberg overlay: command bar + ticker tape + function keys + theme toggle =====
+(function _p98f_bloomberg(){
+  if (window.__P98F_BB__) return;
+  window.__P98F_BB__ = true;
+
+  function getPanels(){
+    const out = [];
+    document.querySelectorAll('section.panel, .panel').forEach(p => {
+      const h = p.querySelector('h1, h2, h3');
+      const id = p.id || '';
+      const title = h ? h.textContent.trim().replace(/\s+/g, ' ').slice(0, 60) : (id || 'Panel');
+      if (title) out.push({ id: id, title: title, el: p });
+    });
+    return out;
+  }
+
+  function flashPanel(el){
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.remove('bb-panel-flash');
+    void el.offsetWidth;
+    el.classList.add('bb-panel-flash');
+  }
+
+  function jumpTo(keyword){
+    const panels = getPanels();
+    const k = (keyword || '').toLowerCase();
+    const m = panels.find(p => (p.id || '').toLowerCase().includes(k) || p.title.toLowerCase().includes(k));
+    if (m) flashPanel(m.el);
+  }
+
+  function toggleTheme(){
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'bloomberg' ? '' : 'bloomberg';
+    if (next) document.documentElement.setAttribute('data-theme', next);
+    else document.documentElement.removeAttribute('data-theme');
+    try { localStorage.setItem('ou-mrs-theme', next); } catch(e){}
+  }
+  try {
+    if (localStorage.getItem('ou-mrs-theme') === 'bloomberg') {
+      document.documentElement.setAttribute('data-theme', 'bloomberg');
+    }
+  } catch(e){}
+
+  function ensureCommandBar(){
+    if (document.getElementById('bb-command-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'bb-command-bar';
+    bar.hidden = true;
+    bar.innerHTML =
+      '<div class="bb-cmd-prompt">' +
+        '<span class="bb-cmd-icon">&#10095;</span>' +
+        '<input type="text" placeholder="Type to filter panels \u2014 Enter to jump, Esc to close" autocomplete="off"/>' +
+      '</div>' +
+      '<ul class="bb-cmd-list"></ul>' +
+      '<div class="bb-cmd-hint"><span>&uarr;&darr; navigate</span><span>Enter jump</span><span>Esc close</span></div>';
+    document.body.appendChild(bar);
+
+    const input = bar.querySelector('input');
+    const list = bar.querySelector('.bb-cmd-list');
+    let panels = [], filtered = [], active = 0;
+
+    function render(){
+      list.innerHTML = '';
+      filtered.forEach((p, i) => {
+        const li = document.createElement('li');
+        li.className = 'bb-cmd-item' + (i === active ? ' active' : '');
+        const t = p.title.replace(/</g, '&lt;');
+        const k = (p.id || '\u2014').replace(/</g, '&lt;');
+        li.innerHTML = '<span>' + t + '</span><span class="bb-cmd-key">' + k + '</span>';
+        li.addEventListener('click', () => { active = i; jumpActive(); });
+        list.appendChild(li);
+      });
+    }
+    function jumpActive(){
+      const p = filtered[active];
+      if (!p) return;
+      hide();
+      flashPanel(p.el);
+    }
+    function show(){
+      panels = getPanels();
+      filtered = panels.slice();
+      active = 0;
+      input.value = '';
+      render();
+      bar.hidden = false;
+      setTimeout(() => input.focus(), 10);
+    }
+    function hide(){ bar.hidden = true; }
+
+    input.addEventListener('input', () => {
+      const q = input.value.toLowerCase().trim();
+      filtered = q ? panels.filter(p => p.title.toLowerCase().includes(q) || (p.id || '').toLowerCase().includes(q)) : panels.slice();
+      active = 0;
+      render();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); hide(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(filtered.length - 1, active + 1); render(); }
+      else if (e.key === 'ArrowUp')   { e.preventDefault(); active = Math.max(0, active - 1); render(); }
+      else if (e.key === 'Enter')     { e.preventDefault(); jumpActive(); }
+    });
+
+    window.__bbCmdShow__ = show;
+    window.__bbCmdHide__ = hide;
+  }
+
+  function ensureTickerTape(){
+    if (document.getElementById('bb-ticker-tape')) return;
+    const tape = document.createElement('div');
+    tape.id = 'bb-ticker-tape';
+    tape.innerHTML =
+      '<div class="bb-tape-item" data-sym="BANKNIFTY"><span class="bb-tape-sym">BNF</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
+      '<div class="bb-tape-item" data-sym="NIFTY"><span class="bb-tape-sym">NF</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
+      '<div class="bb-tape-item" data-sym="FINNIFTY"><span class="bb-tape-sym">FNF</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
+      '<div class="bb-tape-item"><span class="bb-tape-sym">IST</span><span class="bb-tape-val" id="bb-tape-clock">--:--:--</span></div>' +
+      '<div class="bb-tape-item"><span class="bb-tape-sym">SESSION</span><span class="bb-tape-val" id="bb-tape-session">--</span></div>' +
+      '<div class="bb-tape-item"><span class="bb-tape-sym">THEME</span><span class="bb-tape-val" id="bb-tape-theme">DEFAULT</span></div>';
+    document.body.insertBefore(tape, document.body.firstChild);
+
+    function tickClock(){
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const ce = document.getElementById('bb-tape-clock');
+      if (ce) ce.textContent = hh + ':' + mm + ':' + ss;
+      const m = d.getHours() * 60 + d.getMinutes();
+      const session = (m >= 555 && m <= 930) ? 'OPEN' : (m < 555 ? 'PRE' : 'CLOSED');
+      const se = document.getElementById('bb-tape-session');
+      if (se) se.textContent = session;
+      const te = document.getElementById('bb-tape-theme');
+      if (te) te.textContent = (document.documentElement.getAttribute('data-theme') === 'bloomberg') ? 'BLOOMBERG' : 'DEFAULT';
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    const lastVals = {};
+    async function pollTape(){
+      try {
+        const r = await fetch('/api/symbols');
+        if (!r.ok) return;
+        const d = await r.json();
+        const rows = d.rows || d.symbols || [];
+        rows.forEach(row => {
+          const sym = row.symbol || row.name;
+          const ltp = row.ltp != null ? row.ltp : (row.price != null ? row.price : row.last);
+          const chg = row.change_pct != null ? row.change_pct : (row.changePct != null ? row.changePct : (row.chgPct != null ? row.chgPct : null));
+          const item = tape.querySelector('.bb-tape-item[data-sym="' + sym + '"]');
+          if (!item || ltp == null) return;
+          const valEl = item.querySelector('.bb-tape-val');
+          const chgEl = item.querySelector('.bb-tape-chg');
+          const prev = lastVals[sym];
+          if (valEl) valEl.textContent = (typeof ltp === 'number') ? ltp.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : String(ltp);
+          if (chgEl && chg != null) {
+            const cls = chg > 0 ? 'up' : (chg < 0 ? 'down' : 'flat');
+            const arr = chg > 0 ? '\u25B2' : (chg < 0 ? '\u25BC' : '\u2192');
+            chgEl.className = 'bb-tape-chg ' + cls;
+            chgEl.textContent = arr + ' ' + (chg > 0 ? '+' : '') + (typeof chg === 'number' ? chg.toFixed(2) : chg) + '%';
+          }
+          if (prev != null && typeof ltp === 'number' && ltp !== prev) {
+            const dir = ltp > prev ? 'flash-up' : 'flash-down';
+            item.classList.add(dir);
+            setTimeout(() => { item.classList.remove(dir); }, 350);
+          }
+          if (typeof ltp === 'number') lastVals[sym] = ltp;
+        });
+      } catch(e){}
+    }
+    pollTape();
+    setInterval(pollTape, 2500);
+  }
+
+  function ensureFKeyBar(){
+    if (document.getElementById('bb-fkey-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'bb-fkey-bar';
+    bar.innerHTML =
+      '<span class="bb-fk" data-action="cmd"><span class="bb-fk-key">/</span><span class="bb-fk-lbl">cmd</span></span>' +
+      '<span class="bb-fk" data-jump="heatmap"><span class="bb-fk-key">H</span><span class="bb-fk-lbl">heatmap</span></span>' +
+      '<span class="bb-fk" data-jump="regime"><span class="bb-fk-key">R</span><span class="bb-fk-lbl">regime</span></span>' +
+      '<span class="bb-fk" data-jump="equity"><span class="bb-fk-key">E</span><span class="bb-fk-lbl">equity</span></span>' +
+      '<span class="bb-fk" data-jump="trade"><span class="bb-fk-key">T</span><span class="bb-fk-lbl">trades</span></span>' +
+      '<span class="bb-fk" data-jump="portfolio"><span class="bb-fk-key">P</span><span class="bb-fk-lbl">portfolio</span></span>' +
+      '<span class="bb-fk" data-jump="risk"><span class="bb-fk-key">K</span><span class="bb-fk-lbl">risk</span></span>' +
+      '<span class="bb-fk" data-action="theme"><span class="bb-fk-key">B</span><span class="bb-fk-lbl">bloomberg theme</span></span>';
+    document.body.appendChild(bar);
+    bar.querySelectorAll('.bb-fk').forEach(fk => {
+      fk.addEventListener('click', () => {
+        const jump = fk.getAttribute('data-jump');
+        const action = fk.getAttribute('data-action');
+        if (jump) jumpTo(jump);
+        else if (action === 'cmd') window.__bbCmdShow__ && window.__bbCmdShow__();
+        else if (action === 'theme') toggleTheme();
+      });
+    });
+  }
+
+  function isTyping(el){
+    if (!el) return false;
+    const t = (el.tagName || '').toUpperCase();
+    return t === 'INPUT' || t === 'TEXTAREA' || el.isContentEditable;
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey || e.metaKey || e.ctrlKey) return;
+    if (isTyping(e.target) && e.key !== 'Escape') return;
+    const k = e.key;
+    if (k === '/') { e.preventDefault(); window.__bbCmdShow__ && window.__bbCmdShow__(); }
+    else if (k === 'Escape') { window.__bbCmdHide__ && window.__bbCmdHide__(); }
+    else {
+      const kl = k.toLowerCase();
+      if (kl === 'h') { e.preventDefault(); jumpTo('heatmap'); }
+      else if (kl === 'r') { e.preventDefault(); jumpTo('regime'); }
+      else if (kl === 'e') { e.preventDefault(); jumpTo('equity'); }
+      else if (kl === 't') { e.preventDefault(); jumpTo('trade'); }
+      else if (kl === 'p') { e.preventDefault(); jumpTo('portfolio'); }
+      else if (kl === 'k') { e.preventDefault(); jumpTo('risk'); }
+      else if (kl === 'b') { e.preventDefault(); toggleTheme(); }
+    }
+  });
+
+  function init(){
+    ensureCommandBar();
+    ensureTickerTape();
+    ensureFKeyBar();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else setTimeout(init, 50);
+})();

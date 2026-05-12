@@ -1,0 +1,130 @@
+/* ===== Phase 9.8f Bloomberg theme — amber/black palette + command bar + ticker tape ===== */
+
+:root {
+  --bb-bg: #000000;
+  --bb-bg-elev: #0a0a0a;
+  --bb-bg-panel: #111111;
+  --bb-amber: #ff8c00;
+  --bb-amber-bright: #ffa500;
+  --bb-text: #ffb84d;
+  --bb-text-dim: #b06500;
+  --bb-green: #00ff7f;
+  --bb-red: #ff3030;
+  --bb-blue: #00bfff;
+  --bb-border: #2a1a00;
+}
+
+/* Active only when html[data-theme="bloomberg"] is set via JS toggle */
+html[data-theme="bloomberg"] body {
+  background: var(--bb-bg) !important;
+  color: var(--bb-text) !important;
+  font-family: 'JetBrains Mono', 'Consolas', monospace !important;
+}
+html[data-theme="bloomberg"] .panel,
+html[data-theme="bloomberg"] section.panel {
+  background: var(--bb-bg-panel) !important;
+  border-color: var(--bb-border) !important;
+  color: var(--bb-text) !important;
+}
+html[data-theme="bloomberg"] h1,
+html[data-theme="bloomberg"] h2,
+html[data-theme="bloomberg"] h3 {
+  color: var(--bb-amber-bright) !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+html[data-theme="bloomberg"] .kpi-val,
+html[data-theme="bloomberg"] .hm-stat-val { color: var(--bb-amber-bright) !important; }
+html[data-theme="bloomberg"] .kpi-lbl,
+html[data-theme="bloomberg"] .hm-stat-lbl { color: var(--bb-text-dim) !important; text-transform: uppercase; }
+html[data-theme="bloomberg"] .pos { color: var(--bb-green) !important; }
+html[data-theme="bloomberg"] .neg { color: var(--bb-red) !important; }
+
+/* ===== Command bar (slash to open) ===== */
+#bb-command-bar {
+  position: fixed;
+  top: 22%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  width: min(620px, 92vw);
+  background: #0a0a0a;
+  border: 2px solid var(--bb-amber);
+  border-radius: 4px;
+  box-shadow: 0 12px 40px rgba(255,140,0,0.35), 0 0 0 9999px rgba(0,0,0,0.62);
+  z-index: 9999;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 12px;
+  color: var(--bb-text);
+}
+#bb-command-bar[hidden] { display: none !important; }
+#bb-command-bar .bb-cmd-prompt {
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--bb-border);
+  padding-bottom: 8px; margin-bottom: 8px;
+}
+#bb-command-bar .bb-cmd-icon { color: var(--bb-amber); font-weight: 700; font-size: 14px; }
+#bb-command-bar input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--bb-text); font-family: inherit; font-size: 14px;
+  caret-color: var(--bb-amber);
+}
+#bb-command-bar .bb-cmd-list { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; }
+#bb-command-bar .bb-cmd-item {
+  padding: 6px 10px; cursor: pointer; border-radius: 2px;
+  display: flex; justify-content: space-between; font-size: 12px;
+}
+#bb-command-bar .bb-cmd-item.active,
+#bb-command-bar .bb-cmd-item:hover { background: var(--bb-border); color: var(--bb-amber-bright); }
+#bb-command-bar .bb-cmd-key { color: var(--bb-text-dim); font-size: 10px; letter-spacing: 0.5px; }
+#bb-command-bar .bb-cmd-hint {
+  margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--bb-border);
+  font-size: 9px; color: var(--bb-text-dim); letter-spacing: 0.5px;
+  text-transform: uppercase; display: flex; justify-content: space-between;
+}
+
+/* ===== Ticker tape (sticky top) ===== */
+#bb-ticker-tape {
+  position: sticky; top: 0; z-index: 100;
+  background: linear-gradient(180deg, #000 0%, #0a0a0a 100%);
+  border-bottom: 1px solid var(--bb-border);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 5px 16px; display: flex; align-items: center; gap: 22px;
+  overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+}
+#bb-ticker-tape::-webkit-scrollbar { display: none; }
+#bb-ticker-tape .bb-tape-item { display: inline-flex; align-items: center; gap: 6px; transition: color 0.3s ease; }
+#bb-ticker-tape .bb-tape-sym { color: var(--bb-text-dim); font-weight: 700; letter-spacing: 0.6px; }
+#bb-ticker-tape .bb-tape-val { color: var(--bb-text); font-variant-numeric: tabular-nums; }
+#bb-ticker-tape .bb-tape-chg { font-size: 10px; padding: 1px 5px; border-radius: 2px; }
+#bb-ticker-tape .bb-tape-chg.up   { color: var(--bb-green); }
+#bb-ticker-tape .bb-tape-chg.down { color: var(--bb-red); }
+#bb-ticker-tape .bb-tape-chg.flat { color: var(--bb-text-dim); }
+#bb-ticker-tape .bb-tape-item.flash-up   { color: var(--bb-green) !important; }
+#bb-ticker-tape .bb-tape-item.flash-down { color: var(--bb-red) !important; }
+
+/* ===== Function-key bar (bottom) ===== */
+#bb-fkey-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, #0a0a0a 0%, #000 100%);
+  border-top: 1px solid var(--bb-border);
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  padding: 5px 16px; display: flex; gap: 16px; z-index: 50;
+  color: var(--bb-text-dim); letter-spacing: 0.4px; text-transform: uppercase;
+}
+#bb-fkey-bar .bb-fk { display: inline-flex; align-items: baseline; gap: 4px; cursor: pointer; }
+#bb-fkey-bar .bb-fk-key {
+  background: var(--bb-border); color: var(--bb-amber-bright);
+  padding: 1px 6px; border-radius: 2px; font-weight: 700;
+}
+#bb-fkey-bar .bb-fk:hover .bb-fk-lbl { color: var(--bb-text); }
+
+/* ===== Panel flash on jump ===== */
+.bb-panel-flash { animation: bbPanelFlash 1.3s ease-out; }
+@keyframes bbPanelFlash {
+  0%   { box-shadow: 0 0 0 2px rgba(255,140,0,0); }
+  35%  { box-shadow: 0 0 0 3px rgba(255,140,0,0.95), 0 0 24px rgba(255,140,0,0.45); }
+  100% { box-shadow: 0 0 0 2px rgba(255,140,0,0); }
+}
+
+/* Make room at bottom so fkey-bar doesn't cover the heatmap */
+body { padding-bottom: 36px; }
