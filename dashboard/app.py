@@ -362,18 +362,54 @@ def api_daily_pnl():
 
 @app.get("/api/drawdown", dependencies=[Depends(need_auth)])
 def api_drawdown():
-    import csv
-    path = BOT_DIR / "bt_out" / "equity.csv"
-    if not path.exists(): return {"rows": []}
-    rows = []; peak = 0.0
-    with path.open() as f:
-        for row in csv.DictReader(f):
-            try: eq = float(row.get("equity") or 0)
-            except: eq = 0
-            peak = max(peak, eq)
-            dd = (eq - peak) / peak * 100 if peak > 0 else 0
-            rows.append({"date": row.get("date"), "equity": eq, "dd_pct": round(dd, 3)})
-    return {"rows": rows}
+    """Phase 9.8f.47: merge scaled backtest equity.csv with live trades.jsonl daily PnL for through-today curve."""
+    import csv, json as _json
+    bt_path = BOT_DIR / "bt_out" / "equity.csv"
+    trades_path = BOT_DIR / "trades.jsonl"
+    try: live_capital = float(_os_pv1.getenv("CAPITAL", 3750000))
+    except: live_capital = 3750000.0
+    rows = []
+    bt_start_eq = None
+    bt_end_eq = None
+    bt_end_date = None
+    if bt_path.exists():
+        with bt_path.open() as fh:
+            for r in csv.DictReader(fh):
+                try: eq = float(r.get("equity") or 0)
+                except: eq = 0
+                if bt_start_eq is None and eq > 0: bt_start_eq = eq
+                rows.append({"date": r.get("date"), "_raw": eq, "source": "bt"})
+                bt_end_eq = eq
+                bt_end_date = r.get("date")
+    scale = (live_capital / bt_start_eq) if (bt_start_eq and bt_start_eq > 0) else 1.0
+    for row in rows:
+        row["equity"] = row.pop("_raw") * scale
+    seed_eq = (bt_end_eq * scale) if bt_end_eq else live_capital
+    daily_pnl = {}
+    if trades_path.exists():
+        with trades_path.open() as fh:
+            for line in fh:
+                line = line.strip()
+                if not line: continue
+                try: t = _json.loads(line)
+                except: continue
+                exit_ts = t.get("exit_ts") or t.get("entry_ts") or ""
+                date_part = exit_ts[:10] if exit_ts else None
+                if not date_part: continue
+                if bt_end_date and date_part <= bt_end_date: continue
+                pnl = float(t.get("pnl") or 0)
+                daily_pnl[date_part] = daily_pnl.get(date_part, 0.0) + pnl
+    running_eq = seed_eq
+    for date_str in sorted(daily_pnl.keys()):
+        running_eq = running_eq + daily_pnl[date_str]
+        rows.append({"date": date_str, "equity": running_eq, "source": "live", "pnl_day": daily_pnl[date_str]})
+    peak = 0.0
+    for rr in rows:
+        eq = rr["equity"]
+        if eq > peak: peak = eq
+        dd = (eq - peak) / peak * 100 if peak > 0 else 0
+        rr["dd_pct"] = round(dd, 3)
+    return {"rows": rows, "live_capital": live_capital, "scale": round(scale, 3), "bt_end_date": bt_end_date, "live_days": len(daily_pnl)}
 
 @app.get("/api/strategy", dependencies=[Depends(need_auth)])
 def api_strategy():
