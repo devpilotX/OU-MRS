@@ -2130,3 +2130,46 @@ setTimeout(refreshTickChip, 1500);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else setTimeout(init, 50);
 })();
+
+/* ===== Phase 9.8f.31: ticker tape data binding fix ===== */
+(function _p98f_ticker_fix(){
+  if (window.__P98F_TICKER_FIX__) return;
+  window.__P98F_TICKER_FIX__ = true;
+  const MAP = {"BANKNIFTY":"BNF","NIFTY":"NF","FINNIFTY":"FNF"};
+  function flashCell(el, up){
+    if (!el) return;
+    el.style.transition = "background 0.6s ease";
+    el.style.background = up ? "rgba(0,255,127,0.35)" : "rgba(255,48,48,0.35)";
+    setTimeout(function(){ el.style.background = "transparent"; }, 600);
+  }
+  async function update(){
+    try {
+      const r = await fetch("/api/symbols", {credentials:"same-origin"});
+      if (!r.ok) return;
+      const d = await r.json();
+      const syms = d.symbols || {};
+      document.querySelectorAll("#bb-ticker-tape .bb-tape-item[data-sym]").forEach(function(el){
+        const key = MAP[el.dataset.sym] || el.dataset.sym;
+        const sd = syms[key];
+        if (!sd || sd.ltp == null) return;
+        const ltp = +sd.ltp;
+        const op = sd.ohlc_today && sd.ohlc_today.o;
+        const chg = (op && op > 0) ? ((ltp - op) / op * 100) : 0;
+        const v = el.querySelector(".bb-tape-val");
+        const c = el.querySelector(".bb-tape-chg");
+        if (v){
+          const prev = v.dataset.prev ? +v.dataset.prev : null;
+          v.textContent = "\u20b9" + ltp.toLocaleString("en-IN",{maximumFractionDigits:2});
+          v.dataset.prev = String(ltp);
+          if (prev != null && ltp !== prev) flashCell(v, ltp > prev);
+        }
+        if (c){
+          c.textContent = (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
+          c.className = "bb-tape-chg " + (chg > 0 ? "up" : (chg < 0 ? "down" : "flat"));
+        }
+      });
+    } catch(e){}
+  }
+  setTimeout(update, 500);
+  setInterval(update, 2500);
+})();
