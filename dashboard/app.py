@@ -1027,3 +1027,59 @@ def api_monte_carlo():
         return {"ok": True, "data": _json_mc.loads(path.read_text())}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+# ===== Phase 9.8f.51: SQLite Activity Log - HTTP endpoints + auto-init =====
+import os as _os_alog
+import sys as _sys_alog
+_alog_dir = _os_alog.path.dirname(_os_alog.path.abspath(__file__))
+if _alog_dir not in _sys_alog.path:
+    _sys_alog.path.insert(0, _alog_dir)
+import activity_log as _p98f_alog
+
+@app.on_event("startup")
+def _p98f_activity_log_init():
+    try:
+        _path = _p98f_alog.init_db()
+        print("[p98f.51] activity_log.db initialized at " + str(_path))
+    except Exception as _e_alog:
+        print("[p98f.51] activity_log init failed: " + str(_e_alog))
+
+@app.get("/api/activity/recent", dependencies=[Depends(need_auth)])
+def api_activity_recent(limit: int = 50, status: str = None, phase: str = None):
+    try:
+        rows = _p98f_alog.recent(limit=max(1, min(int(limit), 500)), status=status, phase_tag=phase)
+        return {"ok": True, "rows": rows, "count": len(rows)}
+    except Exception as _e_alog:
+        return {"ok": False, "error": str(_e_alog)}
+
+@app.get("/api/activity/stats", dependencies=[Depends(need_auth)])
+def api_activity_stats():
+    try:
+        return {"ok": True, "stats": _p98f_alog.stats()}
+    except Exception as _e_alog:
+        return {"ok": False, "error": str(_e_alog)}
+
+@app.post("/api/activity/log", dependencies=[Depends(need_auth)])
+def api_activity_log_post(payload: dict):
+    """Insert one activity row from JSON body. For client-side or external log calls."""
+    try:
+        if not isinstance(payload, dict) or not payload.get("activity"):
+            return {"ok": False, "error": "missing 'activity' field"}
+        rid = _p98f_alog.log_activity(
+            activity=payload.get("activity"),
+            status=payload.get("status", "Done"),
+            phase_tag=payload.get("phase_tag"),
+            git_sha=payload.get("git_sha"),
+            files_touched=payload.get("files_touched"),
+            notes=payload.get("notes"),
+            command=payload.get("command"),
+            output_snippet=payload.get("output_snippet"),
+            verification=payload.get("verification"),
+            rating=payload.get("rating"),
+            pnl_impact=payload.get("pnl_impact"),
+            area=payload.get("area"),
+            notion_url=payload.get("notion_url"),
+        )
+        return {"ok": True, "id": rid}
+    except Exception as _e_alog:
+        return {"ok": False, "error": str(_e_alog)}
