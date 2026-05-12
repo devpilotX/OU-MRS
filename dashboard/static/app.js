@@ -3018,3 +3018,104 @@ setTimeout(refreshTickChip, 1500);
   function init(){ makePanel(); update(); setInterval(update, 10000); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+
+/* ===== Phase 9.8f.49: SSE real-time tick consumer (replaces 2.5s polling with server push ~50ms latency) ===== */
+(function _p98f_sse(){
+  if (window.__P98F_SSE__) return;
+  window.__P98F_SSE__ = true;
+  const SYM_MAP = {
+    'BANKNIFTY': 'BANKNIFTY', 'BNF': 'BANKNIFTY',
+    'NIFTY': 'NIFTY', 'NF': 'NIFTY',
+    'FINNIFTY': 'FINNIFTY', 'FNF': 'FINNIFTY'
+  };
+  const lastSseVals = {};
+  let esRef = null;
+  let lastTickAt = 0;
+  let tickCount = 0;
+  function setBadge(state, color){
+    let badge = document.getElementById('p98f-sse-status');
+    if (badge == null) {
+      const tape = document.getElementById('bb-ticker-tape');
+      if (tape == null) return;
+      const item = document.createElement('div');
+      item.className = 'bb-tape-item';
+      item.innerHTML = '<span class="bb-tape-sym">FEED</span><span class="bb-tape-val" id="p98f-sse-status" style="font-weight:700">--</span>';
+      tape.appendChild(item);
+      badge = document.getElementById('p98f-sse-status');
+    }
+    if (badge != null) {
+      badge.textContent = state;
+      badge.style.color = color;
+    }
+  }
+  function applyTick(tick){
+    const rawSym = tick.symbol || tick.sym || tick.code || '';
+    const tapeSym = SYM_MAP[String(rawSym).toUpperCase()] || rawSym;
+    const ltp = (tick.ltp != null ? tick.ltp : (tick.last != null ? tick.last : (tick.price != null ? tick.price : (tick.lastTradedPrice != null ? tick.lastTradedPrice : null))));
+    if (ltp == null) return;
+    const tape = document.getElementById('bb-ticker-tape');
+    if (tape == null) return;
+    const item = tape.querySelector('.bb-tape-item[data-sym="' + tapeSym + '"]');
+    if (item == null) return;
+    const valEl = item.querySelector('.bb-tape-val');
+    if (valEl != null) valEl.textContent = (typeof ltp === 'number') ? ltp.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : String(ltp);
+    const chg = tick.change_pct != null ? tick.change_pct : (tick.chg_pct != null ? tick.chg_pct : (tick.changePct != null ? tick.changePct : null));
+    if (chg != null) {
+      const chgEl = item.querySelector('.bb-tape-chg');
+      if (chgEl != null) {
+        const cls = chg > 0 ? 'up' : (chg < 0 ? 'down' : 'flat');
+        const arr = chg > 0 ? '\u25B2' : (chg < 0 ? '\u25BC' : '\u2192');
+        chgEl.className = 'bb-tape-chg ' + cls;
+        chgEl.textContent = arr + ' ' + (chg > 0 ? '+' : '') + (typeof chg === 'number' ? chg.toFixed(2) : chg) + '%';
+      }
+    }
+    const prev = lastSseVals[tapeSym];
+    if (prev != null && typeof ltp === 'number' && ltp !== prev) {
+      const dir = ltp > prev ? 'flash-up' : 'flash-down';
+      item.classList.add(dir);
+      setTimeout(function(){ item.classList.remove(dir); }, 350);
+    }
+    if (typeof ltp === 'number') lastSseVals[tapeSym] = ltp;
+    lastTickAt = Date.now();
+    tickCount++;
+    setBadge('SSE \u00b7 ' + tickCount, '#3ce04f');
+  }
+  function connect(){
+    try {
+      esRef = new EventSource('/sse/ticks');
+      esRef.onopen = function(){
+        tickCount = 0;
+        setBadge('SSE OPEN', '#3ce04f');
+        console.log('[P98F_SSE] connected to /sse/ticks');
+      };
+      esRef.onmessage = function(ev){
+        try {
+          const tick = JSON.parse(ev.data);
+          applyTick(tick);
+        } catch(e){
+          console.warn('[P98F_SSE] parse fail', e, ev.data);
+        }
+      };
+      esRef.onerror = function(){
+        setBadge('SSE RECONNECT', '#ffc833');
+      };
+    } catch(e){
+      console.warn('[P98F_SSE] init fail', e);
+      setBadge('NO SSE', '#ff5566');
+    }
+  }
+  setInterval(function(){
+    if (lastTickAt > 0 && Date.now() - lastTickAt > 60000) {
+      setBadge('SSE IDLE', '#888');
+    }
+  }, 5000);
+  function waitForTape(){
+    if (document.getElementById('bb-ticker-tape')) {
+      connect();
+    } else {
+      setTimeout(waitForTape, 250);
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', waitForTape);
+  else waitForTape();
+})();
