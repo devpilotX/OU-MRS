@@ -54,27 +54,3 @@ def calc_roundtrip(instrument, qty, buy_price, sell_price):
 	invested = float(buy_price) * float(qty)
 	pnl_pct = (net / invested * 100.0) if invested > 0 else 0.0
 	return {"instrument": instrument, "qty": float(qty), "buy_price": float(buy_price), "sell_price": float(sell_price), "gross_pnl": round(gross, 2), "total_charges": round(tc, 4), "net_pnl": round(net, 2), "pnl_pct": round(pnl_pct, 4), "buy_leg": buy, "sell_leg": sell}
-
-
-# Phase 9.8f.63: F&O lot sizes for Underlying+Lots UX (NSE/BSE May 2026)
-LOT_SIZES = {
-    "NIFTY": 25,
-    "BANKNIFTY": 35,
-    "FINNIFTY": 40,
-    "MIDCPNIFTY": 75,
-    "SENSEX": 10,
-    "BANKEX": 15,
-    "RELIANCE": 250,
-    "HDFCBANK": 550,
-    "TCS": 175,
-    "INFY": 400,
-    "CUSTOM": 1,
-}
-def resolve_qty(underlying="", lots=0, qty=None):
-"""Resolve effective qty from (underlying, lots) or legacy qty.
-Returns dict: {qty, lot_size, underlying}."""
-u = (underlying or "").upper().strip()
-if u and u in LOT_SIZES and u != "CUSTOM":
-ls = LOT_SIZES[u]
-return {"qty": int(float(lots or 0) * ls), "lot_size": ls, "underlying": u}
-return {"qty": int(float(qty or 0)), "lot_size": 1, "underlying": "CUSTOM"}
