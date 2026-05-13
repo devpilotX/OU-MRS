@@ -270,27 +270,74 @@ async function refreshDrawdown(){
 }
 
 async function refreshPortfolio(){
-  const p=await fetchJSON("/api/portfolio");if(!p)return;
-  const el=$("#portfolio-view");
-  if(!p.ok){el.innerHTML=`<div class="muted">Angel: ${p.error||"--"}</div>`;return;}
-  // Phase 9.8e B7: detect inactive bot / paper mode - rms null or all-zero means no live broker data
-  const rms=p.rms||null;
+  // Phase 9.8f.62: real bot status + mode badges from /api/status
+  const [p, s] = await Promise.all([
+    fetchJSON("/api/portfolio"),
+    fetchJSON("/api/status").catch(()=>null)
+  ]);
+  if(!p) return;
+  const el = $("#portfolio-view");
+  if(!p.ok){ el.innerHTML = `<div class="muted">Angel: ${p.error||"--"}</div>`; return; }
+  const rms = p.rms || null;
   const hasReal = rms && Object.keys(rms).some(k => Number(rms[k]||0) !== 0);
   if(!hasReal){
-    const cap = Number(window.__CAPITAL__||3750000);
+    const st = s || {};
+    const live = !!st.live_mode;
+    const bs = st.bot_state || "unknown";
+    const ts = st.timer_state || "unknown";
+    const hb_age = (st.heartbeat_age_s != null) ? Number(st.heartbeat_age_s) : null;
+    const hb_count = st.heartbeat_count_today || 0;
+    const next_us = st.next_run_usec || 0;
+    const mkt = st.market_status || "unknown";
+    const modeLbl = live ? "LIVE MODE" : "PAPER MODE";
+    const modeStyle = live
+      ? "background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.4)"
+      : "background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.4)";
+    let sessLbl, sessStyle;
+    if(bs !== "active"){
+      sessLbl = "BOT DEAD";
+      sessStyle = "background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.4)";
+    } else if(hb_age != null && hb_age < 120){
+      sessLbl = "BOT ACTIVE";
+      sessStyle = "background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.4)";
+    } else if(ts === "active" || (st.bot_status && /ARM/i.test(st.bot_status))){
+      sessLbl = "BOT ARMED";
+      sessStyle = "background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.4)";
+    } else {
+      sessLbl = "BOT IDLE";
+      sessStyle = "background:rgba(156,163,175,.15);color:#9ca3af;border:1px solid rgba(156,163,175,.4)";
+    }
+    let nextStr = "--";
+    if(next_us > 0){
+      try {
+        const d = new Date(next_us/1000);
+        nextStr = d.toLocaleString("en-IN", {weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", hour12:false, timeZone:"Asia/Kolkata"}) + " IST";
+      } catch(e){}
+    }
+    let hbStr = "--";
+    if(hb_age != null){
+      if(hb_age < 60) hbStr = Math.round(hb_age) + "s ago";
+      else if(hb_age < 3600) hbStr = Math.round(hb_age/60) + "m ago";
+      else hbStr = Math.round(hb_age/3600) + "h ago";
+    }
+    const cap = Number(window.CAPITAL || 3750000);
     const capStr = "Rs " + cap.toLocaleString("en-IN");
+    const badgeBase = "padding:3px 10px;border-radius:3px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px;font-weight:700;letter-spacing:.5px;display:inline-block";
     el.innerHTML = `<div class="pf-paper">
-      <div class="pf-paper-badge">PAPER MODE &middot; BOT INACTIVE</div>
+      <div class="pf-paper-badges" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><span style="${badgeBase};${modeStyle}">${modeLbl}</span><span style="${badgeBase};${sessStyle}">${sessLbl}</span></div>
       <div class="pf-paper-row"><span class="mk">Simulated capital</span><span class="pf-val">${capStr}</span></div>
-      <div class="pf-paper-row"><span class="mk">Broker positions</span><span class="pf-muted">none (paper)</span></div>
-      <div class="pf-paper-row"><span class="mk">Next wakeup</span><span class="pf-val">Wed 13 May &middot; 09:14 IST</span></div>
-      <div class="pf-paper-hint">Live broker data will populate when bot session is active.</div>
+      <div class="pf-paper-row"><span class="mk">Broker positions</span><span class="pf-muted">${live ? "--" : "none (paper)"}</span></div>
+      <div class="pf-paper-row"><span class="mk">Next wakeup</span><span class="pf-val">${nextStr}</span></div>
+      <div class="pf-paper-row"><span class="mk">Last heartbeat</span><span class="pf-val">${hbStr}</span></div>
+      <div class="pf-paper-row"><span class="mk">Heartbeats today</span><span class="pf-val">${hb_count}</span></div>
+      <div class="pf-paper-row"><span class="mk">Market</span><span class="pf-val">${mkt}</span></div>
+      <div class="pf-paper-hint">${live ? "Broker balance refreshes as the bot pushes live state." : "Live broker data will populate when LIVE=true and the bot is logged in."}</div>
     </div>`;
   } else {
-    const f=k=>fmtMoney(Number(rms[k]||0));
-    el.innerHTML=`<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
+    const f = k => fmtMoney(Number(rms[k]||0));
+    el.innerHTML = `<div class="metrics-grid"><div><span class="mk">Available</span><span>${f("availablecash")}</span></div><div><span class="mk">Net balance</span><span>${f("net")}</span></div><div><span class="mk">Margin used</span><span>${f("utiliseddebits")}</span></div><div><span class="mk">Collateral</span><span>${f("collateral")}</span></div></div>`;
   }
-  $("#portfolio-ts").textContent=new Date().toLocaleTimeString();
+  $("#portfolio-ts").textContent = new Date().toLocaleTimeString();
 }
 
 async function refreshFast(){await Promise.all([refreshStatus(),refreshHealth(),refreshMarket(),refreshTrades(),refreshLog()]);$("#last-update").textContent=new Date().toLocaleTimeString();}

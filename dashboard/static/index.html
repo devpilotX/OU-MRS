@@ -214,7 +214,7 @@ function p98fCostsPanel(){return{instrument:"fut",qty:35,buyPrice:53780,sellPric
 function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":"";},fmt(n){return Number(n||0).toFixed(2);},chgStr(n){return this.sgn(n)+Number(n||0).toFixed(2);},pctStr(n){return this.sgn(n)+Number(n||0).toFixed(2)+"%";},async refresh(){try{const r=await fetch("/api/scanner/movers?n=5",{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;this.gainers=j.result.gainers;this.losers=j.result.losers;}catch(e){}},start(){this.refresh();setInterval(()=>this.refresh(),3000);}};}
 </script>
 </main>
-<script src="/static/app.js?v=58"></script>
+<script src="/static/app.js?v=59"></script>
     <script src="/static/sse-ticks.js"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>
