@@ -128,3 +128,31 @@ html[data-theme="bloomberg"] .neg { color: var(--bb-red) !important; }
 
 /* Make room at bottom so fkey-bar doesn't cover the heatmap */
 body { padding-bottom: 36px; }
+
+/* Phase 9.8f.56: Bloomberg cost calculator + movers scanner panels */
+.bloom-panel{margin:1rem 0;padding:1rem;background:#18181b;border:1px solid rgba(245,158,11,0.4);border-radius:4px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:#fde68a}
+.bloom-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(245,158,11,0.3);padding-bottom:0.5rem;margin-bottom:0.75rem}
+.bloom-header-title{color:#fbbf24;font-weight:700;letter-spacing:0.05em;text-transform:uppercase}
+.bloom-header-sub{color:#a1a1aa;font-size:11px}
+.bloom-grid-5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0.75rem;margin-bottom:0.75rem}
+.bloom-grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.bloom-field{display:flex;flex-direction:column}
+.bloom-field-label{color:#a1a1aa;text-transform:uppercase;margin-bottom:0.25rem;font-size:10px;letter-spacing:0.05em}
+.bloom-field input,.bloom-field select{background:#27272a;border:1px solid #3f3f46;padding:0.35rem 0.5rem;color:#fef3c7;font-family:inherit;font-size:12px}
+.bloom-field input:focus,.bloom-field select:focus{outline:none;border-color:#f59e0b}
+.bloom-btn{background:#f59e0b;color:#18181b;font-weight:700;padding:0.35rem 0.75rem;border:none;cursor:pointer;margin-top:1.25rem;letter-spacing:0.05em}
+.bloom-btn:hover{background:#fbbf24}
+.bloom-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid rgba(245,158,11,0.2);margin-bottom:0.5rem}
+.bloom-hero-cell{display:flex;flex-direction:column}
+.bloom-hero-cell .label{color:#a1a1aa;font-size:10px;text-transform:uppercase;letter-spacing:0.05em}
+.bloom-hero-cell .value{font-size:18px;font-weight:700;font-family:inherit;margin-top:0.25rem}
+.bloom-table{width:100%;border-collapse:collapse;margin-top:0.5rem}
+.bloom-table th{text-align:left;color:#a1a1aa;font-weight:500;padding:0.35rem 0.5rem;border-bottom:1px solid rgba(245,158,11,0.3);text-transform:uppercase;font-size:10px;letter-spacing:0.05em}
+.bloom-table td{padding:0.35rem 0.5rem;border-bottom:1px solid #27272a;font-variant-numeric:tabular-nums}
+.bloom-table td.num{text-align:right}
+.bloom-table tbody tr:hover{background:rgba(245,158,11,0.05)}
+.bloom-pos{color:#34d399}
+.bloom-neg{color:#fb7185}
+.bloom-sub-title{font-weight:700;margin-bottom:0.5rem;letter-spacing:0.05em;font-size:11px}
+.bloom-sub-title.gainers{color:#34d399}
+.bloom-sub-title.losers{color:#fb7185}

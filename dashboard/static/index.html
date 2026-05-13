@@ -6,11 +6,12 @@
 <title>OU-MRS · Pro Dashboard</title>
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=1"/>
+  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=2"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -188,94 +189,55 @@
         <div class="kbd-foot muted">Shortcuts ignored when typing in inputs · Press <kbd>?</kbd> any time</div>
       </div>
     </div>
-  </body>
-</html>
-
-<!-- Phase 9.8f.53b: Bloomberg cost calculator panel -->
-<section id="p98f-costs-panel" class="mt-4 p-4 bg-zinc-900 border border-amber-500/40 rounded font-mono text-xs text-amber-200" x-data="p98fCostsPanel()" x-init="recompute()">
-<div class="flex items-center justify-between border-b border-amber-500/30 pb-1 mb-3"><span class="text-amber-400 font-bold tracking-wider">BLOOMBERG COST CALCULATOR</span><span class="text-zinc-500">Angel One F&amp;O charges</span></div>
-<div class="grid grid-cols-5 gap-3 mb-3">
-<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Instrument</span><select x-model="instrument" @change="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"><option value="fut">FUTURE</option><option value="opt">OPTION</option></select></label>
-<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Qty</span><input type="number" x-model.number="qty" @input.debounce.300ms="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"></label>
-<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Buy Price</span><input type="number" step="0.05" x-model.number="buyPrice" @input.debounce.300ms="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"></label>
-<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Sell Price</span><input type="number" step="0.05" x-model.number="sellPrice" @input.debounce.300ms="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"></label>
-<button @click="recompute()" class="bg-amber-500 text-zinc-900 font-bold px-3 py-1 hover:bg-amber-400 mt-5">RECOMPUTE</button>
+  
+<!-- Phase 9.8f.56: Bloomberg cost calculator -->
+<section id="p98f-costs-panel" class="bloom-panel" x-data="p98fCostsPanel()" x-init="recompute()">
+<div class="bloom-header"><span class="bloom-header-title">Bloomberg Cost Calculator</span><span class="bloom-header-sub">Angel One F&amp;O charges &middot; Live</span></div>
+<div class="bloom-grid-5">
+<label class="bloom-field"><span class="bloom-field-label">Instrument</span><select x-model="instrument" @change="recompute()"><option value="fut">FUTURE</option><option value="opt">OPTION</option></select></label>
+<label class="bloom-field"><span class="bloom-field-label">Qty</span><input type="number" x-model.number="qty" @input.debounce.300ms="recompute()"></label>
+<label class="bloom-field"><span class="bloom-field-label">Buy Price</span><input type="number" step="0.05" x-model.number="buyPrice" @input.debounce.300ms="recompute()"></label>
+<label class="bloom-field"><span class="bloom-field-label">Sell Price</span><input type="number" step="0.05" x-model.number="sellPrice" @input.debounce.300ms="recompute()"></label>
+<button class="bloom-btn" @click="recompute()">RECOMPUTE</button>
 </div>
-<div class="grid grid-cols-4 gap-3 mb-3 border-y border-zinc-800 py-3">
-<div><div class="text-zinc-500 uppercase">Gross P&amp;L</div><div class="text-xl" :class="pnlCls(r.gross_pnl)" x-text="inr(r.gross_pnl)"></div></div>
-<div><div class="text-zinc-500 uppercase">Total Charges</div><div class="text-xl text-amber-300" x-text="inr(r.total_charges)"></div></div>
-<div><div class="text-zinc-500 uppercase">Net P&amp;L</div><div class="text-xl" :class="pnlCls(r.net_pnl)" x-text="inr(r.net_pnl)"></div></div>
-<div><div class="text-zinc-500 uppercase">P&amp;L pct</div><div class="text-xl" :class="pnlCls(r.pnl_pct)" x-text="pct(r.pnl_pct)"></div></div>
+<div class="bloom-hero">
+<div class="bloom-hero-cell"><span class="label">Gross P&amp;L</span><span class="value" :class="pnlCls(grossPnl)" x-text="inr(grossPnl)"></span></div>
+<div class="bloom-hero-cell"><span class="label">Total Charges</span><span class="value bloom-neg" x-text="inr(totalCharges)"></span></div>
+<div class="bloom-hero-cell"><span class="label">Net P&amp;L</span><span class="value" :class="pnlCls(netPnl)" x-text="inr(netPnl)"></span></div>
+<div class="bloom-hero-cell"><span class="label">P&amp;L %</span><span class="value" :class="pnlCls(netPnl)" x-text="pct(pnlPct)"></span></div>
 </div>
-<table class="w-full text-xs">
-<thead><tr class="text-zinc-500 uppercase border-b border-zinc-800"><th class="text-left py-1">Component</th><th class="text-right">Buy Leg</th><th class="text-right">Sell Leg</th><th class="text-right">Total</th></tr></thead>
-<tbody class="text-amber-100">
-<tr><td>Turnover</td><td class="text-right" x-text="inr(buy().turnover)"></td><td class="text-right" x-text="inr(sell().turnover)"></td><td class="text-right text-amber-300" x-text="inr(buy().turnover + sell().turnover)"></td></tr>
-<tr><td>Brokerage</td><td class="text-right" x-text="fmt2(buy().brokerage)"></td><td class="text-right" x-text="fmt2(sell().brokerage)"></td><td class="text-right text-amber-300" x-text="fmt2(buy().brokerage + sell().brokerage)"></td></tr>
-<tr><td>STT</td><td class="text-right" x-text="fmt2(buy().stt)"></td><td class="text-right" x-text="fmt2(sell().stt)"></td><td class="text-right text-amber-300" x-text="fmt2(buy().stt + sell().stt)"></td></tr>
-<tr><td>Exchange</td><td class="text-right" x-text="fmt4(buy().exchange)"></td><td class="text-right" x-text="fmt4(sell().exchange)"></td><td class="text-right text-amber-300" x-text="fmt4(buy().exchange + sell().exchange)"></td></tr>
-<tr><td>SEBI</td><td class="text-right" x-text="fmt4(buy().sebi)"></td><td class="text-right" x-text="fmt4(sell().sebi)"></td><td class="text-right text-amber-300" x-text="fmt4(buy().sebi + sell().sebi)"></td></tr>
-<tr><td>Stamp</td><td class="text-right" x-text="fmt4(buy().stamp_duty)"></td><td class="text-right" x-text="fmt4(sell().stamp_duty)"></td><td class="text-right text-amber-300" x-text="fmt4(buy().stamp_duty + sell().stamp_duty)"></td></tr>
-<tr><td>GST</td><td class="text-right" x-text="fmt2(buy().gst)"></td><td class="text-right" x-text="fmt2(sell().gst)"></td><td class="text-right text-amber-300" x-text="fmt2(buy().gst + sell().gst)"></td></tr>
-<tr class="border-t border-amber-500/30 font-bold"><td>Total Charges</td><td class="text-right" x-text="fmt2(buy().total_charges)"></td><td class="text-right" x-text="fmt2(sell().total_charges)"></td><td class="text-right text-amber-300" x-text="fmt2(r.total_charges)"></td></tr>
-<tr class="text-zinc-400"><td>Breakeven Points/Unit</td><td class="text-right" x-text="fmt4(buy().breakeven_points_per_unit)"></td><td class="text-right" x-text="fmt4(sell().breakeven_points_per_unit)"></td><td></td></tr>
+<table class="bloom-table"><thead><tr><th>Component</th><th class="num">Buy Leg</th><th class="num">Sell Leg</th><th class="num">Total</th></tr></thead><tbody>
+<tr><td>Turnover</td><td class="num" x-text="inr(buy().turnover)"></td><td class="num" x-text="inr(sell().turnover)"></td><td class="num" x-text="inr(buy().turnover+sell().turnover)"></td></tr>
+<tr><td>Brokerage</td><td class="num" x-text="inr(buy().brokerage)"></td><td class="num" x-text="inr(sell().brokerage)"></td><td class="num" x-text="inr(buy().brokerage+sell().brokerage)"></td></tr>
+<tr><td>STT</td><td class="num" x-text="inr(buy().stt)"></td><td class="num" x-text="inr(sell().stt)"></td><td class="num" x-text="inr(buy().stt+sell().stt)"></td></tr>
+<tr><td>Exchange</td><td class="num" x-text="inr(buy().exchange)"></td><td class="num" x-text="inr(sell().exchange)"></td><td class="num" x-text="inr(buy().exchange+sell().exchange)"></td></tr>
+<tr><td>SEBI</td><td class="num" x-text="inr(buy().sebi)"></td><td class="num" x-text="inr(sell().sebi)"></td><td class="num" x-text="inr(buy().sebi+sell().sebi)"></td></tr>
+<tr><td>Stamp</td><td class="num" x-text="inr(buy().stamp)"></td><td class="num" x-text="inr(sell().stamp)"></td><td class="num" x-text="inr(buy().stamp+sell().stamp)"></td></tr>
+<tr><td>GST</td><td class="num" x-text="inr(buy().gst)"></td><td class="num" x-text="inr(sell().gst)"></td><td class="num" x-text="inr(buy().gst+sell().gst)"></td></tr>
+<tr><td>Total Charges</td><td class="num" x-text="inr(buy().total)"></td><td class="num" x-text="inr(sell().total)"></td><td class="num bloom-neg" x-text="inr(totalCharges)"></td></tr>
+<tr><td>Breakeven Points/Unit</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num" x-text="fmt4(breakevenPts)"></td></tr>
 </tbody></table>
-<div class="mt-2 text-zinc-500" x-text="status"></div>
 </section>
-<script>
-function p98fCostsPanel() {
-	return {
-		instrument: "fut", qty: 35, buyPrice: 53780, sellPrice: 53830, r: {}, status: "",
-		buy() { return this.r.buy_leg || {}; },
-		sell() { return this.r.sell_leg || {}; },
-		fmt2(n) { return (Number(n)||0).toFixed(2); },
-		fmt4(n) { return (Number(n)||0).toFixed(4); },
-		inr(n) { return "Rs " + Math.round(Number(n)||0).toLocaleString(); },
-		pct(n) { return (Number(n)||0).toFixed(2) + "%"; },
-		pnlCls(n) { return (Number(n)||0) >= 0 ? "text-emerald-400" : "text-rose-400"; },
-		async recompute() {
-			this.status = "computing...";
-			const u = "/api/calc/roundtrip?instrument=" + this.instrument + "&qty=" + this.qty + "&buy_price=" + this.buyPrice + "&sell_price=" + this.sellPrice;
-			try {
-				const resp = await fetch(u, { credentials: "same-origin" });
-				const data = await resp.json();
-				if (data.ok) { this.r = data.result; this.status = "updated " + new Date().toLocaleTimeString(); }
-				else { this.status = "error: " + (data.error || "unknown"); }
-			} catch (e) { this.status = "fetch error: " + e.message; }
-		}
-	};
-}
-</script>
 
-<!-- Phase 9.8f.54: Top movers scanner panel -->
-<section id="p98f-movers-panel" class="mt-4 p-4 bg-zinc-900 border border-amber-500/40 rounded font-mono text-xs text-amber-200" x-data="p98fMoversPanel()" x-init="start()">
-<div class="flex items-center justify-between border-b border-amber-500/30 pb-1 mb-3"><span class="text-amber-400 font-bold tracking-wider">TOP MOVERS &middot; LIVE SCANNER</span><span class="text-zinc-500" x-text="status"></span></div>
-<div class="grid grid-cols-2 gap-4">
-<div><div class="text-emerald-400 font-bold border-b border-emerald-700/40 mb-1">TOP GAINERS</div>
-<table class="w-full text-xs"><thead><tr class="text-zinc-500 uppercase"><th class="text-left">Sym</th><th class="text-right">LTP</th><th class="text-right">Chg</th><th class="text-right">Pct</th></tr></thead>
-<tbody><template x-for="row in gainers" :key="row.symbol"><tr class="border-b border-zinc-800"><td class="text-emerald-300" x-text="row.symbol"></td><td class="text-right" x-text="fmt(row.ltp)"></td><td class="text-right text-emerald-400" x-text="chgStr(row.change)"></td><td class="text-right text-emerald-400" x-text="pctStr(row.pct)"></td></tr></template></tbody></table></div>
-<div><div class="text-rose-400 font-bold border-b border-rose-700/40 mb-1">TOP LOSERS</div>
-<table class="w-full text-xs"><thead><tr class="text-zinc-500 uppercase"><th class="text-left">Sym</th><th class="text-right">LTP</th><th class="text-right">Chg</th><th class="text-right">Pct</th></tr></thead>
-<tbody><template x-for="row in losers" :key="row.symbol"><tr class="border-b border-zinc-800"><td class="text-rose-300" x-text="row.symbol"></td><td class="text-right" x-text="fmt(row.ltp)"></td><td class="text-right text-rose-400" x-text="chgStr(row.change)"></td><td class="text-right text-rose-400" x-text="pctStr(row.pct)"></td></tr></template></tbody></table></div>
+<!-- Phase 9.8f.56: Top movers scanner panel -->
+<section id="p98f-movers-panel" class="bloom-panel" x-data="p98fMoversPanel()" x-init="start()">
+<div class="bloom-header"><span class="bloom-header-title">Top Movers &middot; Live Scanner</span><span class="bloom-header-sub">Auto-refresh 3s &middot; Synthetic until Round 3</span></div>
+<div class="bloom-grid-2">
+<div><div class="bloom-sub-title gainers">TOP GAINERS</div>
+<table class="bloom-table"><thead><tr><th>Sym</th><th class="num">LTP</th><th class="num">Chg</th><th class="num">Pct</th></tr></thead><tbody>
+<template x-for="row in gainers" :key="row.symbol"><tr><td x-text="row.symbol"></td><td class="num" x-text="fmt(row.ltp)"></td><td class="num bloom-pos" x-text="chgStr(row.change)"></td><td class="num bloom-pos" x-text="pctStr(row.pct)"></td></tr></template>
+</tbody></table></div>
+<div><div class="bloom-sub-title losers">TOP LOSERS</div>
+<table class="bloom-table"><thead><tr><th>Sym</th><th class="num">LTP</th><th class="num">Chg</th><th class="num">Pct</th></tr></thead><tbody>
+<template x-for="row in losers" :key="row.symbol"><tr><td x-text="row.symbol"></td><td class="num" x-text="fmt(row.ltp)"></td><td class="num bloom-neg" x-text="chgStr(row.change)"></td><td class="num bloom-neg" x-text="pctStr(row.pct)"></td></tr></template>
+</tbody></table></div>
 </div>
 </section>
+
+<!-- Phase 9.8f.56: Alpine components for Bloomberg panels -->
 <script>
-function p98fMoversPanel() {
-	return {
-		gainers: [], losers: [], status: "",
-		sgn(n) { return (Number(n)||0) >= 0 ? "+" : ""; },
-		fmt(n) { return (Number(n)||0).toFixed(2); },
-		chgStr(n) { return this.sgn(n) + this.fmt(n); },
-		pctStr(n) { return this.sgn(n) + this.fmt(n) + "%"; },
-		async refresh() {
-			try {
-				const r = await fetch("/api/scanner/movers?n=5", { credentials: "same-origin" });
-				const d = await r.json();
-				if (d.ok) { this.gainers = d.result.gainers; this.losers = d.result.losers; this.status = "updated " + new Date().toLocaleTimeString(); }
-				else { this.status = "error: " + (d.error||""); }
-			} catch (e) { this.status = "fetch err: " + e.message; }
-		},
-		start() { this.refresh(); setInterval(() => this.refresh(), 3000); }
-	};
-}
+function p98fCostsPanel(){return{instrument:"fut",qty:35,buyPrice:53780,sellPrice:53830,buyResult:null,sellResult:null,grossPnl:0,totalCharges:0,netPnl:0,pnlPct:0,breakevenPts:0,buy(){return this.buyResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp:0,gst:0,total:0};},sell(){return this.sellResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp:0,gst:0,total:0};},fmt2(n){return Number(n||0).toFixed(2);},fmt4(n){return Number(n||0).toFixed(4);},inr(n){return "Rs "+Number(n||0).toFixed(2);},pct(n){return Number(n||0).toFixed(3)+"%";},pnlCls(n){return n>=0?"bloom-pos":"bloom-neg";},async recompute(){try{const u="/api/calc/roundtrip?instrument="+this.instrument+"&qty="+this.qty+"&buy_price="+this.buyPrice+"&sell_price="+this.sellPrice;const r=await fetch(u,{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;const x=j.result;this.buyResult=x.buy;this.sellResult=x.sell;this.grossPnl=x.gross_pnl;this.totalCharges=x.total_charges;this.netPnl=x.net_pnl;this.pnlPct=x.pnl_pct;this.breakevenPts=x.breakeven_points_per_unit;}catch(e){}}};}
+function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":"";},fmt(n){return Number(n||0).toFixed(2);},chgStr(n){return this.sgn(n)+Number(n||0).toFixed(2);},pctStr(n){return this.sgn(n)+Number(n||0).toFixed(2)+"%";},async refresh(){try{const r=await fetch("/api/scanner/movers?n=5",{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;this.gainers=j.result.gainers;this.losers=j.result.losers;}catch(e){}},start(){this.refresh();setInterval(()=>this.refresh(),3000);}};}
 </script>
+</body>
+</html>
