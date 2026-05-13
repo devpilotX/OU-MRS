@@ -165,3 +165,32 @@ body { padding-bottom: 36px; }
 .bloom-nav-btn { padding:6px 14px; border:1px solid #333; background:transparent; color:#bbb; font-family:'JetBrains Mono',monospace; font-size:0.85em; cursor:pointer; letter-spacing:0.5px; transition:all 0.15s; }
 .bloom-nav-btn:hover { color:#fff; border-color:#ff6600; }
 .bloom-nav-btn-active { padding:6px 14px; border:1px solid #ff6600; background:#ff6600; color:#000 !important; font-family:'JetBrains Mono',monospace; font-size:0.85em; font-weight:bold; cursor:pointer; letter-spacing:0.5px; }
+
+
+/* Phase 9.8g.70: Per-tab header + density polish */
+.bloom-tab-header {
+	background: #050505;
+	border-bottom: 2px solid #ff6600;
+	padding: 6px 14px;
+	font-size: 11px;
+	letter-spacing: 0.12em;
+	color: #ff6600;
+	font-family: 'JetBrains Mono', 'Inter', monospace;
+	font-weight: 600;
+	text-transform: uppercase;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	position: sticky;
+	top: 0;
+	z-index: 50;
+}
+.bloom-tab-header .tab-meta { color: #888; font-size: 10px; letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
+.bloom-tab-name::before { content: '> '; color: #ff6600; }
+
+/* Density polish */
+.bloom-panel { margin: 8px 12px; }
+.bloom-panel:first-of-type { margin-top: 12px; }
+
+/* Log panel internal scroll only */
+#panel-log .log-list, #panel-log .log-content, #panel-log .log-output, #panel-log pre { max-height: 60vh; overflow-y: auto; }

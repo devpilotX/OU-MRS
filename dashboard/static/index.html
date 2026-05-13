@@ -6,7 +6,7 @@
 <title>OU-MRS · Pro Dashboard</title>
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=8"/>
+  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -31,6 +31,9 @@
   </div>
 </header>
 <main x-data="p98gShell()" x-init="initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:0;z-index:100;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="1 LIVE">1 LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="2 TOOLS">2 TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="3 MARKETS">3 MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="4 PORTFOLIO">4 PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="5 STRATEGY">5 STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="6 HISTORY">6 HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="7 SYSTEM">7 SYSTEM</button></nav>
+<!-- Phase 9.8g.70: per-tab header strip -->
+<div class="bloom-tab-header"><span class="bloom-tab-name" x-text="(activeTab||'live').toUpperCase()"></span><span class="tab-meta">PHASE 9.8g &middot; OU-MRS &middot; PAPER</span></div>
+
   <section class="market-hero" id="market-hero" hidden x-show="activeTab==='live'">
     <div class="mh-left"><div class="mh-pulse"></div><div class="mh-icon">🌙</div></div>
     <div class="mh-content">
