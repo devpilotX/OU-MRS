@@ -197,6 +197,28 @@
 </section>
 
 <!-- Phase 9.8f.56: Top movers scanner panel -->
+<section id="p98f-margin-panel" class="bloom-panel" x-data="p98fMarginPanel()" x-init="recompute()">
+<header class="bloom-panel-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 class="bloom-mono" style="margin:0">MARGIN CALCULATOR</h3><span class="bloom-pill" style="background:rgba(255,170,0,0.2);color:#ffaa00;padding:3px 8px;border-radius:3px;font-size:0.75em">SPAN + EXPOSURE</span></header>
+<div class="bloom-grid-5" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+<div style="flex:1;min-width:130px"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Underlying</label><select x-model="underlying" @change="onUnderlyingChange()" class="bloom-input"><option value="NIFTY">NIFTY (25)</option><option value="BANKNIFTY">BANKNIFTY (35)</option><option value="FINNIFTY">FINNIFTY (40)</option><option value="MIDCPNIFTY">MIDCPNIFTY (75)</option><option value="SENSEX">SENSEX (10)</option><option value="BANKEX">BANKEX (15)</option><option value="RELIANCE">RELIANCE (250)</option><option value="HDFCBANK">HDFCBANK (550)</option><option value="TCS">TCS (175)</option><option value="INFY">INFY (400)</option><option value="CUSTOM">CUSTOM</option></select></div>
+<div style="flex:1;min-width:80px" x-show="underlying !== 'CUSTOM'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Lots</label><input type="number" min="1" step="1" x-model.number="lots" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:80px" x-show="underlying === 'CUSTOM'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Qty</label><input type="number" min="1" step="1" x-model.number="qty" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:130px"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Instrument</label><select x-model="instrument" @change="recompute()" class="bloom-input"><option value="fut">Futures</option><option value="opt_buy">Option BUY</option><option value="opt_sell">Option SELL</option></select></div>
+<div style="flex:1;min-width:100px" x-show="instrument === 'fut'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Price</label><input type="number" min="0" step="0.05" x-model.number="price" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:100px" x-show="instrument !== 'fut'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Premium</label><input type="number" min="0" step="0.05" x-model.number="premium" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:100px" x-show="instrument !== 'fut'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Spot</label><input type="number" min="0" step="0.05" x-model.number="price" @input="recompute()" class="bloom-input" title="underlying spot for SPAN"/></div>
+</div>
+<div style="margin-top:10px;font-size:0.75em;color:#666" x-text="'Resolved qty: ' + resolvedQty + ' (' + lots + ' lot' + (lots>1?'s':'') + ' x ' + lotSize + ')'"></div>
+<div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Notional</div><div class="bloom-mono" style="font-size:1.1em;color:#fff" x-text="inr(notional)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">SPAN <span x-text="'('+(spanPct*100).toFixed(1)+'%)'"></span></div><div class="bloom-mono" style="font-size:1.1em;color:#3ea0ff" x-text="inr(spanMargin)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Exposure <span x-text="'('+(exposurePct*100).toFixed(1)+'%)'"></span></div><div class="bloom-mono" style="font-size:1.1em;color:#3ea0ff" x-text="inr(exposureMargin)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Premium</div><div class="bloom-mono" style="font-size:1.1em;color:#bbb" x-text="inr(premiumPaid)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Leverage</div><div class="bloom-mono" style="font-size:1.1em;color:#bbb" x-text="leverage.toFixed(2)+'x'"></div></div>
+<div style="padding:8px;background:rgba(255,170,0,0.1);border-left:3px solid #ffaa00;border-radius:3px"><div style="font-size:0.7em;color:#ffaa00;text-transform:uppercase;font-weight:bold">Initial Margin</div><div class="bloom-mono" style="font-size:1.3em;color:#ffaa00;font-weight:bold" x-text="inr(initialMargin)"></div></div>
+</div>
+</section>
+
 <section id="p98f-movers-panel" class="bloom-panel" x-data="p98fMoversPanel()" x-init="start()">
 <div class="bloom-header"><span class="bloom-header-title">Top Movers &middot; Live Scanner</span><span class="bloom-header-sub">Auto-refresh 3s &middot; Synthetic until Round 3</span></div>
 <div class="bloom-grid-2">
@@ -217,7 +239,7 @@ function p98fCostsPanel(){return{instrument:"fut",underlying:"BANKNIFTY",lots:1,
 function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":"";},fmt(n){return Number(n||0).toFixed(2);},chgStr(n){return this.sgn(n)+Number(n||0).toFixed(2);},pctStr(n){return this.sgn(n)+Number(n||0).toFixed(2)+"%";},async refresh(){try{const r=await fetch("/api/scanner/movers?n=5",{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;this.gainers=j.result.gainers;this.losers=j.result.losers;}catch(e){}},start(){this.refresh();setInterval(()=>this.refresh(),3000);}};}
 </script>
 </main>
-<script src="/static/app.js?v=59"></script>
+<script src="/static/app.js?v=60"></script>
     <script src="/static/sse-ticks.js"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>

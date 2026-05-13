@@ -3166,3 +3166,7 @@ setTimeout(refreshTickChip, 1500);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', waitForTape);
   else waitForTape();
 })();
+
+
+// Phase 9.8f.64b: Margin Calculator Alpine factory
+window.p98fMarginPanel = function p98fMarginPanel(){return{underlying:"BANKNIFTY",lots:1,qty:35,instrument:"fut",side:"buy",price:53780,premium:200,lotSize:35,resolvedQty:35,notional:0,spanPct:0.090,exposurePct:0.035,spanMargin:0,exposureMargin:0,premiumPaid:0,initialMargin:0,leverage:0,LOTS:{NIFTY:25,BANKNIFTY:35,FINNIFTY:40,MIDCPNIFTY:75,SENSEX:10,BANKEX:15,RELIANCE:250,HDFCBANK:550,TCS:175,INFY:400,CUSTOM:1},inr(n){return "Rs "+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});},onUnderlyingChange(){this.lotSize=this.LOTS[this.underlying]||1;this.recompute();},async recompute(){try{const params=new URLSearchParams({underlying:this.underlying,lots:this.lots,instrument:this.instrument,side:this.side,price:this.price,premium:this.premium,qty:this.qty});const r=await fetch("/api/calc/margin?"+params.toString(),{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;const x=j.result;this.notional=x.notional;this.spanPct=x.span_pct;this.exposurePct=x.exposure_pct;this.spanMargin=x.span_margin;this.exposureMargin=x.exposure_margin;this.premiumPaid=x.premium_paid;this.initialMargin=x.initial_margin;this.leverage=x.leverage;this.resolvedQty=x.qty;this.lotSize=x.lot_size;}catch(e){console.error("p98fMarginPanel.recompute",e);}}};};
