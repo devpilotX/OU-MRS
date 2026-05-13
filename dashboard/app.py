@@ -1093,3 +1093,13 @@ def api_ratelimit_stats():
         return {"ok": True, "stats": p98f_rl.all_stats()}
     except Exception as e_rl:
         return {"ok": False, "error": str(e_rl)}
+
+# ===== Phase 9.8f.52: rate limiter monitoring endpoint =====
+import rate_limit as p98f_rl
+
+@app.get("/api/ratelimit/stats", dependencies=[Depends(need_auth)])
+def api_ratelimit_stats():
+    try:
+        return {"ok": True, "stats": p98f_rl.all_stats()}
+    except Exception as e_rl:
+        return {"ok": False, "error": str(e_rl)}
