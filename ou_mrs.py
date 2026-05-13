@@ -33,9 +33,9 @@ _TIER_NAME, _POLICY = _get_policy(CAPITAL)
 
 # --- Phase 8g: multi-instrument config ---
 INSTRUMENT_CFG = {
-    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
-    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"),     "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
-    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"),  "lot_size": 60, "margin_per_lot": 60_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 35, "margin_per_lot": 75_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"), "lot_size": 25, "margin_per_lot": 50_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"), "lot_size": 40, "margin_per_lot": 60_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
 }
 INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
 assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMENT_CFG keys"
