@@ -6,7 +6,7 @@
 <title>OU-MRS · Pro Dashboard</title>
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=3"/>
+  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=4"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -163,33 +163,7 @@
     <pre id="log-view"></pre>
   </section>
   <footer class="footer"><span class="ft-tag">OU-MRS</span><span class="ft-ver">v1.0</span><span class="ft-sep">·</span><span class="ft-lbl">last sync</span><span id="last-update">--</span><span class="ft-sep">·</span><span class="ft-lbl">server</span><span id="server-time">--</span></footer>
-</main>
-<script src="/static/app.js?v=58"></script>
-    <script src="/static/sse-ticks.js"></script>
 
-    <div class="kbd-modal" id="kbd-modal" hidden>
-      <div class="kbd-modal-inner">
-        <div class="kbd-header">
-          <h2>Keyboard shortcuts</h2>
-          <button class="kbd-close" type="button" aria-label="Close">×</button>
-        </div>
-        <table class="kbd-table">
-          <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
-          <tr><td><kbd>r</kbd></td><td>Refresh dashboard now</td></tr>
-          <tr><td><kbd>t</kbd></td><td>Toggle theme (dark/light)</td></tr>
-          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / FNF symbol card</td></tr>
-          <tr><td><kbd>/</kbd></td><td>Focus log search box</td></tr>
-          <tr><td><kbd>g</kbd> then <kbd>e</kbd></td><td>Go to Equity Curve</td></tr>
-          <tr><td><kbd>g</kbd> then <kbd>r</kbd></td><td>Go to Market Regime</td></tr>
-          <tr><td><kbd>g</kbd> then <kbd>p</kbd></td><td>Go to PFM Risk</td></tr>
-          <tr><td><kbd>g</kbd> then <kbd>t</kbd></td><td>Go to Trade History</td></tr>
-          <tr><td><kbd>g</kbd> then <kbd>l</kbd></td><td>Go to Live Bot Log</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>Close modal / unfocus</td></tr>
-        </table>
-        <div class="kbd-foot muted">Shortcuts ignored when typing in inputs · Press <kbd>?</kbd> any time</div>
-      </div>
-    </div>
-  
 <!-- Phase 9.8f.56: Bloomberg cost calculator -->
 <section id="p98f-costs-panel" class="bloom-panel" x-data="p98fCostsPanel()" x-init="recompute()">
 <div class="bloom-header"><span class="bloom-header-title">Bloomberg Cost Calculator</span><span class="bloom-header-sub">Angel One F&amp;O charges &middot; Live</span></div>
@@ -239,5 +213,31 @@
 function p98fCostsPanel(){return{instrument:"fut",qty:35,buyPrice:53780,sellPrice:53830,buyResult:null,sellResult:null,grossPnl:0,totalCharges:0,netPnl:0,pnlPct:0,breakevenPts:0,buy(){return this.buyResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp:0,gst:0,total:0};},sell(){return this.sellResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp:0,gst:0,total:0};},fmt2(n){return Number(n||0).toFixed(2);},fmt4(n){return Number(n||0).toFixed(4);},inr(n){return "Rs "+Number(n||0).toFixed(2);},pct(n){return Number(n||0).toFixed(3)+"%";},pnlCls(n){return n>=0?"bloom-pos":"bloom-neg";},async recompute(){try{const u="/api/calc/roundtrip?instrument="+this.instrument+"&qty="+this.qty+"&buy_price="+this.buyPrice+"&sell_price="+this.sellPrice;const r=await fetch(u,{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;const x=j.result;this.buyResult=x.buy;this.sellResult=x.sell;this.grossPnl=x.gross_pnl;this.totalCharges=x.total_charges;this.netPnl=x.net_pnl;this.pnlPct=x.pnl_pct;this.breakevenPts=x.breakeven_points_per_unit;}catch(e){}}};}
 function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":"";},fmt(n){return Number(n||0).toFixed(2);},chgStr(n){return this.sgn(n)+Number(n||0).toFixed(2);},pctStr(n){return this.sgn(n)+Number(n||0).toFixed(2)+"%";},async refresh(){try{const r=await fetch("/api/scanner/movers?n=5",{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;this.gainers=j.result.gainers;this.losers=j.result.losers;}catch(e){}},start(){this.refresh();setInterval(()=>this.refresh(),3000);}};}
 </script>
-</body>
+</main>
+<script src="/static/app.js?v=58"></script>
+    <script src="/static/sse-ticks.js"></script>
+
+    <div class="kbd-modal" id="kbd-modal" hidden>
+      <div class="kbd-modal-inner">
+        <div class="kbd-header">
+          <h2>Keyboard shortcuts</h2>
+          <button class="kbd-close" type="button" aria-label="Close">×</button>
+        </div>
+        <table class="kbd-table">
+          <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+          <tr><td><kbd>r</kbd></td><td>Refresh dashboard now</td></tr>
+          <tr><td><kbd>t</kbd></td><td>Toggle theme (dark/light)</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / FNF symbol card</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Focus log search box</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>e</kbd></td><td>Go to Equity Curve</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>r</kbd></td><td>Go to Market Regime</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>p</kbd></td><td>Go to PFM Risk</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>t</kbd></td><td>Go to Trade History</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>l</kbd></td><td>Go to Live Bot Log</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close modal / unfocus</td></tr>
+        </table>
+        <div class="kbd-foot muted">Shortcuts ignored when typing in inputs · Press <kbd>?</kbd> any time</div>
+      </div>
+    </div>
+  </body>
 </html>

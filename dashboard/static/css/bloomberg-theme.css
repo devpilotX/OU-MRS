@@ -157,6 +157,3 @@ body { padding-bottom: 36px; }
 .bloom-sub-title.gainers{color:#34d399}
 .bloom-sub-title.losers{color:#fb7185}
 
-/* Phase 9.8f.57: Center Bloomberg panels to match dashboard width */
-#p98f-costs-panel,#p98f-movers-panel{max-width:1600px;margin-left:auto;margin-right:auto;box-sizing:border-box}
-@media (max-width:1700px){#p98f-costs-panel,#p98f-movers-panel{margin-left:1rem;margin-right:1rem;max-width:calc(100% - 2rem)}}
