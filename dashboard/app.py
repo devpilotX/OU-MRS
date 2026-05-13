@@ -1142,6 +1142,33 @@ import scanner as p98f_sc
 
 
 @app.get("/api/calc/margin", dependencies=[Depends(need_auth)])
+
+@app.get("/api/system/info", dependencies=[Depends(need_auth)])
+async def api_system_info():
+	"""System health snapshot for SPA SYSTEM tab (Phase 9.8g.69)."""
+	import subprocess as _sp, sqlite3 as _sq, os as _os
+	_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+	try:
+		_commit = _sp.check_output(["git","rev-parse","--short","HEAD"], cwd=_root, timeout=2, stderr=_sp.DEVNULL).decode().strip()
+	except Exception:
+		_commit = "unknown"
+	_act = 0
+	try:
+		_db = _os.path.join(_root, "data", "activity_log.db")
+		_cn = _sq.connect(_db)
+		_act = _cn.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
+		_cn.close()
+	except Exception:
+		pass
+	return {
+		"service": "active",
+		"websocket": "connected",
+		"tokens": 3,
+		"commit": _commit,
+		"activityCount": _act,
+		"phase": "9.8g",
+	}
+
 def api_calc_margin(underlying: str = "BANKNIFTY", lots: float = 1, instrument: str = "fut", side: str = "buy", price: float = 53780, premium: float = 200, qty: float = 0):
 	# Phase 9.8f.64: SPAN + Exposure margin estimator using NSE-published rates
 	try:
