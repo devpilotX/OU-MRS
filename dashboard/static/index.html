@@ -6,7 +6,7 @@
 <title>OU-MRS · Pro Dashboard</title>
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=5"/>
+  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=6"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -186,7 +186,7 @@
 <tr><td>STT</td><td class="num" x-text="inr(buy().stt)"></td><td class="num" x-text="inr(sell().stt)"></td><td class="num" x-text="inr(buy().stt+sell().stt)"></td></tr>
 <tr><td>Exchange</td><td class="num" x-text="inr(buy().exchange)"></td><td class="num" x-text="inr(sell().exchange)"></td><td class="num" x-text="inr(buy().exchange+sell().exchange)"></td></tr>
 <tr><td>SEBI</td><td class="num" x-text="inr(buy().sebi)"></td><td class="num" x-text="inr(sell().sebi)"></td><td class="num" x-text="inr(buy().sebi+sell().sebi)"></td></tr>
-<tr><td>Stamp</td><td class="num" x-text="inr(buy().stamp_duty)"></td><td class="num" x-text="inr(sell().stamp_duty)"></td><td class="num" x-text="inr(buy().stamp+sell().stamp_duty)"></td></tr>
+<tr><td>Stamp</td><td class="num" x-text="inr(buy().stamp_duty)"></td><td class="num" x-text="inr(sell().stamp_duty)"></td><td class="num" x-text="inr(buy().stamp_duty+sell().stamp_duty)"></td></tr>
 <tr><td>GST</td><td class="num" x-text="inr(buy().gst)"></td><td class="num" x-text="inr(sell().gst)"></td><td class="num" x-text="inr(buy().gst+sell().gst)"></td></tr>
 <tr><td>Total Charges</td><td class="num" x-text="inr(buy().total_charges)"></td><td class="num" x-text="inr(sell().total_charges)"></td><td class="num bloom-neg" x-text="inr(totalCharges)"></td></tr>
 <tr><td>Breakeven Points/Unit</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num" x-text="fmt4(breakevenPts)"></td></tr>
