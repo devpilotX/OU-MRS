@@ -190,3 +190,59 @@
     </div>
   </body>
 </html>
+
+<!-- Phase 9.8f.53b: Bloomberg cost calculator panel -->
+<section id="p98f-costs-panel" class="mt-4 p-4 bg-zinc-900 border border-amber-500/40 rounded font-mono text-xs text-amber-200" x-data="p98fCostsPanel()" x-init="recompute()">
+<div class="flex items-center justify-between border-b border-amber-500/30 pb-1 mb-3"><span class="text-amber-400 font-bold tracking-wider">BLOOMBERG COST CALCULATOR</span><span class="text-zinc-500">Angel One F&amp;O charges</span></div>
+<div class="grid grid-cols-5 gap-3 mb-3">
+<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Instrument</span><select x-model="instrument" @change="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"><option value="fut">FUTURE</option><option value="opt">OPTION</option></select></label>
+<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Qty</span><input type="number" x-model.number="qty" @input.debounce.300ms="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"></label>
+<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Buy Price</span><input type="number" step="0.05" x-model.number="buyPrice" @input.debounce.300ms="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"></label>
+<label class="flex flex-col"><span class="text-zinc-500 uppercase mb-1">Sell Price</span><input type="number" step="0.05" x-model.number="sellPrice" @input.debounce.300ms="recompute()" class="bg-zinc-800 border border-zinc-700 px-2 py-1 text-amber-100"></label>
+<button @click="recompute()" class="bg-amber-500 text-zinc-900 font-bold px-3 py-1 hover:bg-amber-400 mt-5">RECOMPUTE</button>
+</div>
+<div class="grid grid-cols-4 gap-3 mb-3 border-y border-zinc-800 py-3">
+<div><div class="text-zinc-500 uppercase">Gross P&amp;L</div><div class="text-xl" :class="pnlCls(r.gross_pnl)" x-text="inr(r.gross_pnl)"></div></div>
+<div><div class="text-zinc-500 uppercase">Total Charges</div><div class="text-xl text-amber-300" x-text="inr(r.total_charges)"></div></div>
+<div><div class="text-zinc-500 uppercase">Net P&amp;L</div><div class="text-xl" :class="pnlCls(r.net_pnl)" x-text="inr(r.net_pnl)"></div></div>
+<div><div class="text-zinc-500 uppercase">P&amp;L pct</div><div class="text-xl" :class="pnlCls(r.pnl_pct)" x-text="pct(r.pnl_pct)"></div></div>
+</div>
+<table class="w-full text-xs">
+<thead><tr class="text-zinc-500 uppercase border-b border-zinc-800"><th class="text-left py-1">Component</th><th class="text-right">Buy Leg</th><th class="text-right">Sell Leg</th><th class="text-right">Total</th></tr></thead>
+<tbody class="text-amber-100">
+<tr><td>Turnover</td><td class="text-right" x-text="inr(buy().turnover)"></td><td class="text-right" x-text="inr(sell().turnover)"></td><td class="text-right text-amber-300" x-text="inr(buy().turnover + sell().turnover)"></td></tr>
+<tr><td>Brokerage</td><td class="text-right" x-text="fmt2(buy().brokerage)"></td><td class="text-right" x-text="fmt2(sell().brokerage)"></td><td class="text-right text-amber-300" x-text="fmt2(buy().brokerage + sell().brokerage)"></td></tr>
+<tr><td>STT</td><td class="text-right" x-text="fmt2(buy().stt)"></td><td class="text-right" x-text="fmt2(sell().stt)"></td><td class="text-right text-amber-300" x-text="fmt2(buy().stt + sell().stt)"></td></tr>
+<tr><td>Exchange</td><td class="text-right" x-text="fmt4(buy().exchange)"></td><td class="text-right" x-text="fmt4(sell().exchange)"></td><td class="text-right text-amber-300" x-text="fmt4(buy().exchange + sell().exchange)"></td></tr>
+<tr><td>SEBI</td><td class="text-right" x-text="fmt4(buy().sebi)"></td><td class="text-right" x-text="fmt4(sell().sebi)"></td><td class="text-right text-amber-300" x-text="fmt4(buy().sebi + sell().sebi)"></td></tr>
+<tr><td>Stamp</td><td class="text-right" x-text="fmt4(buy().stamp_duty)"></td><td class="text-right" x-text="fmt4(sell().stamp_duty)"></td><td class="text-right text-amber-300" x-text="fmt4(buy().stamp_duty + sell().stamp_duty)"></td></tr>
+<tr><td>GST</td><td class="text-right" x-text="fmt2(buy().gst)"></td><td class="text-right" x-text="fmt2(sell().gst)"></td><td class="text-right text-amber-300" x-text="fmt2(buy().gst + sell().gst)"></td></tr>
+<tr class="border-t border-amber-500/30 font-bold"><td>Total Charges</td><td class="text-right" x-text="fmt2(buy().total_charges)"></td><td class="text-right" x-text="fmt2(sell().total_charges)"></td><td class="text-right text-amber-300" x-text="fmt2(r.total_charges)"></td></tr>
+<tr class="text-zinc-400"><td>Breakeven Points/Unit</td><td class="text-right" x-text="fmt4(buy().breakeven_points_per_unit)"></td><td class="text-right" x-text="fmt4(sell().breakeven_points_per_unit)"></td><td></td></tr>
+</tbody></table>
+<div class="mt-2 text-zinc-500" x-text="status"></div>
+</section>
+<script>
+function p98fCostsPanel() {
+	return {
+		instrument: "fut", qty: 35, buyPrice: 53780, sellPrice: 53830, r: {}, status: "",
+		buy() { return this.r.buy_leg || {}; },
+		sell() { return this.r.sell_leg || {}; },
+		fmt2(n) { return (Number(n)||0).toFixed(2); },
+		fmt4(n) { return (Number(n)||0).toFixed(4); },
+		inr(n) { return "Rs " + Math.round(Number(n)||0).toLocaleString(); },
+		pct(n) { return (Number(n)||0).toFixed(2) + "%"; },
+		pnlCls(n) { return (Number(n)||0) >= 0 ? "text-emerald-400" : "text-rose-400"; },
+		async recompute() {
+			this.status = "computing...";
+			const u = "/api/calc/roundtrip?instrument=" + this.instrument + "&qty=" + this.qty + "&buy_price=" + this.buyPrice + "&sell_price=" + this.sellPrice;
+			try {
+				const resp = await fetch(u, { credentials: "same-origin" });
+				const data = await resp.json();
+				if (data.ok) { this.r = data.result; this.status = "updated " + new Date().toLocaleTimeString(); }
+				else { this.status = "error: " + (data.error || "unknown"); }
+			} catch (e) { this.status = "fetch error: " + e.message; }
+		}
+	};
+}
+</script>
