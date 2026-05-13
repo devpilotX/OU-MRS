@@ -246,3 +246,36 @@ function p98fCostsPanel() {
 	};
 }
 </script>
+
+<!-- Phase 9.8f.54: Top movers scanner panel -->
+<section id="p98f-movers-panel" class="mt-4 p-4 bg-zinc-900 border border-amber-500/40 rounded font-mono text-xs text-amber-200" x-data="p98fMoversPanel()" x-init="start()">
+<div class="flex items-center justify-between border-b border-amber-500/30 pb-1 mb-3"><span class="text-amber-400 font-bold tracking-wider">TOP MOVERS &middot; LIVE SCANNER</span><span class="text-zinc-500" x-text="status"></span></div>
+<div class="grid grid-cols-2 gap-4">
+<div><div class="text-emerald-400 font-bold border-b border-emerald-700/40 mb-1">TOP GAINERS</div>
+<table class="w-full text-xs"><thead><tr class="text-zinc-500 uppercase"><th class="text-left">Sym</th><th class="text-right">LTP</th><th class="text-right">Chg</th><th class="text-right">Pct</th></tr></thead>
+<tbody><template x-for="row in gainers" :key="row.symbol"><tr class="border-b border-zinc-800"><td class="text-emerald-300" x-text="row.symbol"></td><td class="text-right" x-text="fmt(row.ltp)"></td><td class="text-right text-emerald-400" x-text="chgStr(row.change)"></td><td class="text-right text-emerald-400" x-text="pctStr(row.pct)"></td></tr></template></tbody></table></div>
+<div><div class="text-rose-400 font-bold border-b border-rose-700/40 mb-1">TOP LOSERS</div>
+<table class="w-full text-xs"><thead><tr class="text-zinc-500 uppercase"><th class="text-left">Sym</th><th class="text-right">LTP</th><th class="text-right">Chg</th><th class="text-right">Pct</th></tr></thead>
+<tbody><template x-for="row in losers" :key="row.symbol"><tr class="border-b border-zinc-800"><td class="text-rose-300" x-text="row.symbol"></td><td class="text-right" x-text="fmt(row.ltp)"></td><td class="text-right text-rose-400" x-text="chgStr(row.change)"></td><td class="text-right text-rose-400" x-text="pctStr(row.pct)"></td></tr></template></tbody></table></div>
+</div>
+</section>
+<script>
+function p98fMoversPanel() {
+	return {
+		gainers: [], losers: [], status: "",
+		sgn(n) { return (Number(n)||0) >= 0 ? "+" : ""; },
+		fmt(n) { return (Number(n)||0).toFixed(2); },
+		chgStr(n) { return this.sgn(n) + this.fmt(n); },
+		pctStr(n) { return this.sgn(n) + this.fmt(n) + "%"; },
+		async refresh() {
+			try {
+				const r = await fetch("/api/scanner/movers?n=5", { credentials: "same-origin" });
+				const d = await r.json();
+				if (d.ok) { this.gainers = d.result.gainers; this.losers = d.result.losers; this.status = "updated " + new Date().toLocaleTimeString(); }
+				else { this.status = "error: " + (d.error||""); }
+			} catch (e) { this.status = "fetch err: " + e.message; }
+		},
+		start() { this.refresh(); setInterval(() => this.refresh(), 3000); }
+	};
+}
+</script>

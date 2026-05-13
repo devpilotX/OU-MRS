@@ -1121,3 +1121,14 @@ def api_calc_roundtrip(instrument: str = "fut", qty: float = 35, buy_price: floa
 		return {"ok": True, "result": p98f_bc.calc_roundtrip(instrument, qty, buy_price, sell_price)}
 	except Exception as e_bc:
 		return {"ok": False, "error": str(e_bc)}
+
+
+# ===== Phase 9.8f.54: top movers scanner endpoint (Angel feature 11) =====
+import scanner as p98f_sc
+
+@app.get("/api/scanner/movers", dependencies=[Depends(need_auth)])
+def api_scanner_movers(n: int = 5):
+	try:
+		return {"ok": True, "result": p98f_sc.get_movers(n)}
+	except Exception as e_sc:
+		return {"ok": False, "error": str(e_sc)}
