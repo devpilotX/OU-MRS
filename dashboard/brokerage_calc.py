@@ -79,3 +79,67 @@ def resolve_qty(underlying="", lots=0, qty=None):
         ls = LOT_SIZES[u]
         return {"qty": int(float(lots or 0) * ls), "lot_size": ls, "underlying": u}
     return {"qty": int(float(qty or 0)), "lot_size": 1, "underlying": "CUSTOM"}
+
+
+# Phase 9.8f.64: Margin Calculator - NSE-published SPAN + Exposure approximation
+# Sourced from NSE Clearing average margins, May 2026 expiry cycle.
+# Index futures 11-14% notional, stock futures 17-18%, options buy = full premium,
+# options sell = SPAN + Exposure + premium held as collateral.
+MARGIN_RATES = {
+	"NIFTY":      {"span_pct": 0.080, "exposure_pct": 0.035, "type": "index"},
+	"BANKNIFTY":  {"span_pct": 0.090, "exposure_pct": 0.035, "type": "index"},
+	"FINNIFTY":   {"span_pct": 0.090, "exposure_pct": 0.035, "type": "index"},
+	"MIDCPNIFTY": {"span_pct": 0.100, "exposure_pct": 0.040, "type": "index"},
+	"SENSEX":     {"span_pct": 0.080, "exposure_pct": 0.035, "type": "index"},
+	"BANKEX":     {"span_pct": 0.090, "exposure_pct": 0.035, "type": "index"},
+	"RELIANCE":   {"span_pct": 0.130, "exposure_pct": 0.050, "type": "stock"},
+	"HDFCBANK":   {"span_pct": 0.130, "exposure_pct": 0.050, "type": "stock"},
+	"TCS":        {"span_pct": 0.130, "exposure_pct": 0.050, "type": "stock"},
+	"INFY":       {"span_pct": 0.130, "exposure_pct": 0.050, "type": "stock"},
+	"CUSTOM":     {"span_pct": 0.100, "exposure_pct": 0.040, "type": "index"},
+}
+
+def compute_margin(underlying="BANKNIFTY", lots=1, instrument="fut", side="buy", price=53780.0, premium=200.0, lot_size=None):
+	u = (underlying or "BANKNIFTY").upper()
+	rates = MARGIN_RATES.get(u, MARGIN_RATES["CUSTOM"])
+	ls = lot_size if lot_size else LOT_SIZES.get(u, 1)
+	qty = float(lots) * ls
+	notional = qty * float(price)
+	if instrument == "fut":
+		span = notional * rates["span_pct"]
+		exposure = notional * rates["exposure_pct"]
+		premium_paid = 0.0
+		total = span + exposure
+	elif instrument in ("opt_buy", "ce_buy", "pe_buy"):
+		span = 0.0
+		exposure = 0.0
+		premium_paid = float(premium) * qty
+		total = premium_paid
+	elif instrument in ("opt_sell", "ce_sell", "pe_sell"):
+		span = notional * rates["span_pct"] * 1.2
+		exposure = notional * rates["exposure_pct"]
+		premium_paid = float(premium) * qty
+		total = span + exposure + premium_paid
+	else:
+		span = notional * rates["span_pct"]
+		exposure = notional * rates["exposure_pct"]
+		premium_paid = 0.0
+		total = span + exposure
+	return {
+		"underlying": u,
+		"lots": float(lots),
+		"lot_size": ls,
+		"qty": int(qty),
+		"instrument": instrument,
+		"side": side,
+		"price": float(price),
+		"premium": float(premium),
+		"notional": round(notional, 2),
+		"span_pct": rates["span_pct"],
+		"exposure_pct": rates["exposure_pct"],
+		"span_margin": round(span, 2),
+		"exposure_margin": round(exposure, 2),
+		"premium_paid": round(premium_paid, 2),
+		"initial_margin": round(total, 2),
+		"leverage": round((notional / total), 2) if total > 0 else 0,
+	}

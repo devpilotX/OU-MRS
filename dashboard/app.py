@@ -1140,6 +1140,23 @@ def api_calc_roundtrip(instrument: str = "fut", qty: float = 35, buy_price: floa
 # ===== Phase 9.8f.54: top movers scanner endpoint (Angel feature 11) =====
 import scanner as p98f_sc
 
+
+@app.get("/api/calc/margin", dependencies=[Depends(need_auth)])
+def api_calc_margin(underlying: str = "BANKNIFTY", lots: float = 1, instrument: str = "fut", side: str = "buy", price: float = 53780, premium: float = 200, qty: float = 0):
+	# Phase 9.8f.64: SPAN + Exposure margin estimator using NSE-published rates
+	try:
+		from brokerage_calc import compute_margin, LOT_SIZES
+		u = (underlying or "").upper()
+		if u == "CUSTOM" and qty and qty > 0:
+			ls = 1
+			eff_lots = float(qty)
+		else:
+			ls = LOT_SIZES.get(u, 1)
+			eff_lots = float(lots)
+		result = compute_margin(underlying=u, lots=eff_lots, instrument=instrument, side=side, price=float(price), premium=float(premium), lot_size=ls)
+		return {"ok": True, "result": result}
+	except Exception as e:
+		return {"ok": False, "error": str(e)}
 @app.get("/api/scanner/movers", dependencies=[Depends(need_auth)])
 def api_scanner_movers(n: int = 5):
 	try:
