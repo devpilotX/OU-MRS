@@ -238,8 +238,48 @@
 function p98fCostsPanel(){return{instrument:"fut",underlying:"BANKNIFTY",lots:1,qty:35,lotSize:35,resolvedQty:35,buyPrice:53780,sellPrice:53830,buyResult:null,sellResult:null,grossPnl:0,totalCharges:0,netPnl:0,pnlPct:0,breakevenPts:0,LOTS:{NIFTY:25,BANKNIFTY:35,FINNIFTY:40,MIDCPNIFTY:75,SENSEX:10,BANKEX:15,RELIANCE:250,HDFCBANK:550,TCS:175,INFY:400,CUSTOM:1},buy(){return this.buyResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp_duty:0,gst:0,total_charges:0};},sell(){return this.sellResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp_duty:0,gst:0,total_charges:0};},fmt2(n){return Number(n||0).toFixed(2);},fmt4(n){return Number(n||0).toFixed(4);},inr(n){return "Rs "+Number(n||0).toFixed(2);},pct(n){return Number(n||0).toFixed(3)+"%";},pnlCls(n){return n>=0?"bloom-pos":"bloom-neg";},onUnderlyingChange(){this.lotSize=this.LOTS[this.underlying]||1;this.recompute();},async recompute(){try{let u;if(this.underlying==="CUSTOM"){u="/api/calc/roundtrip?instrument="+this.instrument+"&qty="+this.qty+"&buy_price="+this.buyPrice+"&sell_price="+this.sellPrice;}else{u="/api/calc/roundtrip?instrument="+this.instrument+"&underlying="+this.underlying+"&lots="+this.lots+"&buy_price="+this.buyPrice+"&sell_price="+this.sellPrice;}const r=await fetch(u,{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;const x=j.result;this.buyResult=x.buy_leg;this.sellResult=x.sell_leg;this.grossPnl=x.gross_pnl;this.totalCharges=x.total_charges;this.netPnl=x.net_pnl;this.pnlPct=x.pnl_pct;this.breakevenPts=(x.qty>0?x.total_charges/x.qty:0);this.resolvedQty=x.qty;if(x.lot_size)this.lotSize=x.lot_size;}catch(e){}}};}
 function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":"";},fmt(n){return Number(n||0).toFixed(2);},chgStr(n){return this.sgn(n)+Number(n||0).toFixed(2);},pctStr(n){return this.sgn(n)+Number(n||0).toFixed(2)+"%";},async refresh(){try{const r=await fetch("/api/scanner/movers?n=5",{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;this.gainers=j.result.gainers;this.losers=j.result.losers;}catch(e){}},start(){this.refresh();setInterval(()=>this.refresh(),3000);}};}
 </script>
+
+<!-- Phase 9.8g.68: STRATEGY tab -->
+<section id="p98g-strategy-panel" class="bloom-panel" x-data="p98gStrategyPanel()" x-show="activeTab==='strategy'" style="display:none">
+  <div class="panel-header"><div><h2>Strategy Configuration</h2><span class="muted">OU-MRS · Ornstein-Uhlenbeck mean reversion · paper mode</span></div></div>
+  <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:12px;">
+    <div class="bloom-stat"><div class="bloom-stat-label">CAPITAL</div><div class="bloom-stat-value">&#8377;37,50,000</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">MODE</div><div class="bloom-stat-value" style="color:#ff6600">PAPER</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">LIVE TRADING</div><div class="bloom-stat-value">OFF</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">STRATEGY</div><div class="bloom-stat-value">OU-MRS</div></div>
+  </div>
+  <div style="padding:8px 12px;"><h3 style="margin:0 0 6px;color:#ff6600;font-size:11px;letter-spacing:0.05em;">LOT SIZES &middot; May 2026 EXPIRY</h3>
+    <table class="bloom-table"><thead><tr><th>SYMBOL</th><th>LOT</th><th>STATUS</th></tr></thead><tbody>
+      <template x-for="row in lotRows" :key="row.sym"><tr><td x-text="row.sym"></td><td x-text="row.lot"></td><td><span class="badge ok">SUBSCRIBED</span></td></tr></template>
+    </tbody></table>
+  </div>
+  <div style="padding:8px 12px;"><h3 style="margin:0 0 6px;color:#ff6600;font-size:11px;letter-spacing:0.05em;">OU PARAMETERS</h3>
+    <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">
+      <div class="bloom-stat"><div class="bloom-stat-label">Z ENTRY</div><div class="bloom-stat-value">2.0&sigma;</div></div>
+      <div class="bloom-stat"><div class="bloom-stat-label">Z EXIT</div><div class="bloom-stat-value">0.5&sigma;</div></div>
+      <div class="bloom-stat"><div class="bloom-stat-label">WINDOW</div><div class="bloom-stat-value">60 bars</div></div>
+      <div class="bloom-stat"><div class="bloom-stat-label">ADX FILTER</div><div class="bloom-stat-value">&lt; 25</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Phase 9.8g.68: SYSTEM tab -->
+<section id="p98g-system-panel" class="bloom-panel" x-data="p98gSystemPanel()" x-init="init()" x-show="activeTab==='system'" style="display:none">
+  <div class="panel-header"><div><h2>System Health</h2><span class="muted">Service status &middot; Angel feed &middot; deployment</span></div>
+    <div class="panel-actions"><button @click="refresh()" class="btn-secondary">REFRESH</button></div>
+  </div>
+  <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:12px;">
+    <div class="bloom-stat"><div class="bloom-stat-label">SERVICE</div><div class="bloom-stat-value" :style="{color: serviceColor}" x-text="info.service"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">ANGEL WEBSOCKET</div><div class="bloom-stat-value" :style="{color: wsColor}" x-text="info.websocket"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">TOKENS SUBSCRIBED</div><div class="bloom-stat-value" x-text="info.tokens"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">LAST COMMIT</div><div class="bloom-stat-value" style="font-size:12px;font-family:JetBrains Mono,monospace" x-text="info.commit"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">PHASE</div><div class="bloom-stat-value">9.8g</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">ACTIVITY ROWS</div><div class="bloom-stat-value" x-text="info.activityCount"></div></div>
+  </div>
+  <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
+</section>
 </main>
-<script src="/static/app.js?v=62"></script>
+<script src="/static/app.js?v=63"></script>
     <script src="/static/sse-ticks.js"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>

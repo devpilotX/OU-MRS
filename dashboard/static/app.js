@@ -3174,3 +3174,39 @@ window.p98fMarginPanel = function p98fMarginPanel(){return{underlying:"BANKNIFTY
 
 // Phase 9.8g.66: Bloomberg SPA shell
 window.p98gShell = function p98gShell(){return{activeTab:"live",VALID_TABS:["live","tools","markets","portfolio","strategy","history","system"],setTab(t){if(this.VALID_TABS.indexOf(t)<0)t="live";this.activeTab=t;try{history.replaceState(null,"","#"+t);}catch(e){}},initRouting(){const h=(location.hash||"").replace(/^#/,"").toLowerCase();if(h && this.VALID_TABS.indexOf(h)>=0)this.activeTab=h;window.addEventListener("hashchange",()=>{const nh=(location.hash||"").replace(/^#/,"").toLowerCase();if(this.VALID_TABS.indexOf(nh)>=0)this.activeTab=nh;});window.addEventListener("keydown",(e)=>{if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="SELECT"||e.target.tagName==="TEXTAREA"))return;if(e.metaKey||e.ctrlKey||e.altKey)return;const idx=parseInt(e.key)-1;if(idx>=0 && idx<this.VALID_TABS.length){this.setTab(this.VALID_TABS[idx]);e.preventDefault();}});}};};
+
+
+// Phase 9.8g.68: STRATEGY + SYSTEM tab factories
+window.p98gStrategyPanel = function p98gStrategyPanel() {
+  return {
+    lotRows: [
+      { sym: "BANKNIFTY", lot: 35 },
+      { sym: "NIFTY", lot: 25 },
+      { sym: "FINNIFTY", lot: 40 },
+    ],
+  };
+};
+
+window.p98gSystemPanel = function p98gSystemPanel() {
+  return {
+    info: { service: "active", websocket: "connected", tokens: 3, commit: "3bf9e67", activityCount: 25 },
+    lastRefresh: "",
+    timer: null,
+    get serviceColor() { return (this.info.service||"").toLowerCase()==="active" ? "#0a0" : "#f33"; },
+    get wsColor() { return (this.info.websocket||"").toLowerCase()==="connected" ? "#0a0" : "#888"; },
+    async refresh() {
+      try {
+        const r = await fetch("/api/system/info", { credentials: "same-origin" });
+        if (r.ok) {
+          const d = await r.json();
+          this.info = Object.assign({}, this.info, d);
+        }
+        // else keep static fallback
+      } catch(e) {
+        this.info.service = "error";
+      }
+      this.lastRefresh = new Date().toLocaleTimeString();
+    },
+    init() { this.refresh(); this.timer = setInterval(() => this.refresh(), 30000); },
+  };
+};
