@@ -58,13 +58,13 @@ def calc_roundtrip(instrument, qty, buy_price, sell_price):
 
 # Phase 9.8f.63: F&O lot sizes for Underlying+Lots UX (NSE/BSE May 2026)
 LOT_SIZES = {
-    "NIFTY": 25,
-    "BANKNIFTY": 35,
-    "FINNIFTY": 40,
+    "NIFTY": 65,
+    "BANKNIFTY": 30,
+    "FINNIFTY": 60,
     "MIDCPNIFTY": 75,
     "SENSEX": 10,
     "BANKEX": 15,
-    "RELIANCE": 250,
+    "RELIANCE": 500,
     "HDFCBANK": 550,
     "TCS": 175,
     "INFY": 400,
