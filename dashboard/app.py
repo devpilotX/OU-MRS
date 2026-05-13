@@ -1103,3 +1103,21 @@ def api_ratelimit_stats():
         return {"ok": True, "stats": p98f_rl.all_stats()}
     except Exception as e_rl:
         return {"ok": False, "error": str(e_rl)}
+
+
+# ===== Phase 9.8f.53 v2: brokerage calculator endpoints (Angel feature 4) =====
+import brokerage_calc as p98f_bc
+
+@app.get("/api/calc/brokerage", dependencies=[Depends(need_auth)])
+def api_calc_brokerage(instrument: str = "fut", side: str = "buy", qty: float = 35, price: float = 53780):
+	try:
+		return {"ok": True, "result": p98f_bc.calc_charges(instrument, side, qty, price)}
+	except Exception as e_bc:
+		return {"ok": False, "error": str(e_bc)}
+
+@app.get("/api/calc/roundtrip", dependencies=[Depends(need_auth)])
+def api_calc_roundtrip(instrument: str = "fut", qty: float = 35, buy_price: float = 53780, sell_price: float = 53830):
+	try:
+		return {"ok": True, "result": p98f_bc.calc_roundtrip(instrument, qty, buy_price, sell_price)}
+	except Exception as e_bc:
+		return {"ok": False, "error": str(e_bc)}
