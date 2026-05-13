@@ -1116,9 +1116,23 @@ def api_calc_brokerage(instrument: str = "fut", side: str = "buy", qty: float = 
 		return {"ok": False, "error": str(e_bc)}
 
 @app.get("/api/calc/roundtrip", dependencies=[Depends(need_auth)])
-def api_calc_roundtrip(instrument: str = "fut", qty: float = 35, buy_price: float = 53780, sell_price: float = 53830):
+def api_calc_roundtrip(instrument: str = "fut", qty: float = 35, buy_price: float = 53780, sell_price: float = 53830, underlying: str = "", lots: float = 0):
+	# Phase 9.8f.63: accept underlying+lots OR legacy qty
 	try:
-		return {"ok": True, "result": p98f_bc.calc_roundtrip(instrument, qty, buy_price, sell_price)}
+		u = (underlying or "").upper().strip()
+		if u and u in p98f_bc.LOT_SIZES and u != "CUSTOM":
+			lot_size = p98f_bc.LOT_SIZES[u]
+			eff_qty = int(float(lots) * lot_size)
+			resolved_u = u
+		else:
+			lot_size = 1
+			eff_qty = int(qty)
+			resolved_u = "CUSTOM"
+		res = p98f_bc.calc_roundtrip(instrument, eff_qty, buy_price, sell_price)
+		res["underlying"] = resolved_u
+		res["lots"] = float(lots) if resolved_u != "CUSTOM" else 0.0
+		res["lot_size"] = lot_size
+		return {"ok": True, "result": res}
 	except Exception as e_bc:
 		return {"ok": False, "error": str(e_bc)}
 
