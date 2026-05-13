@@ -1,0 +1,6 @@
+
+
+/* Phase 9.8g.66: SPA nav + tabs */
+.bloom-nav-btn { padding:6px 14px; border:1px solid #333; background:transparent; color:#bbb; font-family:'JetBrains Mono',monospace; font-size:0.85em; cursor:pointer; letter-spacing:0.5px; transition:all 0.15s; }
+.bloom-nav-btn:hover { color:#fff; border-color:#ff6600; }
+.bloom-nav-btn-active { padding:6px 14px; border:1px solid #ff6600; background:#ff6600; color:#000 !important; font-family:'JetBrains Mono',monospace; font-size:0.85em; font-weight:bold; cursor:pointer; letter-spacing:0.5px; }
