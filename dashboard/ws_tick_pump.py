@@ -16,6 +16,7 @@ from typing import Optional, Dict
 import pyotp
 
 from dashboard.tick_broker import broker
+import sys as p98f_rl_sys; p98f_rl_sys.path.insert(0, "/home/ubuntu/bots/ou-mrs/dashboard"); import rate_limit as p98f_rl
 
 log = logging.getLogger("ws_tick_pump")
 
@@ -78,6 +79,7 @@ class WsTickPump:
         totp_secret = os.environ["ANGEL_TOTP_SECRET"]
         smart = SmartConnect(api_key=api_key)
         totp = pyotp.TOTP(totp_secret).now()
+        p98f_rl.get_bucket("angel_default").consume(block=True)
         sess = smart.generateSession(client_code, mpin, totp)
         feed_token = smart.getfeedToken()
         auth_token = sess["data"]["jwtToken"]

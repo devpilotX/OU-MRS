@@ -11,6 +11,7 @@ from SmartApi import SmartConnect
 log = logging.getLogger("angel")
 
 import random as _random
+import sys as p98f_rl_sys; p98f_rl_sys.path.insert(0, "/home/ubuntu/bots/ou-mrs/dashboard"); import rate_limit as p98f_rl
 
 # --- _retry_v2 (2026-05-11) — rate-limit / auth-fail classification ---
 _RATE_LIMIT_UNTIL = [0.0]  # shared epoch deadline across all AngelBroker instances
@@ -88,6 +89,7 @@ class AngelBroker:
         last_err = None
         for attempt in range(4):
             try:
+                p98f_rl.get_bucket("angel_quote").consume(block=True)
                 resp = self.smart.getCandleData(params)
                 if isinstance(resp, dict) and resp.get("status"):
                     return resp.get("data") or []
@@ -141,6 +143,7 @@ class AngelBroker:
             "stoploss": "0",
             "quantity": str(qty),
         }
+        p98f_rl.get_bucket("angel_order").consume(block=True)
         oid = self.smart.placeOrder(params)
         log.info(f"Angel order placed: {side} {qty} -> {oid}")
         return oid
@@ -167,6 +170,7 @@ class AngelBroker:
             "stoploss": "0",
             "quantity": str(qty),
         }
+        p98f_rl.get_bucket("angel_order").consume(block=True)
         oid = self.smart.placeOrder(params)
         log.info(f"Angel SL-LIMIT: {side} {qty} trig={trigger_px:.2f} lim={limit_px:.2f} -> {oid}")
         return oid

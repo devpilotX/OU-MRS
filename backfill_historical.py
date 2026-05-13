@@ -11,6 +11,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from SmartApi import SmartConnect
 import pyotp
+import sys as p98f_rl_sys; p98f_rl_sys.path.insert(0, "/home/ubuntu/bots/ou-mrs/dashboard"); import rate_limit as p98f_rl
 
 load_dotenv()
 API_KEY     = os.getenv("ANGEL_API_KEY")
@@ -50,6 +51,7 @@ def fetch_chunk(smart, start, end):
         "fromdate":    start.strftime("%Y-%m-%d %H:%M"),
         "todate":      end.strftime("%Y-%m-%d %H:%M"),
     }
+    p98f_rl.get_bucket("angel_quote").consume(block=True)
     resp = smart.getCandleData(params)
     if not resp or not resp.get("status"):
         raise RuntimeError(f"getCandleData failed: {resp}")
