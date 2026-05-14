@@ -351,7 +351,7 @@ function initTheme(){
 }
 function initFilters(){$("#trade-filter").onchange=()=>refreshTrades();$("#log-errors-only").onchange=()=>refreshLog();}
 
-initTheme();initFilters();initLogControls();refreshFast();refreshSlow();
+try{initTheme()}catch(e){console.warn("initTheme failed:",e)};initFilters();initLogControls();refreshFast();refreshSlow();
 setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
 // ===== v6 -- chart subtitles + info tooltips =====

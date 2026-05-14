@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
   <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/clean-theme.css?v=5"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=72"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -28,7 +28,7 @@
 </div>
 <div class="tb-right"><span class="tb-mode" id="tb-mode">--</span><button class="tb-theme" id="tb-theme" title="Toggle theme">DEFAULT</button><a href="/logout" class="tb-logout">Logout</a></div>
 </header>
-<main x-data="p98gShell()" x-init="try{history.replaceState(null,'',location.pathname);}catch(e){} activeTab='live'; initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:44px;z-index:90;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
+<main x-data="p98gShell()" x-init="history.replaceState(null,'',location.pathname); activeTab='live'; initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:44px;z-index:90;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
 <!-- Phase 9.8g.70: per-tab header strip -->
 <div class="bloom-tab-header"><span class="bloom-tab-name" x-text="(activeTab||'live').toUpperCase()"></span><span class="tab-meta">PHASE 9.8g &middot; OU-MRS &middot; PAPER</span></div>
 
@@ -176,7 +176,7 @@
 <label class="bloom-field" style="flex:0 0 110px"><span class="bloom-field-label">Sell Price</span><input type="number" step="0.05" x-model.number="sellPrice" @input.debounce.300ms="recompute()"></label>
 <button class="bloom-btn" @click="recompute()" style="align-self:flex-end">RECOMPUTE</button>
 </div>
-<div class="bloom-resolved" style="margin-top:8px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px;color:#888;letter-spacing:.3px" x-show="underlying !== 'CUSTOM'"><span x-text="'Resolved qty: ' + resolvedQty + ' contracts (' + lots + ' lot' + (lots>1?'s':'') + ' x ' + lotSize + ' per lot)"></span></div>
+<div class="bloom-resolved" style="margin-top:8px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px;color:#888;letter-spacing:.3px" x-show="underlying !== 'CUSTOM'"><span x-text="'Resolved qty: ' + resolvedQty + ' contracts (' + lots + ' lot' + (lots>1?'s':'') + ' x ' + lotSize + ' per lot)'"></span></div>
 <div class="bloom-hero">
 <div class="bloom-hero-cell"><span class="label">Gross P&amp;L</span><span class="value" :class="pnlCls(grossPnl)" x-text="inr(grossPnl)"></span></div>
 <div class="bloom-hero-cell"><span class="label">Total Charges</span><span class="value bloom-neg" x-text="inr(totalCharges)"></span></div>
@@ -289,7 +289,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
   <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
 </section>
 </main>
-<script src="/static/app.js?v=65"></script>
+<script src="/static/app.js?v=72"></script>
     <script src="/static/sse-ticks.js?v=2"></script>
     <script src="/static/topbar-controls.js?v=1"></script>
 
