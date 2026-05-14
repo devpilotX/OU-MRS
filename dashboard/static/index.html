@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
   <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/clean-theme.css?v=3"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=4"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -28,11 +28,11 @@
 </div>
 <div class="tb-right"><span class="tb-mode" id="tb-mode">--</span><button class="tb-theme" id="tb-theme" title="Toggle theme">DEFAULT</button><a href="/logout" class="tb-logout">Logout</a></div>
 </header>
-<main x-data="p98gShell()" x-init="initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:0;z-index:100;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
+<main x-data="p98gShell()" x-init="initRouting(); if(!activeTab) activeTab='live'"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:0;z-index:100;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
 <!-- Phase 9.8g.70: per-tab header strip -->
 <div class="bloom-tab-header"><span class="bloom-tab-name" x-text="(activeTab||'live').toUpperCase()"></span><span class="tab-meta">PHASE 9.8g &middot; OU-MRS &middot; PAPER</span></div>
 
-  <section class="market-hero" id="market-hero" hidden x-show="activeTab==='live'">
+  <section class="market-hero" id="market-hero" x-show="activeTab==='live'">
     <div class="mh-left"><div class="mh-pulse"></div><div class="mh-icon">🌙</div></div>
     <div class="mh-content">
       <div class="mh-eyebrow">INDIAN EQUITY F&amp;O · NSE</div>
@@ -46,7 +46,7 @@
       <div class="mh-status-row"><span class="mh-dot ok"></span>Auto-start scheduled</div>
     </div>
   </section>
-  <section class="kpi-grid">
+  <section class="kpi-grid" x-show="activeTab==='live'">
     <div class="kpi"><span class="kpi-label">BOT</span><span id="bot-status" class="kpi-value">--</span><span id="bot-sub" class="kpi-sub">--</span></div>
     <div class="kpi"><span class="kpi-label">CAPITAL</span><span id="capital" class="kpi-value">--</span><span id="mode-label" class="kpi-sub">--</span></div>
     <div class="kpi"><span class="kpi-label">TOTAL P&L · ALL-TIME</span><span id="total-pnl" class="kpi-value">--</span><span id="pnl-pct" class="kpi-sub">--</span></div>
@@ -54,9 +54,9 @@
     <div class="kpi"><span class="kpi-label">UPTIME</span><span id="uptime-val" class="kpi-value">--</span><span id="uptime-sub" class="kpi-sub">--</span></div>
     <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">--</div></div>
   </section>
-  <div id="deep-dive-notice" class="deep-dive-notice"></div>
+  <div id="deep-dive-notice" class="deep-dive-notice" x-show="activeTab==='live'"></div>
     <section class="symbols-grid">
-    <div class="symbol-card sc-offline" id="card-BNF">
+    <div class="symbol-card sc-offline" id="card-BNF" x-show="activeTab==='live'">
       <div class="sc-row1">
         <div class="sc-id"><div class="sc-sym">BNF</div><div class="sc-name">BANKNIFTY · 26MAY26</div></div>
         <div class="sc-state" id="bnf-state">OFFLINE</div>
@@ -72,7 +72,7 @@
         <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="bnf-pos">--</div></div>
       </div>
     </div>
-    <div class="symbol-card sc-offline" id="card-NF">
+    <div class="symbol-card sc-offline" id="card-NF" x-show="activeTab==='live'">
       <div class="sc-row1">
         <div class="sc-id"><div class="sc-sym">NF</div><div class="sc-name">NIFTY · 26MAY26</div></div>
         <div class="sc-state" id="nf-state">OFFLINE</div>
@@ -88,7 +88,7 @@
         <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="nf-pos">--</div></div>
       </div>
     </div>
-    <div class="symbol-card sc-offline" id="card-FNF">
+    <div class="symbol-card sc-offline" id="card-FNF" x-show="activeTab==='live'">
       <div class="sc-row1">
         <div class="sc-id"><div class="sc-sym">FNF</div><div class="sc-name">FINNIFTY · 26MAY26</div></div>
         <div class="sc-state" id="fnf-state">OFFLINE</div>
@@ -134,15 +134,14 @@
         </div>
       </section>
   <section class="grid-2">
-    <div class="panel"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
-    <div class="panel"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
+    <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
+    <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
   </section>
   <section class="grid-2">
-    <div class="panel"><div class="panel-header"><div><h2>Backtest Metrics</h2><span class="muted">24 trades · 37 days · historical only · not live</span></div><span class="panel-badge" style="background:rgba(245,158,11,.1);color:var(--amber)">BACKTEST</span></div><div id="metrics-view" class="metrics-grid"></div></div>
-    <div class="panel"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
+    <div class="panel" x-show="activeTab==='history'"><div class="panel-header"><div><h2>Backtest Metrics</h2><span class="muted">24 trades · 37 days · historical only · not live</span></div><span class="panel-badge" style="background:rgba(245,158,11,.1);color:var(--amber)">BACKTEST</span></div><div id="metrics-view" class="metrics-grid"></div></div>
+    <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
   </section>
-  <section class="panel">
-    <div class="panel-header"><div><h2>Trade History</h2><span id="trade-summary" class="muted">--</span></div>
+  <section class="panel" x-show="activeTab==='history'"><div class="panel-header"><div><h2>Trade History</h2><span id="trade-summary" class="muted">--</span></div>
     <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
     <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
   </section>

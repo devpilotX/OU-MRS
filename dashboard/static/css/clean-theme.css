@@ -66,3 +66,16 @@ html[data-theme="light"] #p98g-nav .bloom-nav-btn{color:#666 !important;}
 html[data-theme="light"] #p98g-nav .bloom-nav-btn:hover{color:#1a1a1a !important;}
 html[data-theme="light"] .panel,html[data-theme="light"] .kpi,html[data-theme="light"] .symbol-card,html[data-theme="light"] .bloom-panel{background:#ffffff !important;border-color:#e0e0e0 !important;color:#1a1a1a !important;}
 html[data-theme="light"] .bloom-tab-header{background:#f5f5f5 !important;color:#1a1a1a !important;}
+
+/* Phase 9.8g.71f light theme polish */
+html[data-theme="light"] table{background:#ffffff !important;color:#1a1a1a !important;}
+html[data-theme="light"] thead,html[data-theme="light"] table thead tr{background:#f5f5f5 !important;color:#1a1a1a !important;}
+html[data-theme="light"] th{background:#f5f5f5 !important;color:#1a1a1a !important;border-color:#e0e0e0 !important;}
+html[data-theme="light"] td{background:#ffffff !important;color:#1a1a1a !important;border-color:#e0e0e0 !important;}
+html[data-theme="light"] tbody tr:hover{background:#fafafa !important;}
+html[data-theme="light"] .panel-header h2{color:#1a1a1a !important;}
+html[data-theme="light"] .panel-header{border-color:#e0e0e0 !important;}
+html[data-theme="light"] .kpi-label{color:#666 !important;}
+html[data-theme="light"] .kpi-value{color:#1a1a1a !important;}
+html[data-theme="light"] .muted{color:#888 !important;}
+html[data-theme="light"] .footer,html[data-theme="light"] footer{background:#ffffff !important;color:#666 !important;}
