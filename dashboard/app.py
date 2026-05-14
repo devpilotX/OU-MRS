@@ -1190,3 +1190,31 @@ def api_scanner_movers(n: int = 5):
 		return {"ok": True, "result": p98f_sc.get_movers(n)}
 	except Exception as e_sc:
 		return {"ok": False, "error": str(e_sc)}
+
+
+# Phase 9.8g.65b: instruments search endpoint reading data/instruments.db
+import sqlite3 as _sqis, os as _osis
+
+@app.get("/api/instruments/search", dependencies=[Depends(need_auth)])
+async def api_instruments_search(q: str = "", exchange: str = "", limit: int = 20):
+	dbp = _osis.environ.get("INSTRUMENTS_DB", "data/instruments.db")
+	if not _osis.path.exists(dbp) or not q:
+		return {"rows": [], "count": 0, "db_available": _osis.path.exists(dbp)}
+	q = q.upper().strip()
+	limit = max(1, min(100, int(limit)))
+	try:
+		c = _sqis.connect(dbp)
+		cols_sel = "token, symbol, name, expiry, strike, lot_size, instrument_type, exchange, tick_size"
+		if exchange:
+			sql = "SELECT " + cols_sel + " FROM instruments WHERE (symbol LIKE ? OR name LIKE ?) AND exchange=? ORDER BY expiry ASC, strike ASC LIMIT ?"
+			params = (q + "%", q + "%", exchange.upper(), limit)
+		else:
+			sql = "SELECT " + cols_sel + " FROM instruments WHERE (symbol LIKE ? OR name LIKE ?) ORDER BY expiry ASC, strike ASC LIMIT ?"
+			params = (q + "%", q + "%", limit)
+		cur = c.execute(sql, params)
+		colnames = [d[0] for d in cur.description]
+		rows = [dict(zip(colnames, r)) for r in cur.fetchall()]
+		c.close()
+		return {"rows": rows, "count": len(rows), "db_available": True}
+	except Exception as e:
+		return {"rows": [], "count": 0, "error": str(e), "db_available": True}
