@@ -57,7 +57,7 @@ def calc_roundtrip(instrument, qty, buy_price, sell_price):
 
 
 # Phase 9.8f.63: F&O lot sizes for Underlying+Lots UX (NSE/BSE May 2026)
-LOT_SIZES = {
+LOT_SIZES_FALLBACK = {
     "NIFTY": 65,
     "BANKNIFTY": 30,
     "FINNIFTY": 60,
@@ -143,3 +143,36 @@ def compute_margin(underlying="BANKNIFTY", lots=1, instrument="fut", side="buy",
 		"initial_margin": round(total, 2),
 		"leverage": round((notional / total), 2) if total > 0 else 0,
 	}
+
+
+# Phase 9.8g.65a-fix2: dynamic lot-size lookup from data/instruments.db
+import os as _o2, sqlite3 as _s2
+
+def _db_lot(n, d=None):
+    p = _o2.environ.get("INSTRUMENTS_DB", "data/instruments.db")
+    if not _o2.path.exists(p):
+        return d
+    try:
+        c = _s2.connect(p)
+        sql = "SELECT lot_size FROM instruments WHERE name=? AND instrument_type LIKE 'FUT%' AND expiry!='' AND lot_size>0 ORDER BY expiry LIMIT 1"
+        r = c.execute(sql, ((n or "").upper().strip(),)).fetchone()
+        c.close()
+        return int(r[0]) if r else d
+    except Exception:
+        return d
+
+class _LSL:
+    def _r(self, n):
+        n = (n or "").upper().strip()
+        fb = LOT_SIZES_FALLBACK.get(n, 1)
+        return fb if n in ("CUSTOM", "") else _db_lot(n, d=fb)
+    def __getitem__(self, n): return self._r(n)
+    def __contains__(self, n): return (n or "").upper().strip() in LOT_SIZES_FALLBACK
+    def get(self, n, d=None):
+        n = (n or "").upper().strip()
+        return self._r(n) if n in LOT_SIZES_FALLBACK else d
+    def keys(self): return LOT_SIZES_FALLBACK.keys()
+    def items(self): return [(k, self._r(k)) for k in LOT_SIZES_FALLBACK]
+    def __iter__(self): return iter(LOT_SIZES_FALLBACK)
+
+LOT_SIZES = _LSL()
