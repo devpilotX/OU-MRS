@@ -905,7 +905,7 @@ async def p98f_option_chain(symbol: str = "BNF", expiry: str = ""):
     pcr = round(total_pe_oi / max(total_ce_oi, 1), 3)
     return {
         "ok": True,
-        "mode": "synthetic_preview",
+        "mode": "spot_live_greeks_modeled_oi",
         "symbol": key,
         "underlying": idx_name,
         "spot": round(spot, 2),
@@ -915,22 +915,9 @@ async def p98f_option_chain(symbol: str = "BNF", expiry: str = ""):
         "strikes": strikes,
         "totals": {"call_oi": total_ce_oi, "put_oi": total_pe_oi, "pcr": pcr, "max_pain": int(atm)},
         "ts": ts,
-        "note": "Synthetic preview: BS Greeks accurate from REAL spot. OI/Vol/IV are gradients pending Angel One wiring (Phase E1)."
+        "note": "Spot+BS Greeks=LIVE from state/live_<SYM>.json. OI/Vol/IV=parametric gaussian model around ATM. Real Angel OI overlay queued Phase 9.8h."
     }
-async def p98f_option_chain(symbol: str = "BANKNIFTY", expiry: str = ""):
-    return {
-        "ok": False,
-        "status": "not_wired",
-        "symbol": symbol,
-        "expiry": expiry,
-        "message": "Angel One option chain pending - Phase 9.8f task E1",
-        "schema": {
-            "strikes": "[{strike, ce:{ltp,oi,chgOi,iv,delta,gamma,theta,vega,volume}, pe:{...}}]",
-            "underlying": "{spot, atm, futPrem}",
-            "totals": "{call_oi, put_oi, pcr}"
-        }
-    }
-
+# (Phase 9.8g.75: removed dead orphan p98f_option_chain BANKNIFTY)
 @app.get("/api/rolling-metrics", dependencies=[Depends(need_auth)])
 async def p98f_rolling_metrics(window: int = 20):
     daily = _p98f_read_daily()
