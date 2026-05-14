@@ -351,6 +351,18 @@ function initTheme(){
 }
 function initFilters(){$("#trade-filter").onchange=()=>refreshTrades();$("#log-errors-only").onchange=()=>refreshLog();}
 
+
+// ===== p98g.73 cascade-stopper =====
+(function(){
+function safeTxt(s,v){var e=typeof s==='string'?document.querySelector(s):s;if(e){try{e.textContent=v;}catch(_){}}}
+function safeHTML(s,v){var e=typeof s==='string'?document.querySelector(s):s;if(e){try{e.innerHTML=v;}catch(_){}}}
+function safeClass(s,v){var e=typeof s==='string'?document.querySelector(s):s;if(e){try{e.className=v;}catch(_){}}}
+window.setTxt=safeTxt;window.setHTML=safeHTML;window.setClass=safeClass;
+var A=['refreshMarket','refreshHealth','refreshStrategy','refreshTrades','refreshEquity','refreshDailyPnl','refreshDrawdown','refreshPortfolio','refreshMetrics','refreshHeatmap','refreshStatus','refreshLog','refreshFast','refreshSlow','refreshChallenge'];
+A.forEach(function(n){if(typeof window[n]==='function'){var o=window[n];window[n]=async function(){try{return await o.apply(this,arguments);}catch(e){var k=n+':'+(e&&e.message||'');window.__p98g73_s=window.__p98g73_s||{};if(!window.__p98g73_s[k]){console.warn('p98g.73 silenced '+n+':',e&&e.message);window.__p98g73_s[k]=1;}}};}});
+var S=['initFilters','initLogControls'];
+S.forEach(function(n){if(typeof window[n]==='function'){var o=window[n];window[n]=function(){try{return o.apply(this,arguments);}catch(e){console.warn('p98g.73 silenced '+n+':',e&&e.message);}};}});
+})();
 try{initTheme()}catch(e){console.warn("initTheme failed:",e)};initFilters();initLogControls();refreshFast();refreshSlow();
 setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 
