@@ -63,7 +63,7 @@ function _ecGaugeUpdate(id, pct, sev, valStr){
 async function refreshChallenge(){ /* legacy noop - Risk panel now self-polls via P98F IIFE */ }
 async function refreshHealth(){
   const h=await fetchJSON("/api/health");if(!h)return;
-  const c=$("#health-chip");
+  const c=$("#health-chip")||document.createElement("span");
   if(h.error){c.textContent="health err";c.className="chip err";return;}
   c.textContent=`CPU ${Math.round(h.cpu_percent)}% · RAM ${Math.round(h.memory_percent)}% · DISK ${Math.round(h.disk_percent)}%`;
   c.className="chip "+(h.cpu_percent>80||h.memory_percent>85?"warn":"ok");
@@ -75,7 +75,7 @@ async function refreshMarket(){
   const t0=performance.now();
   const m=await fetchJSON("/api/market-status");if(!m)return;
   recordLatency("market-status", performance.now()-t0);
-  const c=$("#market-chip");c.textContent="Market: "+m.status.toUpperCase().replace("_"," ");
+  const c=$("#market-chip")||document.createElement("span");c.textContent="Market: "+m.status.toUpperCase().replace("_"," ");
   c.className="chip "+(m.status==="open"?"ok":m.status==="pre_open"?"warn":"");
   applyCadence(m.status === "open" || m.status === "pre_open");
 }
@@ -244,7 +244,7 @@ async function refreshEquity(){
   const cap=(window.__CAPITAL__||3750000),baseline=new Array(equity.length).fill(cap);
   const minV=Math.min(...equity,cap),maxV=Math.max(...equity,cap),pad=(maxV-minV)*.15||5000;
   const finalEq=equity[equity.length-1],pnl=finalEq-cap;
-  $("#equity-range").textContent=`${labels[0]} → ${labels[labels.length-1]}  ·  Final ₹${Math.round(finalEq).toLocaleString("en-IN")} (${pnl>=0?"+":""}${(pnl/cap*100).toFixed(2)}%)`;
+  ($("#equity-range")||document.createElement("span")).textContent=`${labels[0]} → ${labels[labels.length-1]}  ·  Final ₹${Math.round(finalEq).toLocaleString("en-IN")} (${pnl>=0?"+":""}${(pnl/cap*100).toFixed(2)}%)`;
   if(equityChart)equityChart.destroy();
   const dark=document.documentElement.getAttribute("data-theme")!=="light";const{grid,axis}=chartCommon(dark);
   equityChart=new Chart(($("#equity-chart")||document.createElement("canvas")).getContext("2d"),{type:"line",data:{labels,datasets:[{label:"Equity",data:equity,borderColor:"rgba(99,102,241,1)",backgroundColor:"rgba(99,102,241,0.12)",fill:true,stepped:"before",pointRadius:0,pointHoverRadius:5,borderWidth:2},{label:"Capital (₹150k)",data:baseline,borderColor:"rgba(139,148,158,0.55)",borderDash:[6,6],pointRadius:0,borderWidth:1.2,fill:false}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},interaction:{intersect:false,mode:"index"},plugins:{legend:{position:"top",align:"end",labels:{color:axis,font:{size:11},usePointStyle:true,boxWidth:8}},tooltip:{backgroundColor:dark?"rgba(18,24,38,.95)":"rgba(255,255,255,.98)",titleColor:dark?"#e6edf3":"#0f172a",bodyColor:dark?"#e6edf3":"#0f172a",borderColor:dark?"#1f2937":"#e2e8f0",borderWidth:1,padding:10,callbacks:{label:c=>c.dataset.label+": ₹"+Math.round(c.parsed.y).toLocaleString("en-IN"),afterBody:it=>{if(it.length&&it[0].dataset.label.startsWith("Equity")){const v=it[0].parsed.y,diff=v-cap;return["","P&L: "+(diff>=0?"+":"")+"₹"+Math.round(diff).toLocaleString("en-IN")+" ("+(diff/cap*100).toFixed(2)+"%)"];}return[];}}}},scales:{x:{ticks:{maxTicksLimit:8,color:axis,font:{size:10}},grid:{color:grid}},y:{min:Math.max(0,minV-pad),max:maxV+pad,ticks:{color:axis,font:{size:10},callback:v=>"₹"+(v/1000).toFixed(0)+"k"},grid:{color:grid}}}}});
@@ -346,8 +346,8 @@ async function refreshSlow(){await Promise.all([refreshMetrics(),refreshEquity()
 function initTheme(){
   const saved=localStorage.getItem("theme")||"dark";
   document.documentElement.setAttribute("data-theme",saved);
-  $("#theme-toggle").textContent=saved==="dark"?"☀️":"🌙";
-  $("#theme-toggle").onclick=()=>{const cur=document.documentElement.getAttribute("data-theme");const nx=cur==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",nx);localStorage.setItem("theme",nx);$("#theme-toggle").textContent=nx==="dark"?"☀️":"🌙";refreshEquity();refreshDailyPnl();refreshDrawdown();};
+  ($("#theme-toggle")||document.createElement("span")).textContent=saved==="dark"?"☀️":"🌙";
+  ($("#theme-toggle")||document.createElement("span")).onclick=()=>{const cur=document.documentElement.getAttribute("data-theme");const nx=cur==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",nx);localStorage.setItem("theme",nx);($("#theme-toggle")||document.createElement("span")).textContent=nx==="dark"?"☀️":"🌙";refreshEquity();refreshDailyPnl();refreshDrawdown();};
 }
 function initFilters(){$("#trade-filter").onchange=()=>refreshTrades();$("#log-errors-only").onchange=()=>refreshLog();}
 
