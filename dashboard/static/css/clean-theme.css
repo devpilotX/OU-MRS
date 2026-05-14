@@ -1,0 +1,68 @@
+/* OU-MRS Phase 9.8g clean theme additive override */
+:root{--c-bg:#0a0a0a;--c-bg-elev:#111;--c-panel:#141414;--c-border:#222;--c-border-strong:#2a2a2a;--c-text:#e5e5e5;--c-text-muted:#888;--c-amber:#ff9500;--c-amber-bright:#ffaa00;--c-green:#3ce04f;--c-red:#ff4d4d;--mono:"JetBrains Mono",ui-monospace,monospace;}
+html,body{background:#0a0a0a !important;color:#e5e5e5 !important;background-image:none !important;font-family:Inter,system-ui,sans-serif;}
+#bb-command-bar,.bb-command-bar{display:none !important;}
+body{padding-bottom:0 !important;}
+.topbar-v2{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px;background:#000;border-bottom:1px solid #2a2a2a;position:sticky;top:0;z-index:50;font-family:var(--mono);font-size:12px;}
+.tb-left{display:flex;align-items:center;}
+.tb-right{display:flex;align-items:center;gap:8px;}
+.tb-center{display:flex;align-items:center;gap:14px;flex:1;justify-content:center;flex-wrap:wrap;}
+.tb-logo{display:inline-flex;align-items:baseline;gap:1px;text-decoration:none;font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:0.05em;color:#e5e5e5;}
+.tb-logo-mark{color:#ff9500;}
+.tb-logo-dot{color:#ff9500;margin:0 2px;}
+.tb-logo-name{color:#e5e5e5;}
+.tk{display:inline-flex;align-items:baseline;gap:6px;padding:3px 8px;background:#111;border:1px solid #222;border-radius:3px;font-family:var(--mono);}
+.tk-sym{color:#ff9500;font-weight:700;font-size:11px;}
+.tk-px{color:#e5e5e5;font-weight:600;font-size:12px;font-variant-numeric:tabular-nums;}
+.tk-chg{font-size:11px;font-variant-numeric:tabular-nums;}
+.tk.up .tk-chg{color:#3ce04f;}
+.tk.down .tk-chg{color:#ff4d4d;}
+.tb-sep{width:1px;height:18px;background:#2a2a2a;margin:0 4px;}
+.tb-meta{display:inline-flex;align-items:baseline;gap:5px;font-size:11px;font-family:var(--mono);}
+.tb-meta-lbl{color:#888;letter-spacing:0.08em;font-size:10px;}
+.tb-meta-val{color:#e5e5e5;font-weight:600;font-variant-numeric:tabular-nums;}
+.tb-meta-val.session-open,.tb-meta-val.feed-live{color:#3ce04f;}
+.tb-meta-val.session-closed,.tb-meta-val.feed-offline{color:#ff4d4d;}
+.tb-meta-val.session-pre,.tb-meta-val.feed-stale{color:#ff9500;}
+.tb-meta-val.session-holiday{color:#888;}
+.tb-mode{padding:3px 9px;background:rgba(255,149,0,0.12);border:1px solid rgba(255,149,0,0.35);color:#ff9500;font-size:10px;font-weight:700;letter-spacing:0.1em;border-radius:3px;font-family:var(--mono);}
+.tb-mode.live{background:rgba(60,224,79,0.12);border-color:rgba(60,224,79,0.4);color:#3ce04f;}
+.tb-theme,.tb-logout{background:transparent;border:1px solid #2a2a2a;color:#888;padding:4px 10px;font-family:var(--mono);font-size:10px;letter-spacing:0.05em;cursor:pointer;text-decoration:none;border-radius:3px;}
+.tb-theme:hover,.tb-logout:hover{border-color:#ff9500;color:#ff9500;}
+.panel,.kpi,.symbol-card,.bloom-panel{background:#141414 !important;border:1px solid #222 !important;color:#e5e5e5 !important;border-radius:4px !important;box-shadow:none !important;}
+.market-hero{background:linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 100%) !important;border:1px solid #2a2a2a !important;color:#e5e5e5 !important;border-radius:4px !important;}
+.bloom-tab-header{background:#000 !important;border-bottom:1px solid #2a2a2a !important;color:#888 !important;}
+.kpi-label,.pfm-lbl,.sc-meta-lbl,.kpi-sub,.sc-name,.sc-meta-val{color:#888 !important;}
+.kpi-value,.pfm-val,.sc-ltp{color:#e5e5e5 !important;font-family:var(--mono) !important;font-variant-numeric:tabular-nums;}
+.sc-sym{color:#ff9500 !important;font-weight:700;}
+.kpi-value.positive,.sc-pnl.up,.sc-chg.up{color:#3ce04f !important;}
+.kpi-value.negative,.sc-pnl.down,.sc-chg.down{color:#ff4d4d !important;}
+table{background:#141414 !important;color:#e5e5e5 !important;}
+th{background:#0a0a0a !important;color:#888 !important;}
+td,th{border-color:#222 !important;}
+input,select,textarea{background:#0a0a0a !important;color:#e5e5e5 !important;border:1px solid #2a2a2a !important;font-family:var(--mono);}
+svg{background:transparent !important;}
+h1,h2,h3,h4,h5,h6{color:#e5e5e5;}
+.panel h3,.bloom-panel h3,.panel-title{color:#ff9500 !important;font-family:var(--mono) !important;font-size:11px !important;letter-spacing:0.08em;text-transform:uppercase;}
+
+/* Phase 9.8g.71c clean horizontal nav */
+#p98g-nav.bloom-nav{background:#000 !important;padding:0 16px !important;border-bottom:1px solid #2a2a2a !important;border-top:none !important;display:flex !important;gap:0 !important;flex-wrap:nowrap !important;overflow-x:auto;}
+#p98g-nav .bloom-nav-btn,#p98g-nav .bloom-nav-btn-active{background:transparent !important;border:none !important;border-bottom:2px solid transparent !important;border-radius:0 !important;padding:12px 18px !important;color:#888 !important;font-family:Inter,system-ui,sans-serif !important;font-size:13px !important;font-weight:500 !important;text-transform:none !important;cursor:pointer;}
+#p98g-nav .bloom-nav-btn:hover{color:#e5e5e5 !important;}
+#p98g-nav .bloom-nav-btn-active{color:#ff9500 !important;border-bottom-color:#ff9500 !important;font-weight:600 !important;}
+
+/* Phase 9.8g.71e light theme overrides */
+html[data-theme="light"]{background:#fafafa !important;color:#1a1a1a !important;}
+html[data-theme="light"] body{background:#fafafa !important;color:#1a1a1a !important;}
+html[data-theme="light"] .topbar-v2{background:#ffffff !important;border-bottom:1px solid #e0e0e0 !important;}
+html[data-theme="light"] .tb-logo-name{color:#1a1a1a !important;}
+html[data-theme="light"] .tk{background:#f5f5f5 !important;border-color:#e0e0e0 !important;}
+html[data-theme="light"] .tk-px{color:#1a1a1a !important;}
+html[data-theme="light"] .tb-meta-val{color:#1a1a1a !important;}
+html[data-theme="light"] .tb-meta-lbl{color:#666 !important;}
+html[data-theme="light"] .tb-sep{background:#e0e0e0 !important;}
+html[data-theme="light"] #p98g-nav.bloom-nav{background:#ffffff !important;border-bottom-color:#e0e0e0 !important;}
+html[data-theme="light"] #p98g-nav .bloom-nav-btn{color:#666 !important;}
+html[data-theme="light"] #p98g-nav .bloom-nav-btn:hover{color:#1a1a1a !important;}
+html[data-theme="light"] .panel,html[data-theme="light"] .kpi,html[data-theme="light"] .symbol-card,html[data-theme="light"] .bloom-panel{background:#ffffff !important;border-color:#e0e0e0 !important;color:#1a1a1a !important;}
+html[data-theme="light"] .bloom-tab-header{background:#f5f5f5 !important;color:#1a1a1a !important;}

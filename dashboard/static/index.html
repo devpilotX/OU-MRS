@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
   <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=3"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -14,23 +15,20 @@
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <div class="logo">⚡</div>
-    <div><div class="brand-name">OU-MRS</div><div class="brand-sub">Pro Trading Dashboard</div></div>
-  </div>
-  <div class="topbar-chips">
-    <span id="market-chip" class="chip">Market: --</span>
-    <span id="mode-chip" class="chip">Mode: --</span>
-    <span id="health-chip" class="chip">-- · -- · --</span>
-    <span id="tick-chip" class="chip tick-stale">Ticks: --</span>
-        <span id="pfm-chip" class="chip">PFM: --</span>
-        <span id="latency-chip" class="chip">--</span>
-    <button id="theme-toggle" class="btn-icon">☀️</button>
-    <a href="/logout" class="btn-logout">Logout</a>
-  </div>
+<header class="topbar-v2">
+<div class="tb-left"><a href="/" class="tb-logo"><span class="tb-logo-mark">OU</span><span class="tb-logo-dot">·</span><span class="tb-logo-name">MRS</span></a></div>
+<div class="tb-center">
+<span class="tk" id="tk-BNF"><span class="tk-sym">BNF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tk" id="tk-NF"><span class="tk-sym">NF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tk" id="tk-FNF"><span class="tk-sym">FNF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tb-sep"></span>
+<span class="tb-meta"><span class="tb-meta-lbl">IST</span><span class="tb-meta-val" id="tb-ist">--:--:--</span></span>
+<span class="tb-meta"><span class="tb-meta-lbl">SESSION</span><span class="tb-meta-val" id="tb-session">--</span></span>
+<span class="tb-meta"><span class="tb-meta-lbl">FEED</span><span class="tb-meta-val" id="tb-feed">--</span></span>
+</div>
+<div class="tb-right"><span class="tb-mode" id="tb-mode">--</span><button class="tb-theme" id="tb-theme" title="Toggle theme">DEFAULT</button><a href="/logout" class="tb-logout">Logout</a></div>
 </header>
-<main x-data="p98gShell()" x-init="initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:0;z-index:100;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="1 LIVE">1 LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="2 TOOLS">2 TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="3 MARKETS">3 MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="4 PORTFOLIO">4 PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="5 STRATEGY">5 STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="6 HISTORY">6 HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="7 SYSTEM">7 SYSTEM</button></nav>
+<main x-data="p98gShell()" x-init="initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:0;z-index:100;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
 <!-- Phase 9.8g.70: per-tab header strip -->
 <div class="bloom-tab-header"><span class="bloom-tab-name" x-text="(activeTab||'live').toUpperCase()"></span><span class="tab-meta">PHASE 9.8g &middot; OU-MRS &middot; PAPER</span></div>
 
@@ -293,7 +291,8 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
 </section>
 </main>
 <script src="/static/app.js?v=65"></script>
-    <script src="/static/sse-ticks.js"></script>
+    <script src="/static/sse-ticks.js?v=2"></script>
+    <script src="/static/topbar-controls.js?v=1"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>
       <div class="kbd-modal-inner">
