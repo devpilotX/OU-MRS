@@ -3210,3 +3210,22 @@ window.p98gSystemPanel = function p98gSystemPanel() {
     init() { this.refresh(); this.timer = setInterval(() => this.refresh(), 30000); },
   };
 };
+
+// Phase 9.8g.65c: Bloomberg instrument search component
+window.p98gInstrSearch = function p98gInstrSearch() {
+  return {
+    q: "",
+    rows: [],
+    loading: false,
+    async search() {
+      const q = this.q.trim();
+      if (q.length < 2) { this.rows = []; return; }
+      this.loading = true;
+      try {
+        const r = await fetch("/api/instruments/search?q=" + encodeURIComponent(q) + "&limit=20", {credentials:"same-origin"});
+        if (r.ok) { const j = await r.json(); this.rows = j.rows || []; } else { this.rows = []; }
+      } catch(e) { this.rows = []; }
+      this.loading = false;
+    }
+  };
+};

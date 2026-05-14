@@ -221,6 +221,16 @@
 <div style="padding:8px;background:rgba(255,170,0,0.1);border-left:3px solid #ffaa00;border-radius:3px"><div style="font-size:0.7em;color:#ffaa00;text-transform:uppercase;font-weight:bold">Initial Margin</div><div class="bloom-mono" style="font-size:1.3em;color:#ffaa00;font-weight:bold" x-text="inr(initialMargin)"></div></div>
 </div>
 </section>
+<!-- Phase 9.8g.65c: Bloomberg instrument search -->
+<section class="bloom-panel" x-data="p98gInstrSearch()" x-show="activeTab==='tools'">
+<header class="bloom-panel-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 class="bloom-mono" style="margin:0">INSTRUMENT SEARCH</h3><span class="bloom-pill" style="background:rgba(60,224,79,0.2);color:#3ce04f;padding:3px 8px;border-radius:3px;font-size:0.75em">181K ROWS LIVE DB</span></header>
+<input type="text" x-model="q" @input.debounce.200ms="search()" placeholder="Type symbol or name (min 2 chars)..." class="bloom-input" style="width:100%;font-family:JetBrains Mono,Consolas,monospace"/>
+<div style="margin-top:8px;color:#666;font-size:11px"><span x-show="loading">Searching...</span><span x-show="!loading && q.length>=2 && rows.length===0">No matches.</span><span x-show="rows.length>0" x-text="rows.length + ' result' + (rows.length>1?'s':'')"></span></div>
+<div x-show="rows.length>0" style="margin-top:8px;background:#0a0a0a;border:1px solid #333;max-height:320px;overflow-y:auto;font-family:JetBrains Mono,Consolas,monospace;font-size:11px">
+<div style="position:sticky;top:0;background:#111;border-bottom:1px solid #333;padding:6px 10px;display:grid;grid-template-columns:120px 1fr 80px 60px 160px;gap:10px;color:#888;font-size:10px;letter-spacing:.5px;text-transform:uppercase"><span>SYMBOL</span><span>NAME</span><span>TYPE</span><span>EXCH</span><span>LOT / EXPIRY</span></div>
+<template x-for="row in rows" :key="row.token"><div style="padding:6px 10px;border-bottom:1px solid #1a1a1a;display:grid;grid-template-columns:120px 1fr 80px 60px 160px;gap:10px;align-items:center"><span style="color:#ffaa00;font-weight:600" x-text="row.symbol"></span><span style="color:#ccc" x-text="row.name"></span><span style="color:#888" x-text="row.instrument_type"></span><span style="color:#888" x-text="row.exchange"></span><span style="color:#3ce04f" x-text="'lot ' + row.lot_size + (row.expiry ? ' / ' + row.expiry : '')"></span></div></template>
+</div></section>
+
 
 <section id="p98f-movers-panel" class="bloom-panel" x-data="p98fMoversPanel()" x-init="start()" x-show="activeTab==='markets'">
 <div class="bloom-header"><span class="bloom-header-title">Top Movers &middot; Live Scanner</span><span class="bloom-header-sub">Auto-refresh 3s &middot; Synthetic until Round 3</span></div>
@@ -282,7 +292,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
   <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
 </section>
 </main>
-<script src="/static/app.js?v=64"></script>
+<script src="/static/app.js?v=65"></script>
     <script src="/static/sse-ticks.js"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>
