@@ -79,3 +79,10 @@ html[data-theme="light"] .kpi-label{color:#666 !important;}
 html[data-theme="light"] .kpi-value{color:#1a1a1a !important;}
 html[data-theme="light"] .muted{color:#888 !important;}
 html[data-theme="light"] .footer,html[data-theme="light"] footer{background:#ffffff !important;color:#666 !important;}
+
+/* Phase 9.8g.71h: overlap fix - sticky stacking */
+.topbar-v2{z-index:100 !important;}
+#p98g-nav{top:44px !important;z-index:90 !important;}
+.bloom-tab-header{margin-top:0 !important;}
+/* kill any legacy .topbar still rendering */
+.topbar:not(.topbar-v2){display:none !important;}
