@@ -93,6 +93,8 @@ def compute_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, n: int 
 
 def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     if len(df) < p.window:
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z window: have ' + str(len(df)) + ' need ' + str(p.window))
         return None
     w = df.iloc[-p.window:]
     closes = w["close"].to_numpy(dtype=float)
@@ -105,6 +107,8 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         vols = np.ones_like(vols, dtype=float)
     # Strict volume: futures data always has volume. No silent spot fallback.
     if vols.sum() <= 0:
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info('[skip] Phase 9.7Z vols: sum<=0')
         return None
     center = (closes * vols).sum() / vols.sum()
     center = max(center, 1e-6)
@@ -112,14 +116,22 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
 
     est = estimate_ou(x)
     if est is None:
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info('[skip] Phase 9.7Z estimate_ou: returned None')
         return None
     theta, mu, sigma_eq, half_life, r2 = est
 
     if not (p.min_half_life <= half_life <= p.max_half_life):
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z half_life: ' + format(half_life, '.2f') + ' not in [' + str(p.min_half_life) + ', ' + str(p.max_half_life) + ']')
         return None
     if r2 < p.min_r2:
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z r2: ' + format(r2, '.3f') + ' < ' + str(p.min_r2))
         return None
     if vols[-5:].mean() < vols.mean():
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z vol_confirm: last5=' + format(float(vols[-5:].mean()), '.0f') + ' < mean=' + format(float(vols.mean()), '.0f'))
         return None
 
     tr = np.maximum(
@@ -129,9 +141,13 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     atr = float(tr[-p.atr_lookback:].mean())
     atr_hist = pd.Series(tr).rolling(p.atr_lookback).mean().dropna()
     if atr_hist.empty:
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info('[skip] Phase 9.7Z atr_hist: empty')
         return None
     pct = float((atr_hist < atr).mean())
     if not (p.atr_pct_low <= pct <= p.atr_pct_high):
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z atr_pct: ' + format(pct, '.2f') + ' not in [' + str(p.atr_pct_low) + ', ' + str(p.atr_pct_high) + ']')
         return None
 
     # Phase 8c: regime filter - pull wider tail of df for stable ADX estimate
@@ -143,6 +159,8 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         n=p.adx_n,
     )
     if adx_val is None:
+        import logging as _lg97z
+        _lg97z.getLogger('ou_mrs').info('[skip] Phase 9.7Z adx_val: None')
         return None
     if adx_val > p.adx_threshold:
         import logging as _lg_p98h
