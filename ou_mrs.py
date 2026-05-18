@@ -35,17 +35,17 @@ _TIER_NAME, _POLICY = _get_policy(CAPITAL)
 INSTRUMENT_CFG = {
     "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 65_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
     "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"), "lot_size": 65, "margin_per_lot": 130_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
-    "FNF": {"symbol": os.environ.get("FINNIFTY_FUT_SYMBOL", "FINNIFTY26MAY26FUT"),   "token": os.environ.get("FINNIFTY_FUT_TOKEN", "66069"), "lot_size": 60, "margin_per_lot": 90_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "MCN": {"symbol": os.environ.get("MIDCPNIFTY_FUT_SYMBOL", "MIDCPNIFTY26MAY26FUT"), "token": os.environ.get("MIDCPNIFTY_FUT_TOKEN", "66070"), "lot_size": 120, "margin_per_lot": 225_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},  # Phase 9.7O: FNF -> MIDCPNIFTY (FNF never traded)
 }
 INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
 assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMENT_CFG keys"
 # --- end Phase 8g ---
-LOT_SIZE      = 15
+# LOT_SIZE removed Phase 9.7N: lot sizes now per-symbol via INSTRUMENT dict
 
 # Phase 8f: capital-aware lot caps and tier labels
 # 1 BNF lot needs ~Rs40k margin + ~Rs35k buffer = ~Rs75k per lot
 def max_lots_for_capital(capital: int, instrument: str = "BNF") -> int:
-    per_lot = {"BNF": 65_000, "NF": 130_000, "FNF": 90_000, "SENSEX": 90_000}[instrument]
+    per_lot = {"BNF": 65_000, "NF": 130_000, "MCN": 225_000, "SENSEX": 90_000}[instrument]
     return max(1, min(50, capital // per_lot))
 
 def capital_tier(capital: int) -> str:
@@ -69,6 +69,47 @@ import pandas as _pd_p98i
 from datetime import timedelta as _td_p98i
 _candle_cache_p98i = {}  # {sym: pd.DataFrame}
 
+# Phase 9.7P (2026-05-16): persistent candle cache - eliminates cold-start refetch storm
+import atexit as _atexit_p97p
+_CACHE_DIR_P97P = _A3P("state")
+def _cache_path_p97p(sym):
+    return _CACHE_DIR_P97P / f"candle_cache_{sym}.parquet"
+def _load_candle_cache_p97p(sym, session_open_ts):
+    """Load cached candles for sym, filter to today's session_open onwards."""
+    _p = _cache_path_p97p(sym)
+    if not _p.exists():
+        return None
+    try:
+        _df = _pd_p98i.read_parquet(_p)
+        _df = _df[_df.index >= _pd_p98i.Timestamp(session_open_ts)]
+        if _df.empty:
+            return None
+        logging.getLogger().info(f"[cache] loaded {sym}: {len(_df)} bars from {_p.name}")
+        return _df
+    except Exception as _e:
+        logging.getLogger().warning(f"[cache] load failed for {sym}: {_e}")
+        return None
+def _save_candle_cache_p97p(sym, df):
+    """Atomically save candle DataFrame: write to .tmp then rename."""
+    if df is None or df.empty:
+        return
+    _p = _cache_path_p97p(sym)
+    _tmp = _p.with_suffix(".parquet.tmp")
+    try:
+        df.to_parquet(_tmp, engine="pyarrow", compression="zstd")
+        _tmp.replace(_p)
+    except Exception as _e:
+        logging.getLogger().warning(f"[cache] save failed for {sym}: {_e}")
+def _flush_all_caches_p97p():
+    """Persist all in-memory caches on shutdown (atexit)."""
+    _n = 0
+    for _sym, _df in list(_candle_cache_p98i.items()):
+        _save_candle_cache_p97p(_sym, _df)
+        _n += 1
+    logging.getLogger().info(f"[cache] atexit flush: {_n} symbol(s) persisted")
+_atexit_p97p.register(_flush_all_caches_p97p)
+
+
 PARAMS        = Params()
 try:
     PARAMS.z_entry = _POLICY["z_entry"]  # 8p.2: tier-aware
@@ -86,7 +127,7 @@ except Exception as _e:
 _Z_STOP_PER_SYM = {
     "BNF": float(os.environ.get("OU_Z_STOP_BNF", getattr(PARAMS, "z_stop", 3.5))),
     "NF":  float(os.environ.get("OU_Z_STOP_NF",  getattr(PARAMS, "z_stop", 3.5))),
-    "FNF": float(os.environ.get("OU_Z_STOP_FNF", getattr(PARAMS, "z_stop", 3.5))),
+    "MCN": float(os.environ.get("OU_Z_STOP_MCN", getattr(PARAMS, "z_stop", 3.5))),
 }
 def _z_stop_for_sym(sym):
     return _Z_STOP_PER_SYM.get(sym, getattr(PARAMS, "z_stop", 3.5))
@@ -95,7 +136,7 @@ HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
 STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
 
-def size_lots(atr: float, lot_size: int = 15, max_lots: int = 1, capital: int = None) -> int:
+def size_lots(atr: float, lot_size: int, max_lots: int = 1, capital: int = None) -> int:
     """Phase 8g.4.a: pure. Pass per-symbol lot_size/max_lots; capital defaults to module CAPITAL."""
     if capital is None:
         capital = CAPITAL
@@ -119,7 +160,7 @@ def _can_enter_new_position(runners, current_runner, max_concurrent, max_agg_tra
         return False, f"max_trades_agg {agg_trades}/{max_agg_trades}"
     return True, "ok"
 
-def _exit(broker, pos, bar, reason, symbol="BNF", lot_size=15):
+def _exit(broker, pos, bar, reason, symbol="BNF", *, lot_size):
     side = "SELL" if pos["side"] == "BUY" else "BUY"
     qty = pos["qty"] * lot_size
     # Phase 8d: cancel pending SL before closing (skip if reason==STOP — SL already fired)
@@ -196,6 +237,33 @@ def _snapshot_portfolio(broker):
     except Exception as _e:
         log.debug(f"_snapshot_portfolio outer failed: {_e}")
         return None
+
+
+# Phase 9.7S B1 (2026-05-16): atomic writer for state/portfolio.json.
+# Decoupled from state/live.json (single-symbol z-stat scope).
+# Consumer: dashboard.app.api_portfolio (Phase 9.7S B3).
+def _write_portfolio_json_p97s(snap):
+    try:
+        import json as _j, time as _t
+        from pathlib import Path as _P
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo as _Z
+        out = _P(__file__).parent / "state" / "portfolio.json"
+        payload = {
+            "updated_at": _dt.now(_Z("Asia/Kolkata")).isoformat(),
+            "updated_ts": int(_t.time()),
+            "rms": snap.get("rms") if isinstance(snap, dict) else None,
+            "position": snap.get("position") if isinstance(snap, dict) else None,
+            "source": "ou_mrs._write_portfolio_json_p97s",
+        }
+        tmp = out.with_suffix(".tmp")
+        tmp.write_text(_j.dumps(payload, default=str))
+        tmp.replace(out)
+    except Exception as _e:
+        try:
+            log.debug(f"_write_portfolio_json_p97s failed: {_e}")
+        except Exception:
+            pass
 
 def reconcile_sl_orders(broker, symbol="BNF"):
     """Phase 8d.1: on startup, sweep this account+symbol's sl_orders.jsonl for today's SL orders,
@@ -286,6 +354,14 @@ def main():
             reconcile_sl_orders(broker, symbol=_r.symbol)
         except Exception as _e:
             log.warning(f"[reconcile] {_sym} failed (non-fatal): {_e}")
+    # Phase 9.7P (2026-05-16): warm candle cache from disk before main loop
+    _now_p97p = datetime.now()
+    _session_open_p97p = _now_p97p.replace(hour=9, minute=15, second=0, microsecond=0)
+    for _sym_p97p in INSTRUMENTS:
+        _cached_df_p97p = _load_candle_cache_p97p(_sym_p97p, _session_open_p97p)
+        if _cached_df_p97p is not None and not _cached_df_p97p.empty:
+            _candle_cache_p98i[_sym_p97p] = _cached_df_p97p
+    log.info("[cache] Phase 9.7P warm-load: " + str(sum(1 for _s in INSTRUMENTS if _s in _candle_cache_p98i)) + "/" + str(len(INSTRUMENTS)) + " symbols restored")
     last_minute = None
     last_hb_ts = 0.0              # Phase 5b
     last_portfolio_ts = 0.0       # Phase 4b
@@ -346,6 +422,7 @@ def main():
                     _fetch_start = session_open
                 else:
                     _fetch_start = _cached.index[-1] - _td_p98i(minutes=2)
+                time.sleep(5.0)  # Phase 9.7P-pre (2026-05-15): bump 2.5->5.0 to spread 3-symbol burst across 15s and avoid Angel per-second rate trips (was 450 RATE-LIMITs/day)
                 rows = broker.get_candles(_fetch_start, now, "ONE_MINUTE")
                 if not rows:
                     if _cached is not None and not _cached.empty:
@@ -362,6 +439,7 @@ def main():
                     else:
                         df = _new_df.sort_index()
                     _candle_cache_p98i[sym] = df.tail(500)
+                    _save_candle_cache_p97p(sym, _candle_cache_p98i[sym])  # Phase 9.7P persist
                 bar = df.iloc[-1]
                 with _LatTimer("compute_signal"):
                     sig = compute_signal(df, PARAMS)
@@ -370,6 +448,7 @@ def main():
                 if sym == INSTRUMENTS[0] and _t - last_portfolio_ts >= PORTFOLIO_REFRESH_SEC:
                     with _LatTimer("snapshot_portfolio"):
                         cached_portfolio = _snapshot_portfolio(broker)
+                        _write_portfolio_json_p97s(cached_portfolio)  # Phase 9.7S B2
                     last_portfolio_ts = _t
 
                 # Phase 8g.4.b: live_hook for first symbol only (per-symbol panels = Step 6)

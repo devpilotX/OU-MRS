@@ -8,6 +8,33 @@ _STATE = Path(__file__).parent / "state" / "live.json"
 _STATE.parent.mkdir(exist_ok=True)
 _IST = ZoneInfo("Asia/Kolkata")
 
+# Phase 9.7T: 5-min heartbeat z-snapshot JSONL logging (forensic trail)
+_HEARTBEAT_PATH = _STATE.parent / "heartbeat.jsonl"
+_LAST_HEARTBEAT_TS = {}
+_HEARTBEAT_INTERVAL_S = 300.0
+
+
+def _maybe_emit_heartbeat_p97t(data):
+    try:
+        sym = data.get("symbol")
+        if not sym:
+            return
+        now = time.time()
+        last = _LAST_HEARTBEAT_TS.get(sym, 0.0)
+        if now - last < _HEARTBEAT_INTERVAL_S:
+            return
+        _LAST_HEARTBEAT_TS[sym] = now
+        keys = ("updated_ts","updated_at","ltp","z","mean","std","state","state_reason","position","trades_today","pnl_today","candles_count")
+        out = {"sym": sym}
+        for k in keys:
+            out[k] = data.get(k)
+        _HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _HEARTBEAT_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(out, default=str) + chr(10))
+    except Exception:
+        pass
+
+
 
 def tick(*, ltp=None, z=None, mean=None, std=None, window=40,
          z_entry=1.5, z_stop=3.5, candles_count=0, intraday_candles=None,
@@ -76,5 +103,6 @@ def tick_symbol(*, symbol, ltp=None, state="idle", state_reason="",
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, default=str))
         tmp.replace(path)
+        _maybe_emit_heartbeat_p97t(data)
     except Exception:
         pass

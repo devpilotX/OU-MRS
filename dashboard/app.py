@@ -133,6 +133,15 @@ def api_status():
             if "heartbeat" in line:
                 hb_count += 1; hb = line
     _hb_age_s = _heartbeat_age_seconds(hb)
+    try:
+        import os as _os_p98i
+        _st_p98i = BOT_DIR / 'state' / 'live_BNF.json'
+        if _st_p98i.exists():
+            _m_p98i = datetime.now().timestamp() - _os_p98i.path.getmtime(_st_p98i)
+            _hb_age_s = _m_p98i if _hb_age_s is None else min(_hb_age_s, _m_p98i)
+            if not hb: hb = 'state-mtime ' + str(int(_m_p98i)) + 's ago'
+    except Exception:
+        pass
     _market_status = _market_status_now()
     _bs_lbl, _bs_rsn, _bs_sev = _derive_bot_status(sd_active('ou-mrs.service'), sd_active('ou-mrs.timer'), _hb_age_s, _market_status)
     return {
@@ -144,6 +153,7 @@ def api_status():
         "server_time": datetime.now().isoformat(),
         "capital": int(os.environ.get("CAPITAL", 3750000)),
         "live_mode": os.environ.get("LIVE","false").lower() == "true",
+        "mode": ("LIVE" if os.environ.get("LIVE","false").lower()=="true" else "PAPER"),
         "bot_status": _bs_lbl,
         "bot_status_reason": _bs_rsn,
         "bot_status_severity": _bs_sev,
@@ -276,32 +286,36 @@ def api_equity():
             rows.append(row)
     return {"rows": rows}
 
-_portfolio_cache = {"ts": 0, "data": None}
+# Phase 9.7S B3 (2026-05-16): clean api_portfolio() reading state/portfolio.json.
+# Replaces dead _portfolio_cache + the wrong state/live.json reader (live.json is
+# single-symbol z-stat scope, not account scope).
 @app.get("/api/portfolio", dependencies=[Depends(need_auth)])
 def api_portfolio():
-    # Phase 4a: read from state/live.json instead of re-logging into Angel.
-    # The bot pushes fresh portfolio data via live_hook.tick(portfolio=...).
-    # Eliminates the dashboard/bot Angel-session ping-pong.
-    import time, json
-    sp = BOT_DIR / "state" / "live.json"
-    if not sp.exists():
+    import time, json, os
+    pp = BOT_DIR / "state" / "portfolio.json"
+    live_mode = os.environ.get("LIVE", "false").lower() == "true"
+    if not pp.exists():
         return {"ok": False, "reason": "waiting_for_bot",
-                "message": "Bot is not running or has not pushed state yet."}
+                "live_mode": live_mode,
+                "message": "No portfolio snapshot yet. Bot writes one every 60s during market hours, or run tools/p97s_portfolio_oneshot.py for an immediate snapshot."}
     try:
-        data = json.loads(sp.read_text())
+        data = json.loads(pp.read_text())
         age = time.time() - data.get("updated_ts", 0)
-        portfolio = data.get("portfolio") or {}
         return {
             "ok": True,
-            "rms": portfolio.get("rms") if portfolio else None,
-            "position": portfolio.get("position") if portfolio else None,
-            "portfolio_ts": portfolio.get("ts") if portfolio else None,
+            "live_mode": live_mode,
+            "rms": data.get("rms"),
+            "position": data.get("position"),
+            "portfolio_ts": data.get("updated_ts"),
             "age_sec": round(age, 1),
             "stale": age > 120,
             "ts": data.get("updated_at"),
+            "source": data.get("source"),
         }
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
+
+
 
 
 # PREMIUM_API_v1
@@ -417,7 +431,7 @@ def api_strategy():
     _CFG = {
         "BNF": {"env": "BANKNIFTY_FUT_SYMBOL", "default": "BANKNIFTY26MAY26FUT", "lot_size": 30, "margin": 65000},
         "NF":  {"env": "NIFTY_FUT_SYMBOL",    "default": "NIFTY26MAY26FUT",    "lot_size": 65, "margin": 130000},
-        "FNF": {"env": "FINNIFTY_FUT_SYMBOL", "default": "FINNIFTY26MAY26FUT", "lot_size": 60, "margin": 90000},
+        "MCN": {"env": "MIDCPNIFTY_FUT_SYMBOL", "default": "MIDCPNIFTY26MAY26FUT", "lot_size": 120, "margin": 225000},  # Phase 9.7O-dash: FNF -> MIDCPNIFTY
     }
     _capital = float(_os_pv1.getenv("CAPITAL", 3750000))
     _inst = [s.strip().upper() for s in _os_pv1.getenv("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in _CFG] or ["BNF"]
@@ -437,10 +451,10 @@ def api_strategy():
 @app.get("/api/live/state", dependencies=[Depends(need_auth)])
 def api_live_state(symbol: str = "BNF"):
     # 8o.3b: per-symbol routing -- primary BNF reads rich legacy live.json,
-    # NF/FNF read per-symbol lite live_<SYM>.json. Frontend shows banner when lite.
+    # NF/MCN read per-symbol lite live_<SYM>.json. Frontend shows banner when lite.
     import time, json
     sym = (symbol or "BNF").upper().strip()
-    if sym not in ("BNF", "NF", "FNF"):
+    if sym not in ("BNF", "NF", "MCN"):
         sym = "BNF"
     if sym == "BNF":
         sp = BOT_DIR / "state" / "live.json"
@@ -714,7 +728,7 @@ def api_signals_json(token: str = ""):
 # Phase 8g.6: per-symbol state for dashboard cards
 @app.get("/api/symbols", dependencies=[Depends(need_auth)])
 def api_symbols():
-    """Returns {symbols: {BNF,NF,FNF: {...}}, aggregate: {...}}."""
+    """Returns {symbols: {BNF,NF,MCN: {...}}, aggregate: {...}}."""
     state_dir = BOT_DIR / "state"
     out = {"symbols": {}, "aggregate": {"trades_today": 0, "pnl_today": 0.0, "live_positions": 0, "any_kill": False, "ts": int(time.time())}}
     if not state_dir.exists():
@@ -839,7 +853,7 @@ async def p98f_option_chain(symbol: str = "BNF", expiry: str = ""):
     """Phase 9.8f.48a: synthetic options chain preview using REAL live spot from state/live_<SYM>.json + Black-Scholes Greeks.
     OI/Volume/IV are synthetic gradients peaked at ATM (deterministic from spot). Drop-in swap with Angel One data in Phase E1."""
     import math, json as _oj, time as _ot
-    cfg = {"BNF": (100, "live_BNF.json", "BANKNIFTY"), "NF": (50, "live_NF.json", "NIFTY"), "FNF": (100, "live_FNF.json", "FINNIFTY")}
+    cfg = {"BNF": (100, "live_BNF.json", "BANKNIFTY"), "NF": (50, "live_NF.json", "NIFTY"), "MCN": (75, "live_MCN.json", "MIDCPNIFTY")}
     key = symbol.upper()
     if key not in cfg: key = "BNF"
     step, state_file, idx_name = cfg[key]
@@ -854,7 +868,7 @@ async def p98f_option_chain(symbol: str = "BNF", expiry: str = ""):
         except:
             pass
     if spot <= 0:
-        spot = {"BNF": 54000.0, "NF": 23500.0, "FNF": 24000.0}[key]
+        spot = {"BNF": 54000.0, "NF": 23500.0, "MCN": 12500.0}[key]
     atm = round(spot / step) * step
     strikes_list = [atm + (i - 5) * step for i in range(11)]
     T = 7.0 / 365.0
@@ -1080,17 +1094,6 @@ def api_ratelimit_stats():
         return {"ok": True, "stats": p98f_rl.all_stats()}
     except Exception as e_rl:
         return {"ok": False, "error": str(e_rl)}
-
-# ===== Phase 9.8f.52: rate limiter monitoring endpoint =====
-import rate_limit as p98f_rl
-
-@app.get("/api/ratelimit/stats", dependencies=[Depends(need_auth)])
-def api_ratelimit_stats():
-    try:
-        return {"ok": True, "stats": p98f_rl.all_stats()}
-    except Exception as e_rl:
-        return {"ok": False, "error": str(e_rl)}
-
 
 # ===== Phase 9.8f.53 v2: brokerage calculator endpoints (Angel feature 4) =====
 import brokerage_calc as p98f_bc

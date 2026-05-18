@@ -1,7 +1,7 @@
 """Phase 9.6: Angel SmartAPI WebSocket V2 tick pump.
 
 Runs as a daemon thread inside the dashboard process. Subscribes to
-BANKNIFTY/NIFTY/FINNIFTY FUT tokens (NFO=2, mode=1 LTP), publishes ticks
+BANKNIFTY/NIFTY/MIDCPNIFTY FUT tokens (NFO=2, mode=1 LTP), publishes ticks
 to the in-memory TickBroker for SSE fan-out.
 
 Failures are non-fatal: if Angel auth or websocket fails, the dashboard
@@ -30,7 +30,7 @@ def _build_token_map() -> Dict[str, str]:
     for env_key, code in (
         ("BANKNIFTY_FUT_TOKEN", "BNF"),
         ("NIFTY_FUT_TOKEN", "NF"),
-        ("FINNIFTY_FUT_TOKEN", "FNF"),
+        ("MIDCPNIFTY_FUT_TOKEN", "MCN"),  # Phase 9.7O-dash: FNF -> MIDCPNIFTY
     ):
         tok = (os.environ.get(env_key) or "").strip()
         if tok:
@@ -46,6 +46,11 @@ class WsTickPump:
         self._iter = 0
 
     def start(self) -> None:
+        # Phase 9.7L: env gate releases Angel REST quota for bot
+        import os as _os_p97L
+        if _os_p97L.environ.get("DASHBOARD_LIVE_TICK", "1") != "1":
+            log.warning("[ws_pump] disabled via DASHBOARD_LIVE_TICK=0 env var")
+            return
         if not self.token_map:
             log.warning("[ws_pump] no FUT tokens in env; pump disabled")
             return

@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
   <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/clean-theme.css?v=74"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=75"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -20,7 +20,7 @@
 <div class="tb-center">
 <span class="tk" id="tk-BNF"><span class="tk-sym">BNF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
 <span class="tk" id="tk-NF"><span class="tk-sym">NF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
-<span class="tk" id="tk-FNF"><span class="tk-sym">FNF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tk" id="tk-MCN"><span class="tk-sym">MCN</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
 <span class="tb-sep"></span>
 <span class="tb-meta"><span class="tb-meta-lbl">IST</span><span class="tb-meta-val" id="tb-ist">--:--:--</span></span>
 <span class="tb-meta"><span class="tb-meta-lbl">SESSION</span><span class="tb-meta-val" id="tb-session">--</span></span>
@@ -88,16 +88,16 @@
         <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="nf-pos">--</div></div>
       </div>
     </div>
-    <div class="symbol-card sc-offline" id="card-FNF" x-show="activeTab==='live'">
+    <div class="symbol-card sc-offline" id="card-MCN" x-show="activeTab==='live'">
       <div class="sc-row1">
-        <div class="sc-id"><div class="sc-sym">FNF</div><div class="sc-name">FINNIFTY · 26MAY26</div></div>
+        <div class="sc-id"><div class="sc-sym">MCN</div><div class="sc-name">MIDCPNIFTY · 26MAY26</div></div>
         <div class="sc-state" id="fnf-state">OFFLINE</div>
       </div>
       <div class="sc-row2">
         <div class="sc-ltp" id="fnf-ltp">--</div>
         <div class="sc-chg" id="fnf-chg">--</div>
       </div>
-      <canvas class="sc-spark" id="spark-FNF"></canvas>
+      <canvas class="sc-spark" id="spark-MCN"></canvas>
       <div class="sc-row3">
         <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="fnf-pnl">--</div></div>
         <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="fnf-trades">0</div></div>
@@ -151,7 +151,7 @@
       <div class="panel-actions">
         <select id="log-file" class="log-ctl"><option value="">Latest</option></select>
         <select id="log-level" class="log-ctl"><option value="">All levels</option><option value="INFO">INFO</option><option value="WARNING">WARN</option><option value="ERROR">ERROR</option></select>
-        <select id="log-symbol" class="log-ctl"><option value="">All symbols</option><option value="BNF">BNF</option><option value="NF">NF</option><option value="FNF">FNF</option><option value="pfm">pfm</option></select>
+        <select id="log-symbol" class="log-ctl"><option value="">All symbols</option><option value="BNF">BNF</option><option value="NF">NF</option><option value="MCN">MCN</option><option value="pfm">pfm</option></select>
         <input id="log-search" class="log-ctl log-search" type="text" placeholder="search / regex"/>
         <label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label>
         <label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label>
@@ -289,9 +289,9 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
   <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
 </section>
 </main>
-<script src="/static/app.js?v=74"></script>
+<script src="/static/app.js?v=1778934507"></script>
     <script src="/static/sse-ticks.js?v=2"></script>
-    <script src="/static/topbar-controls.js?v=1"></script>
+    <script src="/static/topbar-controls.js?v=2"></script>
 
     <div class="kbd-modal" id="kbd-modal" hidden>
       <div class="kbd-modal-inner">
@@ -303,7 +303,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
           <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
           <tr><td><kbd>r</kbd></td><td>Refresh dashboard now</td></tr>
           <tr><td><kbd>t</kbd></td><td>Toggle theme (dark/light)</td></tr>
-          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / FNF symbol card</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / MCN symbol card</td></tr>
           <tr><td><kbd>/</kbd></td><td>Focus log search box</td></tr>
           <tr><td><kbd>g</kbd> then <kbd>e</kbd></td><td>Go to Equity Curve</td></tr>
           <tr><td><kbd>g</kbd> then <kbd>r</kbd></td><td>Go to Market Regime</td></tr>

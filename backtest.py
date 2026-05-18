@@ -41,6 +41,7 @@ PARAMS = Params(
     adx_threshold=float(os.environ.get("BT_ADX", 30.0)),
     z_entry=float(os.environ.get("BT_ZENTRY", 1.4)),
     min_r2=float(os.environ.get("BT_MINR2", 0.05)),
+    z_stop=float(os.environ.get("BT_ZSTOP", 3.5)),
     regime_allow=_regime_allow_p98,
 )
 

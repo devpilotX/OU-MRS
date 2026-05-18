@@ -31,7 +31,8 @@ async function refreshStatus(){
   $('#bot-sub').textContent = s.bot_status_reason || ('Timer: ' + (s.timer_state || '--'));
   $('#capital').textContent = fmtMoney(s.capital);
   $('#mode-label').textContent = s.live_mode ? 'LIVE' : 'Paper';
-  const mc = $('#mode-chip'); mc.textContent = s.live_mode ? 'LIVE' : 'Paper'; mc.className = 'chip ' + (s.live_mode ? 'err' : 'info');
+  const mc = $('#mode-chip'); if(mc){ mc.textContent = s.live_mode ? 'LIVE' : 'Paper'; mc.className = 'chip ' + (s.live_mode ? 'err' : 'info'); }
+  const tbm = $('#tb-mode'); if(tbm){ tbm.textContent = s.live_mode ? 'LIVE' : 'PAPER'; tbm.className = 'tb-mode tb-mode-' + (s.live_mode ? 'live' : 'paper'); }
   const hbi = $('#heartbeat-info'); if(hbi) hbi.textContent = 'Heartbeats today: ' + (s.heartbeat_count_today || 0);
   const stEl = $('#server-time'); if(stEl) stEl.textContent = new Date(s.server_time).toLocaleTimeString();
   if(s.next_run_usec){ const us = parseInt(s.next_run_usec); if(us > 0){ const dt = new Date(us/1000); const sched = $('#schedule-time'); if(sched) sched.textContent = dt.toLocaleString('en-IN',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); } }
@@ -544,7 +545,7 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
       }
       document.querySelectorAll(".live-card").forEach(c => c.classList.remove("waiting"));
       if (d.ltp != null) {
-        document.getElementById("ltp-val").textContent = "₹" + Number(d.ltp).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); const _lbl_p98o = document.getElementById("ltp-label"); if (_lbl_p98o) _lbl_p98o.textContent = ({BNF:"BANKNIFTY",NF:"NIFTY",FNF:"FINNIFTY"}[__sym]||__sym) + " FUT · LTP";
+        document.getElementById("ltp-val").textContent = "₹" + Number(d.ltp).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); const _lbl_p98o = document.getElementById("ltp-label"); if (_lbl_p98o) _lbl_p98o.textContent = ({BNF:"BANKNIFTY",NF:"NIFTY",MCN:"MIDCPNIFTY"}[__sym]||__sym) + " FUT · LTP";
         if (d.ohlc_today) {
           const o = d.ohlc_today.o || d.ltp;
           const chg = d.ltp - o;
@@ -686,9 +687,9 @@ setInterval(refreshFast,5000);setInterval(refreshSlow,60000);
 })();
 
 // Phase 8m.2: per-symbol hero cards with live sparklines (replaces 8g.6 refreshSymbols)
-const SYM_NAMES_8M2 = { BNF: "BANKNIFTY", NF: "NIFTY", FNF: "FINNIFTY" };
+const SYM_NAMES_8M2 = { BNF: "BANKNIFTY", NF: "NIFTY", MCN: "MIDCPNIFTY" };
 const SYM_COLORS_8M2 = { in_trade: "#3ce04f", cooldown: "#ff5566", warming_up: "#ffaa3c", idle: "#94a3b8", offline: "#475569" };
-const SPARK_BUFFER = { BNF: [], NF: [], FNF: [] };
+const SPARK_BUFFER = { BNF: [], NF: [], MCN: [] };
 const SPARK_MAX = 60;
 
 function pushSpark(sym, ltp) {
@@ -743,7 +744,7 @@ function drawSparkline(canvas, samples, color) {
 async function refreshSymbols() {
   const d = await fetchJSON("/api/symbols");
   if (!d || !d.symbols) return;
-  for (const sym of ["BNF", "NF", "FNF"]) {
+  for (const sym of ["BNF", "NF", "MCN"]) {
     const lower = sym.toLowerCase();
     const data = d.symbols[sym];
     const card = document.getElementById("card-" + sym);
@@ -1342,7 +1343,7 @@ setTimeout(refreshTickChip, 1500);
       case "2":
         e.preventDefault(); scrollTo("#card-NF"); break;
       case "3":
-        e.preventDefault(); scrollTo("#card-FNF"); break;
+        e.preventDefault(); scrollTo("#card-MCN"); break;
       case "/":
         e.preventDefault();
         const s = document.getElementById("log-search");
@@ -1443,7 +1444,7 @@ setTimeout(refreshTickChip, 1500);
     EOD: "#3b82f6",
     OTHER: "#6b7280"
   };
-  const SYMBOLS = ["BNF", "NF", "FNF"];
+  const SYMBOLS = ["BNF", "NF", "MCN"];
   function pickField(t, names){
     for (const n of names) {
       if (t[n] != null && t[n] !== "") return t[n];
@@ -1519,14 +1520,14 @@ setTimeout(refreshTickChip, 1500);
 // Phase 9.8ab Fix 1: reason mix robust response parsing
 (function _p98ab_mixFix(){
   const COLORS = { TARGET:'#10b981', STOP:'#ef4444', TIME:'#f59e0b', Z_VEL_STALL:'#8b5cf6', KILL:'#dc2626', EOD:'#3b82f6', OTHER:'#6b7280' };
-  const SYMBOLS = ['BNF','NF','FNF'];
+  const SYMBOLS = ['BNF','NF','MCN'];
   function inferSymbolFromTrade(t){
     var direct = t.symbol || t.sym || t.instrument || t.ticker;
     if (direct) return String(direct).toUpperCase();
     var entry = Number(t.entry || t.in || t.in_price || t.entryPrice || 0);
     if (entry > 50000) return 'BNF';
     if (entry > 22000 && entry < 30000) return 'NF';
-    if (entry > 18000 && entry < 28000) return 'FNF';
+    if (entry > 12000 && entry < 16000) return 'MCN';
     return null;
   }
   function flatten(d){
@@ -1550,7 +1551,7 @@ setTimeout(refreshTickChip, 1500);
       if (!r.ok) return;
       const d = await r.json();
       const trades = flatten(d);
-      const grouped = { BNF:{}, NF:{}, FNF:{} };
+      const grouped = { BNF:{}, NF:{}, MCN:{} };
       trades.forEach(t => {
         var sym = inferSymbolFromTrade(t);
         if (!sym || !SYMBOLS.includes(sym)) return;
@@ -2074,7 +2075,7 @@ setTimeout(refreshTickChip, 1500);
     tape.innerHTML =
       '<div class="bb-tape-item" data-sym="BANKNIFTY"><span class="bb-tape-sym">BNF</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
       '<div class="bb-tape-item" data-sym="NIFTY"><span class="bb-tape-sym">NF</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
-      '<div class="bb-tape-item" data-sym="FINNIFTY"><span class="bb-tape-sym">FNF</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
+      '<div class="bb-tape-item" data-sym="MIDCPNIFTY"><span class="bb-tape-sym">MCN</span><span class="bb-tape-val">&mdash;</span><span class="bb-tape-chg flat">0.00%</span></div>' +
       '<div class="bb-tape-item"><span class="bb-tape-sym">IST</span><span class="bb-tape-val" id="bb-tape-clock">--:--:--</span></div>' +
       '<div class="bb-tape-item"><span class="bb-tape-sym">SESSION</span><span class="bb-tape-val" id="bb-tape-session">--</span></div>' +
       '<div class="bb-tape-item"><span class="bb-tape-sym">THEME</span><span class="bb-tape-val" id="bb-tape-theme">DEFAULT</span></div>';
@@ -2194,7 +2195,7 @@ setTimeout(refreshTickChip, 1500);
 (function _p98f_ticker_fix(){
   if (window.__P98F_TICKER_FIX__) return;
   window.__P98F_TICKER_FIX__ = true;
-  const MAP = {"BANKNIFTY":"BNF","NIFTY":"NF","FINNIFTY":"FNF"};
+  const MAP = {"BANKNIFTY":"BNF","NIFTY":"NF","MIDCPNIFTY":"MCN"};
   function flashCell(el, up){
     if (!el) return;
     el.style.transition = "background 0.6s ease";
@@ -2341,7 +2342,7 @@ setTimeout(refreshTickChip, 1500);
 (function _p98f_spark_intraday(){
   if (window.__P98F_SPARK_INTRADAY__) return;
   window.__P98F_SPARK_INTRADAY__ = true;
-  const SYMS = ["BNF","NF","FNF"];
+  const SYMS = ["BNF","NF","MCN"];
   const css = document.createElement("style");
   css.textContent = ".sc-spark{width:100%;height:46px;display:block;margin:8px 0 6px;border-radius:3px}";
   document.head.appendChild(css);
@@ -2399,8 +2400,8 @@ setTimeout(refreshTickChip, 1500);
 (function _p98f_l2_book(){
   if (window.__P98F_L2__) return;
   window.__P98F_L2__ = true;
-  const SYMS = ["BNF","NF","FNF"];
-  const NAMES = {BNF:"BANKNIFTY", NF:"NIFTY", FNF:"FINNIFTY"};
+  const SYMS = ["BNF","NF","MCN"];
+  const NAMES = {BNF:"BANKNIFTY", NF:"NIFTY", MCN:"MIDCPNIFTY"};
   function makePanel(){
     if (document.getElementById("p98f-l2-panel")) return;
     const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-l2-panel";
@@ -2548,8 +2549,8 @@ setTimeout(refreshTickChip, 1500);
 (function _p98f_zscore(){
   if (window.__P98F_ZSCORE__) return;
   window.__P98F_ZSCORE__ = true;
-  const SYMS = ["BNF","NF","FNF"];
-  const NAMES = {BNF:"BANKNIFTY", NF:"NIFTY", FNF:"FINNIFTY"};
+  const SYMS = ["BNF","NF","MCN"];
+  const NAMES = {BNF:"BANKNIFTY", NF:"NIFTY", MCN:"MIDCPNIFTY"};
   function makePanel(){
     if (document.getElementById("p98f-z-panel")) return;
     const sec = document.createElement("section"); sec.className="panel"; sec.id="p98f-z-panel";
@@ -2989,7 +2990,7 @@ setTimeout(refreshTickChip, 1500);
     const sec = document.createElement("section");
     sec.className = "panel";
     sec.id = "p98f-oc-panel";
-    sec.innerHTML = '<div class="panel-header"><div><h2>Options Chain</h2><span class="muted">Live spot \u00b7 Black-Scholes Greeks \u00b7 synthetic OI/Vol/IV preview pending Angel One wiring</span></div><div style="display:flex;gap:8px;align-items:center"><span class="panel-badge" style="background:rgba(255,200,51,.12);color:#ffc833">PREVIEW</span><div id="p98f-oc-tabs" style="display:flex;gap:4px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px"><button data-sym="BNF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:#333;color:#fff;cursor:pointer;border-radius:3px;font-weight:700">BNF</button><button data-sym="NF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;border-radius:3px">NF</button><button data-sym="FNF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;border-radius:3px">FNF</button></div></div></div><div id="p98f-oc-info" class="muted" style="margin-top:10px;font-size:11px;font-family:JetBrains Mono,Consolas,monospace"></div><div id="p98f-oc-wrap" style="margin-top:10px;overflow-x:auto;max-height:520px;overflow-y:auto"><div class="muted">loading\u2026</div></div><div id="p98f-oc-foot" class="muted" style="margin-top:10px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace"></div>';
+    sec.innerHTML = '<div class="panel-header"><div><h2>Options Chain</h2><span class="muted">Live spot \u00b7 Black-Scholes Greeks \u00b7 synthetic OI/Vol/IV preview pending Angel One wiring</span></div><div style="display:flex;gap:8px;align-items:center"><span class="panel-badge" style="background:rgba(255,200,51,.12);color:#ffc833">PREVIEW</span><div id="p98f-oc-tabs" style="display:flex;gap:4px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px"><button data-sym="BNF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:#333;color:#fff;cursor:pointer;border-radius:3px;font-weight:700">BNF</button><button data-sym="NF" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;border-radius:3px">NF</button><button data-sym="MCN" class="oc-tab" style="padding:4px 10px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;border-radius:3px">MCN</button></div></div></div><div id="p98f-oc-info" class="muted" style="margin-top:10px;font-size:11px;font-family:JetBrains Mono,Consolas,monospace"></div><div id="p98f-oc-wrap" style="margin-top:10px;overflow-x:auto;max-height:520px;overflow-y:auto"><div class="muted">loading\u2026</div></div><div id="p98f-oc-foot" class="muted" style="margin-top:10px;font-size:11px;padding-top:10px;border-top:1px solid rgba(128,128,128,.18);font-family:JetBrains Mono,Consolas,monospace"></div>';
     const anchor = document.getElementById("p98f-risk-panel") || document.getElementById("p98f-equity-panel");
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(sec, anchor.nextSibling);
     sec.querySelectorAll(".oc-tab").forEach(function(btn){
@@ -3085,7 +3086,7 @@ setTimeout(refreshTickChip, 1500);
   const SYM_MAP = {
     'BANKNIFTY': 'BANKNIFTY', 'BNF': 'BANKNIFTY',
     'NIFTY': 'NIFTY', 'NF': 'NIFTY',
-    'FINNIFTY': 'FINNIFTY', 'FNF': 'FINNIFTY'
+    'MIDCPNIFTY': 'MIDCPNIFTY', 'MCN': 'MIDCPNIFTY'
   };
   const lastSseVals = {};
   let esRef = null;
@@ -3194,7 +3195,7 @@ window.p98gStrategyPanel = function p98gStrategyPanel() {
     lotRows: [
       { sym: "BANKNIFTY", lot: 35 },
       { sym: "NIFTY", lot: 25 },
-      { sym: "FINNIFTY", lot: 40 },
+      { sym: "MIDCPNIFTY", lot: 120 },
     ],
   };
 };

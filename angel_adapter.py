@@ -87,7 +87,7 @@ class AngelBroker:
             "todate": end_dt.strftime("%Y-%m-%d %H:%M"),
         }
         last_err = None
-        for attempt in range(4):
+        for attempt in range(2):  # Phase 9.7M: 4->2 retries to cap quota burn at 90s vs 450s
             try:
                 p98f_rl.get_bucket("angel_quote").consume(block=True)
                 resp = self.smart.getCandleData(params)
@@ -102,7 +102,7 @@ class AngelBroker:
 
             if is_rate:
                 # Long backoff: 30, 60, 120, 240s (+ jitter). Set global cool-down.
-                wait = (30 * (2 ** attempt)) + _random.uniform(0, 5)
+                wait = (90 * (2 ** attempt)) + _random.uniform(0, 5)  # Phase 9.7M: 30s->90s past Angel per-min window
                 _RATE_LIMIT_UNTIL[0] = time.time() + wait
                 log.warning(f"get_candles attempt {attempt+1}/4 RATE-LIMIT: {last_err}; "
                             f"cool-down {wait:.1f}s (no relogin)")
