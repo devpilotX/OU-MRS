@@ -73,9 +73,9 @@ class AngelBroker:
         # Honor global cool-down set by any prior rate-limited call
         now_ts = time.time()
         if now_ts < _RATE_LIMIT_UNTIL[0]:
-            cool = _RATE_LIMIT_UNTIL[0] - now_ts + _random.uniform(0, 2)
-            log.warning(f"global rate-limit cool-down active, waiting {cool:.1f}s before call")
-            time.sleep(cool)
+            cool = _RATE_LIMIT_UNTIL[0] - now_ts
+            log.warning(f"[9.7X] global rate-limit cool-down active for {cool:.1f}s -- returning [] so caller falls back to cached candles")
+            return []
         # De-sync jitter
         time.sleep(_random.uniform(0.0, 2.5))
 
@@ -101,12 +101,12 @@ class AngelBroker:
             is_auth = _is_auth_fail_err(last_err)
 
             if is_rate:
-                # Long backoff: 30, 60, 120, 240s (+ jitter). Set global cool-down.
-                wait = (90 * (2 ** attempt)) + _random.uniform(0, 5)  # Phase 9.7M: 30s->90s past Angel per-min window
+                # Phase 9.7X: set global cool-down then return [] (no sleep).
+                # Caller falls back to cached candles via existing 'if not rows' path.
+                wait = (90 * (2 ** attempt)) + _random.uniform(0, 5)
                 _RATE_LIMIT_UNTIL[0] = time.time() + wait
-                log.warning(f"get_candles attempt {attempt+1}/4 RATE-LIMIT: {last_err}; "
-                            f"cool-down {wait:.1f}s (no relogin)")
-                time.sleep(wait)
+                log.warning(f"[9.7X] get_candles RATE-LIMIT (attempt {attempt+1}): cool-down {wait:.1f}s set, returning [] (caller uses cached candles)")
+                return []
             elif is_auth:
                 wait = 2 * (attempt + 1)
                 log.warning(f"get_candles attempt {attempt+1}/4 AUTH-FAIL: {last_err}; "
