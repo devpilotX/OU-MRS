@@ -81,7 +81,13 @@ def _load_candle_cache_p97p(sym, session_open_ts):
         return None
     try:
         _df = _pd_p98i.read_parquet(_p)
-        _df = _df[_df.index >= _pd_p98i.Timestamp(session_open_ts)]
+        # Phase 9.7Y (2026-05-18): handle tz-aware index vs naive Timestamp
+        _sess_ts_p97y = _pd_p98i.Timestamp(session_open_ts)
+        if getattr(_df.index, "tz", None) is not None and _sess_ts_p97y.tz is None:
+            _sess_ts_p97y = _sess_ts_p97y.tz_localize(_df.index.tz)
+        elif getattr(_df.index, "tz", None) is None and _sess_ts_p97y.tz is not None:
+            _sess_ts_p97y = _sess_ts_p97y.tz_localize(None)
+        _df = _df[_df.index >= _sess_ts_p97y]
         if _df.empty:
             return None
         logging.getLogger().info(f"[cache] loaded {sym}: {len(_df)} bars from {_p.name}")
