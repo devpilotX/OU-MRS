@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
   <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/clean-theme.css?v=p97ag1779190233"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=p97ah1779190898"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -28,7 +28,7 @@
 </div>
 <div class="tb-right"><span class="tb-mode" id="tb-mode">--</span><button class="tb-theme" id="tb-theme" title="Toggle theme">DEFAULT</button><a href="/logout" class="tb-logout">Logout</a></div>
 </header>
-<main x-data="p98gShell()" x-init="history.replaceState(null,'',location.pathname); activeTab='live'; initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:44px;z-index:90;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
+<main x-data="p98gShell()" x-init="history.replaceState(null,'',location.pathname); activeTab='live'; initRouting()"><nav id="p98g-nav" class="bloom-nav"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
 <!-- Phase 9.8g.70: per-tab header strip -->
 <div class="bloom-tab-header"><span class="bloom-tab-name" x-text="(activeTab||'live').toUpperCase()"></span><span class="tab-meta">PHASE 9.8g &middot; OU-MRS &middot; PAPER</span></div>
 
@@ -106,7 +106,7 @@
     </div>
   </section>
   
-<section class="panel" id="panel-regime" x-show="activeTab==='live'">
+<section class="panel" id="panel-regime" x-show="activeTab==='strategy'\">
   <div class="panel-header">
     <div><h2>Market Regime</h2><span class="muted">Where the edge actually lives · ADX-14 split TREND / RANGE / CHOP</span></div>
     <div class="ec-meta">
@@ -289,7 +289,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
   <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
 </section>
 </main>
-<script src="/static/app.js?v=p97ag1779190233"></script>
+<script src="/static/app.js?v=p97ah1779190898"></script>
     <script src="/static/sse-ticks.js?v=2"></script>
     <script src="/static/topbar-controls.js?v=3"></script>
 
