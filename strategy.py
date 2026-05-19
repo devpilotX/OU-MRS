@@ -129,7 +129,7 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         import logging as _lg97z
         _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z r2: ' + format(r2, '.3f') + ' < ' + str(p.min_r2))
         return None
-    if vols[-5:].mean() < vols.mean():
+    if __import__('os').environ.get('OU_VOL_CONFIRM', 'on').lower() != 'off' and vols[-5:].mean() < vols.mean():
         import logging as _lg97z
         _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z vol_confirm: last5=' + format(float(vols[-5:].mean()), '.0f') + ' < mean=' + format(float(vols.mean()), '.0f'))
         return None
@@ -145,7 +145,7 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         _lg97z.getLogger('ou_mrs').info('[skip] Phase 9.7Z atr_hist: empty')
         return None
     pct = float((atr_hist < atr).mean())
-    if not (p.atr_pct_low <= pct <= p.atr_pct_high):
+    if __import__('os').environ.get('OU_ATR_PCT_FILTER', 'on').lower() != 'off' and not (p.atr_pct_low <= pct <= p.atr_pct_high):
         import logging as _lg97z
         _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z atr_pct: ' + format(pct, '.2f') + ' not in [' + str(p.atr_pct_low) + ', ' + str(p.atr_pct_high) + ']')
         return None
