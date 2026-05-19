@@ -1,405 +1,319 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>OU·MRS</title>
-<link rel="icon" type="image/svg+xml" href="/static/favicon.svg"/>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
---bg:#000;--bg2:#0b0b0d;--bg3:#131316;--bg4:#1a1a1f;
---line:#1d1d22;--line2:#2a2a30;
---fg:#e8e8ec;--fg2:#9a9aa0;--fg3:#62626a;--fg4:#3a3a40;
---accent:#ff8a00;--green:#00d68f;--red:#ff5566;--blue:#5b9dff;--yellow:#ffb84d;--purple:#b794f6;
---mono:'IBM Plex Mono','JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
---sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:12px;line-height:1.4;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--line2);border-radius:0}
-::-webkit-scrollbar-thumb:hover{background:var(--fg4)}
-
-.app{display:grid;grid-template-rows:38px auto auto 1fr 22px;height:100vh}
-
-/* HEADER */
-.hdr{display:flex;align-items:stretch;background:var(--bg2);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:.5px}
-.hc{padding:0 14px;display:flex;align-items:center;gap:8px;border-right:1px solid var(--line);color:var(--fg2)}
-.hc.brand{color:var(--accent);font-weight:700;letter-spacing:1.5px;font-size:11.5px}
-.hc.spacer{flex:1;border:none}
-.hc .lbl{color:var(--fg3);font-size:9px;letter-spacing:1px}
-.hc .val{color:var(--fg);font-weight:500}
-.hc .val.acc{color:var(--accent)}
-.hc .val.green{color:var(--green)}
-.hc .val.red{color:var(--red)}
-.mode{padding:2px 7px;font-size:9.5px;font-weight:600;letter-spacing:1px;border:1px solid var(--accent);color:var(--accent);border-radius:1px}
-.mode.live{background:var(--accent);color:#000}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--fg4);flex-shrink:0}
-.dot.ok{background:var(--green);box-shadow:0 0 6px rgba(0,214,143,.6)}
-.dot.warn{background:var(--yellow)}
-.dot.err{background:var(--red)}
-
-/* SECTION HEADERS */
-.shdr{padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:1.5px;color:var(--fg3);display:flex;justify-content:space-between;align-items:center}
-.shdr .meta{color:var(--fg4);font-weight:400;letter-spacing:.8px}
-
-/* TABLE */
-.tbl-wrap{background:var(--bg);max-height:200px;overflow:auto}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
-th{padding:7px 14px;text-align:left;background:var(--bg2);color:var(--fg3);font-weight:500;font-size:9.5px;letter-spacing:1.2px;border-bottom:1px solid var(--line2);position:sticky;top:0;z-index:1}
-th.r{text-align:right}
-td{padding:9px 14px;border-bottom:1px solid var(--line);color:var(--fg);font-variant-numeric:tabular-nums}
-td.r{text-align:right}
-tr:hover td{background:rgba(255,138,0,.02)}
-.sym{font-weight:600;letter-spacing:.8px;font-size:12.5px}
-.sym.bnf{color:var(--accent)}
-.sym.nf{color:var(--blue)}
-.sym.mcn{color:var(--yellow)}
-.pill{display:inline-block;padding:2px 8px;font-size:9.5px;font-weight:600;letter-spacing:.8px;border-radius:1px;border:1px solid;font-family:var(--mono)}
-.pill.long{color:var(--green);border-color:rgba(0,214,143,.4);background:rgba(0,214,143,.08)}
-.pill.short{color:var(--red);border-color:rgba(255,85,102,.4);background:rgba(255,85,102,.08)}
-.pill.flat{color:var(--fg3);border-color:var(--line2);background:transparent}
-.pill.regime{color:var(--fg2);border-color:var(--line2);background:var(--bg2);font-size:9px}
-.pill.regime.trend{color:var(--blue);border-color:rgba(91,157,255,.3)}
-.pill.regime.range{color:var(--green);border-color:rgba(0,214,143,.3)}
-.pill.regime.chop{color:var(--yellow);border-color:rgba(255,184,77,.3)}
-.pos{color:var(--green)}
-.neg{color:var(--red)}
-.zer{color:var(--fg3)}
-.dim{color:var(--fg2)}
-.faint{color:var(--fg3)}
-.z-hi{color:var(--yellow);font-weight:700}
-.z-extreme{color:var(--accent);font-weight:700}
-.reason{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2);font-size:11.5px}
-
-/* KPI STRIP */
-.kpis{display:grid;grid-template-columns:repeat(6,1fr);background:var(--bg2);border-bottom:1px solid var(--line)}
-.kpi{padding:11px 16px;border-right:1px solid var(--line)}
-.kpi:last-child{border-right:none}
-.kpi-lbl{font-family:var(--mono);font-size:9px;font-weight:500;letter-spacing:1.5px;color:var(--fg3);margin-bottom:5px;text-transform:uppercase}
-.kpi-val{font-family:var(--mono);font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--fg);line-height:1}
-.kpi-val.pos{color:var(--green)}
-.kpi-val.neg{color:var(--red)}
-.kpi-val.zer{color:var(--fg2)}
-.kpi-sub{font-family:var(--mono);font-size:10px;color:var(--fg3);margin-top:5px;letter-spacing:.3px}
-
-/* LOG */
-.log-wrap{background:var(--bg);overflow:auto;font-family:var(--mono);font-size:11.5px}
-.lrow{display:grid;grid-template-columns:74px 72px 1fr;gap:14px;padding:5px 14px;border-bottom:1px solid #08080a;align-items:center}
-.lrow:hover{background:var(--bg2)}
-.ltime{color:var(--fg3);font-size:10.5px;font-variant-numeric:tabular-nums}
-.ltag{font-size:9.5px;font-weight:600;letter-spacing:1px;padding:2px 0;border-radius:1px;text-align:center;border:1px solid;font-family:var(--mono)}
-.ltag.entry{color:var(--green);border-color:rgba(0,214,143,.4);background:rgba(0,214,143,.08)}
-.ltag.exit{color:var(--red);border-color:rgba(255,85,102,.4);background:rgba(255,85,102,.08)}
-.ltag.signal{color:var(--accent);border-color:rgba(255,138,0,.4);background:rgba(255,138,0,.08)}
-.ltag.skip{color:var(--fg3);border-color:var(--line2);background:transparent}
-.ltag.error{color:var(--red);border-color:var(--red);background:rgba(255,85,102,.15);font-weight:700}
-.ltag.warn{color:var(--yellow);border-color:rgba(255,184,77,.4);background:rgba(255,184,77,.08)}
-.ltag.info{color:var(--fg3);border-color:var(--line);background:transparent}
-.lmsg{color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lmsg .s{color:var(--accent);font-weight:600}
-.lmsg .s.nf{color:var(--blue)}
-.lmsg .s.mcn{color:var(--yellow)}
-.lmsg .n{color:var(--fg);font-weight:500}
-.lmsg .k{color:var(--fg3)}
-
-/* FOOTER */
-.foot{display:flex;align-items:center;background:var(--bg2);border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;color:var(--fg3);letter-spacing:.8px}
-.fc{padding:0 14px;display:flex;align-items:center;gap:6px;border-right:1px solid var(--line);height:100%}
-.fc:last-child{border:none}
-.fc.spacer{flex:1;border:none}
-.fc .v{color:var(--fg2)}
-
-.empty{padding:32px;text-align:center;color:var(--fg3);font-family:var(--mono);font-size:11px;letter-spacing:.5px}
-
-.legacy{position:fixed;bottom:30px;right:8px;font-size:9px;color:var(--fg4);text-decoration:none;font-family:var(--mono);letter-spacing:1px;z-index:10}
-.legacy:hover{color:var(--accent)}
-
-@keyframes flash-up{from{background:rgba(0,214,143,.18)}to{background:transparent}}
-@keyframes flash-dn{from{background:rgba(255,85,102,.18)}to{background:transparent}}
-.flash-up{animation:flash-up .8s ease-out}
-.flash-dn{animation:flash-dn .8s ease-out}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OU-MRS · Pro Dashboard</title>
+<link rel="stylesheet" href="/static/style.css?v=28"/>
+  <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
+  <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=p97ax1779200595"/>
+<link rel="preconnect" href="https://fonts.gstatic.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
 </head>
 <body>
-
-<div class="app">
-
-  <!-- HEADER -->
-  <div class="hdr">
-    <div class="hc brand">OU·MRS</div>
-    <div class="hc"><span class="mode" id="mode">PAPER</span></div>
-    <div class="hc"><span class="dot" id="bot-dot"></span><span class="lbl">BOT</span><span class="val" id="bot-status">--</span></div>
-    <div class="hc"><span class="dot" id="feed-dot"></span><span class="lbl">FEED</span><span class="val" id="feed-status">--</span></div>
-    <div class="hc"><span class="dot" id="mkt-dot"></span><span class="lbl">MKT</span><span class="val" id="mkt-status">--</span></div>
-    <div class="hc spacer"></div>
-    <div class="hc"><span class="lbl">SESSION</span><span class="val" id="session">--</span></div>
-    <div class="hc"><span class="lbl">IST</span><span class="val" id="clock">--:--:--</span></div>
-    <div class="hc"><a href="/logout" style="color:var(--fg3);text-decoration:none">LOGOUT</a></div>
-  </div>
-
-  <!-- POSITIONS -->
-  <div class="shdr">
-    <span>▸ POSITIONS · LIVE STATE</span>
-    <span class="meta" id="pos-meta">—</span>
-  </div>
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr>
-        <th>SYM</th><th>SIDE</th><th class="r">QTY</th><th class="r">ENTRY</th>
-        <th class="r">LTP</th><th class="r">CHG</th><th class="r">PNL</th>
-        <th class="r">Z-SCORE</th><th class="r">ADX</th><th>REGIME</th><th>REASON</th>
-      </tr></thead>
-      <tbody id="pos-body">
-        <tr><td colspan="11" class="empty">Loading state…</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- KPIs -->
-  <div class="kpis">
-    <div class="kpi"><div class="kpi-lbl">DAY P&L</div><div class="kpi-val zer" id="day-pnl">—</div><div class="kpi-sub" id="day-trades">no trades</div></div>
-    <div class="kpi"><div class="kpi-lbl">CUM P&L</div><div class="kpi-val zer" id="cum-pnl">—</div><div class="kpi-sub" id="cum-trades">—</div></div>
-    <div class="kpi"><div class="kpi-lbl">CAPITAL</div><div class="kpi-val" id="capital">—</div><div class="kpi-sub" id="dd">—</div></div>
-    <div class="kpi"><div class="kpi-lbl">WIN RATE</div><div class="kpi-val zer" id="winrate">—</div><div class="kpi-sub" id="trade-count">—</div></div>
-    <div class="kpi"><div class="kpi-lbl">HEARTBEAT</div><div class="kpi-val zer" id="hb-age">—</div><div class="kpi-sub" id="hb-state">no signal</div></div>
-    <div class="kpi"><div class="kpi-lbl">MARKET</div><div class="kpi-val" id="mkt-state2">—</div><div class="kpi-sub" id="mkt-eta">—</div></div>
-  </div>
-
-  <!-- LOG -->
-  <div class="shdr">
-    <span>▸ BOT LOG · LIVE TAIL</span>
-    <span class="meta" id="log-meta">—</span>
-  </div>
-  <div class="log-wrap" id="log-body">
-    <div class="empty">Loading log…</div>
-  </div>
-
-  <!-- FOOTER -->
-  <div class="foot">
-    <div class="fc"><span>BUILD</span><span class="v">9.7AJ</span></div>
-    <div class="fc"><span>BACKEND</span><span class="v" id="ping">— ms</span></div>
-    <div class="fc"><span>SSE</span><span class="v" id="sse-age">—</span></div>
-    <div class="fc"><span>POLL</span><span class="v">3s state · 5s pnl · 5s log</span></div>
-    <div class="fc spacer"></div>
-    <div class="fc"><span>UPDATED</span><span class="v" id="last-update">—</span></div>
-    <div class="fc"><span>HOST</span><span class="v">algo.devpilotx.com</span></div>
-  </div>
-
+<header class="topbar-v2">
+<div class="tb-left"><a href="/" class="tb-logo"><span class="tb-logo-mark">OU</span><span class="tb-logo-dot">·</span><span class="tb-logo-name">MRS</span></a></div>
+<div class="tb-center">
+<span class="tk" id="tk-BNF"><span class="tk-sym">BNF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tk" id="tk-NF"><span class="tk-sym">NF</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tk" id="tk-MCN"><span class="tk-sym">MCN</span><span class="tk-px">--</span><span class="tk-chg">--</span></span>
+<span class="tb-sep"></span>
+<span class="tb-meta"><span class="tb-meta-lbl">IST</span><span class="tb-meta-val" id="tb-ist">--:--:--</span></span>
+<span class="tb-meta"><span class="tb-meta-lbl">SESSION</span><span class="tb-meta-val" id="tb-session">--</span></span>
+<span class="tb-meta"><span class="tb-meta-lbl">FEED</span><span class="tb-meta-val" id="tb-feed">--</span></span>
 </div>
+<div class="tb-right"><span class="tb-mode" id="tb-mode">--</span><button class="tb-theme" id="tb-theme" title="Toggle theme">DEFAULT</button><a href="/logout" class="tb-logout">Logout</a></div>
+</header>
+<main x-data="p98gShell()" x-init="history.replaceState(null,'',location.pathname); activeTab='live'; initRouting()"><nav id="p98g-nav" class="bloom-nav" style="display:flex;gap:6px;padding:8px 14px;background:#0a0a0a;border-bottom:2px solid #ff6600;position:sticky;top:44px;z-index:90;flex-wrap:wrap"><button @click="setTab('live')" :class="activeTab==='live'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="LIVE">LIVE</button><button @click="setTab('tools')" :class="activeTab==='tools'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="TOOLS">TOOLS</button><button @click="setTab('markets')" :class="activeTab==='markets'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="MARKETS">MARKETS</button><button @click="setTab('portfolio')" :class="activeTab==='portfolio'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="PORTFOLIO">PORTFOLIO</button><button @click="setTab('strategy')" :class="activeTab==='strategy'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="STRATEGY">STRATEGY</button><button @click="setTab('history')" :class="activeTab==='history'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="HISTORY">HISTORY</button><button @click="setTab('system')" :class="activeTab==='system'?'bloom-nav-btn-active':'bloom-nav-btn'" class="bloom-nav-btn" title="SYSTEM">SYSTEM</button></nav>
+<!-- Phase 9.8g.70: per-tab header strip -->
+<div class="bloom-tab-header"><span class="bloom-tab-name" x-text="(activeTab||'live').toUpperCase()"></span><span class="tab-meta">PHASE 9.8g &middot; OU-MRS &middot; PAPER</span></div>
 
-<a class="legacy" href="/static/index.legacy.html">ADV ▸</a>
+  <section class="market-hero" id="market-hero" x-show="activeTab==='live'">
+    <div class="mh-left"><div class="mh-pulse"></div><div class="mh-icon">🌙</div></div>
+    <div class="mh-content">
+      <div class="mh-eyebrow">INDIAN EQUITY F&amp;O · NSE</div>
+      <div class="mh-title">MARKETS CLOSED</div>
+      <div class="mh-countdown" id="mh-countdown">--</div>
+      <div class="mh-resume" id="mh-resume">Reopens Mon 9:15 AM IST</div>
+    </div>
+    <div class="mh-status">
+      <div class="mh-status-row"><span class="mh-dot ok"></span>Bot armed</div>
+      <div class="mh-status-row"><span class="mh-dot ok"></span>Strategy loaded</div>
+      <div class="mh-status-row"><span class="mh-dot ok"></span>Auto-start scheduled</div>
+    </div>
+  </section>
+  <section class="kpi-grid" x-show="activeTab==='live'">
+    <div class="kpi"><span class="kpi-label">BOT</span><span id="bot-status" class="kpi-value">--</span><span id="bot-sub" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">CAPITAL</span><span id="capital" class="kpi-value">--</span><span id="mode-label" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">TOTAL P&L · ALL-TIME</span><span id="total-pnl" class="kpi-value">--</span><span id="pnl-pct" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">TRADES · ALL-TIME</span><span id="trade-count" class="kpi-value">--</span><span id="win-rate" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">UPTIME</span><span id="uptime-val" class="kpi-value">--</span><span id="uptime-sub" class="kpi-sub">--</span></div>
+    <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">--</div></div>
+  </section>
+  <div id="deep-dive-notice" class="deep-dive-notice" x-show="activeTab==='live'"></div>
+    <section class="symbols-grid">
+    <div class="symbol-card sc-offline" id="card-BNF" x-show="activeTab==='live'">
+      <div class="sc-row1">
+        <div class="sc-id"><div class="sc-sym">BNF</div><div class="sc-name">BANKNIFTY · 26MAY26</div></div>
+        <div class="sc-state" id="bnf-state">OFFLINE</div>
+      </div>
+      <div class="sc-row2">
+        <div class="sc-ltp" id="bnf-ltp">--</div>
+        <div class="sc-chg" id="bnf-chg">--</div>
+      </div>
+      <canvas class="sc-spark" id="spark-BNF"></canvas>
+      <div class="sc-row3">
+        <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="bnf-pnl">--</div></div>
+        <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="bnf-trades">0</div></div>
+        <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="bnf-pos">--</div></div>
+      </div>
+    </div>
+    <div class="symbol-card sc-offline" id="card-NF" x-show="activeTab==='live'">
+      <div class="sc-row1">
+        <div class="sc-id"><div class="sc-sym">NF</div><div class="sc-name">NIFTY · 26MAY26</div></div>
+        <div class="sc-state" id="nf-state">OFFLINE</div>
+      </div>
+      <div class="sc-row2">
+        <div class="sc-ltp" id="nf-ltp">--</div>
+        <div class="sc-chg" id="nf-chg">--</div>
+      </div>
+      <canvas class="sc-spark" id="spark-NF"></canvas>
+      <div class="sc-row3">
+        <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="nf-pnl">--</div></div>
+        <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="nf-trades">0</div></div>
+        <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="nf-pos">--</div></div>
+      </div>
+    </div>
+    <div class="symbol-card sc-offline" id="card-MCN" x-show="activeTab==='live'">
+      <div class="sc-row1">
+        <div class="sc-id"><div class="sc-sym">MCN</div><div class="sc-name">MIDCPNIFTY · 26MAY26</div></div>
+        <div class="sc-state" id="fnf-state">OFFLINE</div>
+      </div>
+      <div class="sc-row2">
+        <div class="sc-ltp" id="fnf-ltp">--</div>
+        <div class="sc-chg" id="fnf-chg">--</div>
+      </div>
+      <canvas class="sc-spark" id="spark-MCN"></canvas>
+      <div class="sc-row3">
+        <div class="sc-meta-col"><div class="sc-meta-lbl">P&amp;L TODAY</div><div class="sc-pnl" id="fnf-pnl">--</div></div>
+        <div class="sc-meta-col"><div class="sc-meta-lbl">TRADES</div><div class="sc-meta-val" id="fnf-trades">0</div></div>
+        <div class="sc-meta-col sc-meta-pos"><div class="sc-meta-lbl">POSITION</div><div class="sc-meta-val" id="fnf-pos">--</div></div>
+      </div>
+    </div>
+  </section>
+  
+<section class="panel" id="panel-regime" x-show="activeTab==='live'">
+  <div class="panel-header">
+    <div><h2>Market Regime</h2><span class="muted">Where the edge actually lives · ADX-14 split TREND / RANGE / CHOP</span></div>
+    <div class="ec-meta">
+      <span class="panel-badge" id="regime-current">--</span>
+      <span class="panel-badge info" id="regime-adx">ADX --</span>
+    </div>
+  </div>
+  <div class="regime-grid">
+    <div class="regime-donut-wrap"><canvas id="regime-donut"></canvas></div>
+    <div class="regime-table" id="regime-table">--</div>
+  </div>
+</section>
+  <section class="panel" id="panel-pfm" x-show="activeTab==='portfolio'">
+        <div class="panel-header">
+          <div><h2>Risk &amp; Capital Status</h2><span class="muted">PropFirmMonitor live snapshot · updates every minute</span></div>
+          <span class="panel-badge" id="pfm-status-badge">--</span>
+        </div>
+        <div class="pfm-grid">
+          <div class="pfm-cell"><span class="pfm-lbl">Cumulative P&amp;L</span><span class="pfm-val" id="pfm-cum">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Peak Equity</span><span class="pfm-val" id="pfm-peak">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Days Traded</span><span class="pfm-val" id="pfm-days">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Best Day</span><span class="pfm-val" id="pfm-best">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Consistency</span><span class="pfm-val" id="pfm-cons">--</span></div>
+          <div class="pfm-cell"><span class="pfm-lbl">Target Progress</span><span class="pfm-val" id="pfm-prog">--</span><div class="pfm-bar"><div class="pfm-bar-fill" id="pfm-prog-bar" style="width:0%"></div></div></div>
+        </div>
+      </section>
+  <section class="grid-2">
+    <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
+    <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
+  </section>
+  <section class="grid-2">
+    <div class="panel" x-show="activeTab==='history'"><div class="panel-header"><div><h2>Backtest Metrics</h2><span class="muted">24 trades · 37 days · historical only · not live</span></div><span class="panel-badge" style="background:rgba(245,158,11,.1);color:var(--amber)">BACKTEST</span></div><div id="metrics-view" class="metrics-grid"></div></div>
+    <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
+  </section>
+  <section class="panel" x-show="activeTab==='history'"><div class="panel-header"><div><h2>Trade History</h2><span id="trade-summary" class="muted">--</span></div>
+    <div class="panel-actions"><select id="trade-filter"><option value="all">All reasons</option><option value="TARGET">TARGET</option><option value="STOP">STOP</option><option value="TIME">TIME</option></select><a href="/api/export/trades" class="btn-icon" download>📥 CSV</a></div></div>
+    <div class="table-wrap"><table id="trades-table"><thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Side</th><th>Qty</th><th>In</th><th>Out</th><th>Bars</th><th>P&L</th><th>Cum P&L</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
+  </section>
+      <section class="panel" id="panel-log" x-show="activeTab==='history'">
+    <div class="panel-header">
+      <div><h2>Live Bot Log</h2><span class="muted" id="log-source">--</span></div>
+      <div class="panel-actions">
+        <select id="log-file" class="log-ctl"><option value="">Latest</option></select>
+        <select id="log-level" class="log-ctl"><option value="">All levels</option><option value="INFO">INFO</option><option value="WARNING">WARN</option><option value="ERROR">ERROR</option></select>
+        <select id="log-symbol" class="log-ctl"><option value="">All symbols</option><option value="BNF">BNF</option><option value="NF">NF</option><option value="MCN">MCN</option><option value="pfm">pfm</option></select>
+        <input id="log-search" class="log-ctl log-search" type="text" placeholder="search / regex"/>
+        <label class="switch"><input type="checkbox" id="log-errors-only"/> Errors only</label>
+        <label class="switch"><input type="checkbox" id="log-autoscroll" checked/> Auto-scroll</label>
+        <button id="log-copy" class="btn-icon" type="button">Copy</button>
+        <a id="log-download" href="#" class="btn-icon" download>Download</a>
+      </div>
+    </div>
+    <div id="log-sticky" class="log-sticky" style="display:none"></div>
+    <pre id="log-view"></pre>
+  </section>
+  <footer class="footer"><span class="ft-tag">OU-MRS</span><span class="ft-ver">v1.0</span><span class="ft-sep">·</span><span class="ft-lbl">last sync</span><span id="last-update">--</span><span class="ft-sep">·</span><span class="ft-lbl">server</span><span id="server-time">--</span></footer>
 
+<!-- Phase 9.8f.56: Bloomberg cost calculator -->
+<section id="p98f-costs-panel" class="bloom-panel" x-data="p98fCostsPanel()" x-init="recompute()" x-show="activeTab==='tools'">
+<div class="bloom-header"><span class="bloom-header-title">Bloomberg Cost Calculator</span><span class="bloom-header-sub">Angel One F&amp;O charges &middot; Live</span></div>
+<div class="bloom-grid-5" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+<label class="bloom-field" style="flex:0 0 110px"><span class="bloom-field-label">Instrument</span><select x-model="instrument" @change="recompute()"><option value="fut">FUTURE</option><option value="opt">OPTION</option></select></label>
+<label class="bloom-field" style="flex:0 0 170px"><span class="bloom-field-label">Underlying</span><select x-model="underlying" @change="onUnderlyingChange()"><option value="BANKNIFTY">BANKNIFTY (30)</option><option value="NIFTY">NIFTY (65)</option><option value="FINNIFTY">FINNIFTY (60)</option><option value="MIDCPNIFTY">MIDCPNIFTY (120)</option><option value="SENSEX">SENSEX (20)</option><option value="BANKEX">BANKEX (30)</option><option value="RELIANCE">RELIANCE (500)</option><option value="HDFCBANK">HDFCBANK (550)</option><option value="TCS">TCS (175)</option><option value="INFY">INFY (400)</option><option value="CUSTOM">CUSTOM (qty)</option></select></label>
+<label class="bloom-field" style="flex:0 0 90px" x-show="underlying !== 'CUSTOM'"><span class="bloom-field-label">Lots</span><input type="number" min="1" step="1" x-model.number="lots" @input.debounce.300ms="recompute()"></label>
+<label class="bloom-field" style="flex:0 0 110px" x-show="underlying === 'CUSTOM'"><span class="bloom-field-label">Qty</span><input type="number" min="1" step="1" x-model.number="qty" @input.debounce.300ms="recompute()"></label>
+<label class="bloom-field" style="flex:0 0 110px"><span class="bloom-field-label">Buy Price</span><input type="number" step="0.05" x-model.number="buyPrice" @input.debounce.300ms="recompute()"></label>
+<label class="bloom-field" style="flex:0 0 110px"><span class="bloom-field-label">Sell Price</span><input type="number" step="0.05" x-model.number="sellPrice" @input.debounce.300ms="recompute()"></label>
+<button class="bloom-btn" @click="recompute()" style="align-self:flex-end">RECOMPUTE</button>
+</div>
+<div class="bloom-resolved" style="margin-top:8px;font-family:JetBrains Mono,Consolas,monospace;font-size:11px;color:#888;letter-spacing:.3px" x-show="underlying !== 'CUSTOM'"><span x-text="'Resolved qty: ' + resolvedQty + ' contracts (' + lots + ' lot' + (lots>1?'s':'') + ' x ' + lotSize + ' per lot)'"></span></div>
+<div class="bloom-hero">
+<div class="bloom-hero-cell"><span class="label">Gross P&amp;L</span><span class="value" :class="pnlCls(grossPnl)" x-text="inr(grossPnl)"></span></div>
+<div class="bloom-hero-cell"><span class="label">Total Charges</span><span class="value bloom-neg" x-text="inr(totalCharges)"></span></div>
+<div class="bloom-hero-cell"><span class="label">Net P&amp;L</span><span class="value" :class="pnlCls(netPnl)" x-text="inr(netPnl)"></span></div>
+<div class="bloom-hero-cell"><span class="label">P&amp;L %</span><span class="value" :class="pnlCls(netPnl)" x-text="pct(pnlPct)"></span></div>
+</div>
+<table class="bloom-table"><thead><tr><th>Component</th><th class="num">Buy Leg</th><th class="num">Sell Leg</th><th class="num">Total</th></tr></thead><tbody>
+<tr><td>Turnover</td><td class="num" x-text="inr(buy().turnover)"></td><td class="num" x-text="inr(sell().turnover)"></td><td class="num" x-text="inr(buy().turnover+sell().turnover)"></td></tr>
+<tr><td>Brokerage</td><td class="num" x-text="inr(buy().brokerage)"></td><td class="num" x-text="inr(sell().brokerage)"></td><td class="num" x-text="inr(buy().brokerage+sell().brokerage)"></td></tr>
+<tr><td>STT</td><td class="num" x-text="inr(buy().stt)"></td><td class="num" x-text="inr(sell().stt)"></td><td class="num" x-text="inr(buy().stt+sell().stt)"></td></tr>
+<tr><td>Exchange</td><td class="num" x-text="inr(buy().exchange)"></td><td class="num" x-text="inr(sell().exchange)"></td><td class="num" x-text="inr(buy().exchange+sell().exchange)"></td></tr>
+<tr><td>SEBI</td><td class="num" x-text="inr(buy().sebi)"></td><td class="num" x-text="inr(sell().sebi)"></td><td class="num" x-text="inr(buy().sebi+sell().sebi)"></td></tr>
+<tr><td>Stamp</td><td class="num" x-text="inr(buy().stamp_duty)"></td><td class="num" x-text="inr(sell().stamp_duty)"></td><td class="num" x-text="inr(buy().stamp_duty+sell().stamp_duty)"></td></tr>
+<tr><td>GST</td><td class="num" x-text="inr(buy().gst)"></td><td class="num" x-text="inr(sell().gst)"></td><td class="num" x-text="inr(buy().gst+sell().gst)"></td></tr>
+<tr><td>Total Charges</td><td class="num" x-text="inr(buy().total_charges)"></td><td class="num" x-text="inr(sell().total_charges)"></td><td class="num bloom-neg" x-text="inr(totalCharges)"></td></tr>
+<tr><td>Breakeven Points/Unit</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num" x-text="fmt4(breakevenPts)"></td></tr>
+</tbody></table>
+</section>
+
+<!-- Phase 9.8f.56: Top movers scanner panel -->
+<section id="p98f-margin-panel" class="bloom-panel" x-data="p98fMarginPanel()" x-init="recompute()" x-show="activeTab==='tools'">
+<header class="bloom-panel-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 class="bloom-mono" style="margin:0">MARGIN CALCULATOR</h3><span class="bloom-pill" style="background:rgba(255,170,0,0.2);color:#ffaa00;padding:3px 8px;border-radius:3px;font-size:0.75em">SPAN + EXPOSURE</span></header>
+<div class="bloom-grid-5" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+<div style="flex:1;min-width:130px"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Underlying</label><select x-model="underlying" @change="onUnderlyingChange()" class="bloom-input"><option value="NIFTY">NIFTY (65)</option><option value="BANKNIFTY">BANKNIFTY (30)</option><option value="FINNIFTY">FINNIFTY (60)</option><option value="MIDCPNIFTY">MIDCPNIFTY (120)</option><option value="SENSEX">SENSEX (20)</option><option value="BANKEX">BANKEX (30)</option><option value="RELIANCE">RELIANCE (500)</option><option value="HDFCBANK">HDFCBANK (550)</option><option value="TCS">TCS (175)</option><option value="INFY">INFY (400)</option><option value="CUSTOM">CUSTOM</option></select></div>
+<div style="flex:1;min-width:80px" x-show="underlying !== 'CUSTOM'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Lots</label><input type="number" min="1" step="1" x-model.number="lots" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:80px" x-show="underlying === 'CUSTOM'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Qty</label><input type="number" min="1" step="1" x-model.number="qty" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:130px"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Instrument</label><select x-model="instrument" @change="recompute()" class="bloom-input"><option value="fut">Futures</option><option value="opt_buy">Option BUY</option><option value="opt_sell">Option SELL</option></select></div>
+<div style="flex:1;min-width:100px" x-show="instrument === 'fut'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Price</label><input type="number" min="0" step="0.05" x-model.number="price" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:100px" x-show="instrument !== 'fut'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Premium</label><input type="number" min="0" step="0.05" x-model.number="premium" @input="recompute()" class="bloom-input"/></div>
+<div style="flex:1;min-width:100px" x-show="instrument !== 'fut'"><label style="display:block;font-size:0.8em;color:#888;margin-bottom:3px">Spot</label><input type="number" min="0" step="0.05" x-model.number="price" @input="recompute()" class="bloom-input" title="underlying spot for SPAN"/></div>
+</div>
+<div style="margin-top:10px;font-size:0.75em;color:#666" x-text="'Resolved qty: ' + resolvedQty + ' (' + lots + ' lot' + (lots>1?'s':'') + ' x ' + lotSize + ')'"></div>
+<div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Notional</div><div class="bloom-mono" style="font-size:1.1em;color:#fff" x-text="inr(notional)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">SPAN <span x-text="'('+(spanPct*100).toFixed(1)+'%)'"></span></div><div class="bloom-mono" style="font-size:1.1em;color:#3ea0ff" x-text="inr(spanMargin)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Exposure <span x-text="'('+(exposurePct*100).toFixed(1)+'%)'"></span></div><div class="bloom-mono" style="font-size:1.1em;color:#3ea0ff" x-text="inr(exposureMargin)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Premium</div><div class="bloom-mono" style="font-size:1.1em;color:#bbb" x-text="inr(premiumPaid)"></div></div>
+<div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:3px"><div style="font-size:0.7em;color:#888;text-transform:uppercase">Leverage</div><div class="bloom-mono" style="font-size:1.1em;color:#bbb" x-text="leverage.toFixed(2)+'x'"></div></div>
+<div style="padding:8px;background:rgba(255,170,0,0.1);border-left:3px solid #ffaa00;border-radius:3px"><div style="font-size:0.7em;color:#ffaa00;text-transform:uppercase;font-weight:bold">Initial Margin</div><div class="bloom-mono" style="font-size:1.3em;color:#ffaa00;font-weight:bold" x-text="inr(initialMargin)"></div></div>
+</div>
+</section>
+<!-- Phase 9.8g.65c: Bloomberg instrument search -->
+<section class="bloom-panel" x-data="p98gInstrSearch()" x-show="activeTab==='tools'">
+<header class="bloom-panel-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 class="bloom-mono" style="margin:0">INSTRUMENT SEARCH</h3><span class="bloom-pill" style="background:rgba(60,224,79,0.2);color:#3ce04f;padding:3px 8px;border-radius:3px;font-size:0.75em">181K ROWS LIVE DB</span></header>
+<input type="text" x-model="q" @input.debounce.200ms="search()" placeholder="Type symbol or name (min 2 chars)..." class="bloom-input" style="width:100%;font-family:JetBrains Mono,Consolas,monospace"/>
+<div style="margin-top:8px;color:#666;font-size:11px"><span x-show="loading">Searching...</span><span x-show="!loading && q.length>=2 && rows.length===0">No matches.</span><span x-show="rows.length>0" x-text="rows.length + ' result' + (rows.length>1?'s':'')"></span></div>
+<div x-show="rows.length>0" style="margin-top:8px;background:#0a0a0a;border:1px solid #333;max-height:320px;overflow-y:auto;font-family:JetBrains Mono,Consolas,monospace;font-size:11px">
+<div style="position:sticky;top:0;background:#111;border-bottom:1px solid #333;padding:6px 10px;display:grid;grid-template-columns:120px 1fr 80px 60px 160px;gap:10px;color:#888;font-size:10px;letter-spacing:.5px;text-transform:uppercase"><span>SYMBOL</span><span>NAME</span><span>TYPE</span><span>EXCH</span><span>LOT / EXPIRY</span></div>
+<template x-for="row in rows" :key="row.token"><div style="padding:6px 10px;border-bottom:1px solid #1a1a1a;display:grid;grid-template-columns:120px 1fr 80px 60px 160px;gap:10px;align-items:center"><span style="color:#ffaa00;font-weight:600" x-text="row.symbol"></span><span style="color:#ccc" x-text="row.name"></span><span style="color:#888" x-text="row.instrument_type"></span><span style="color:#888" x-text="row.exchange"></span><span style="color:#3ce04f" x-text="'lot ' + row.lot_size + (row.expiry ? ' / ' + row.expiry : '')"></span></div></template>
+</div></section>
+
+
+<section id="p98f-movers-panel" class="bloom-panel" x-data="p98fMoversPanel()" x-init="start()" x-show="activeTab==='markets'">
+<div class="bloom-header"><span class="bloom-header-title">Top Movers &middot; Live Scanner</span><span class="bloom-header-sub">Auto-refresh 3s &middot; Synthetic until Round 3</span></div>
+<div class="bloom-grid-2">
+<div><div class="bloom-sub-title gainers">TOP GAINERS</div>
+<table class="bloom-table"><thead><tr><th>Sym</th><th class="num">LTP</th><th class="num">Chg</th><th class="num">Pct</th></tr></thead><tbody>
+<template x-for="row in gainers" :key="row.symbol"><tr><td x-text="row.symbol"></td><td class="num" x-text="fmt(row.ltp)"></td><td class="num bloom-pos" x-text="chgStr(row.change)"></td><td class="num bloom-pos" x-text="pctStr(row.pct)"></td></tr></template>
+</tbody></table></div>
+<div><div class="bloom-sub-title losers">TOP LOSERS</div>
+<table class="bloom-table"><thead><tr><th>Sym</th><th class="num">LTP</th><th class="num">Chg</th><th class="num">Pct</th></tr></thead><tbody>
+<template x-for="row in losers" :key="row.symbol"><tr><td x-text="row.symbol"></td><td class="num" x-text="fmt(row.ltp)"></td><td class="num bloom-neg" x-text="chgStr(row.change)"></td><td class="num bloom-neg" x-text="pctStr(row.pct)"></td></tr></template>
+</tbody></table></div>
+</div>
+</section>
+
+<!-- Phase 9.8f.56: Alpine components for Bloomberg panels -->
 <script>
-(function(){
-"use strict";
-const $=id=>document.getElementById(id);
-const lastVals={};
-
-const fmt={
-  inr:n=>{if(n==null||isNaN(n))return"—";const s=n<0?"-":"";const a=Math.abs(n);if(a>=1e7)return s+"₹"+(a/1e7).toFixed(2)+"Cr";if(a>=1e5)return s+"₹"+(a/1e5).toFixed(2)+"L";if(a>=1e3)return s+"₹"+(a/1e3).toFixed(1)+"k";return s+"₹"+a.toFixed(0);},
-  num:(n,d)=>{d=d==null?2:d;return(n==null||isNaN(n))?"—":Number(n).toFixed(d);},
-  pct:n=>(n==null||isNaN(n))?"—":(n>=0?"+":"")+Number(n).toFixed(2)+"%",
-  age:s=>{if(s==null)return"—";if(s<60)return Math.floor(s)+"s";if(s<3600)return Math.floor(s/60)+"m";if(s<86400)return Math.floor(s/3600)+"h";return Math.floor(s/86400)+"d";},
-  time:t=>{if(!t)return"—";try{return new Date(t).toLocaleTimeString("en-GB",{timeZone:"Asia/Kolkata",hour12:false});}catch(e){return"—";}}
-};
-const pcls=n=>n==null?"zer":n>0?"pos":n<0?"neg":"zer";
-const sideHtml=s=>{if(!s)return'<span class="pill flat">FLAT</span>';const u=String(s).toUpperCase();if(u==="LONG"||u==="BUY")return'<span class="pill long">LONG</span>';if(u==="SHORT"||u==="SELL")return'<span class="pill short">SHORT</span>';return'<span class="pill flat">'+u+'</span>';};
-const regimeHtml=r=>{if(!r||r==="—")return'<span class="faint">—</span>';const u=String(r).toUpperCase();const c=u.includes("TREND")?"trend":u.includes("RANGE")?"range":u.includes("CHOP")?"chop":"";return'<span class="pill regime '+c+'">'+u+'</span>';};
-const zCls=z=>{if(z==null||isNaN(z))return"zer";const a=Math.abs(z);if(a>=2)return"z-extreme";if(a>=1.5)return"z-hi";return"dim";};
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-const symCls=s=>s==="BNF"?"bnf":s==="NF"?"nf":s==="MCN"?"mcn":"";
-
-// Highlight numbers and symbols in log messages
-function highlightLog(msg){
-  let m=esc(msg);
-  m=m.replace(/\b(BNF|BANKNIFTY)\b/g,'<span class="s">$1</span>');
-  m=m.replace(/\b(NF|NIFTY)\b/g,'<span class="s nf">$1</span>');
-  m=m.replace(/\b(MCN|MIDCPNIFTY)\b/g,'<span class="s mcn">$1</span>');
-  m=m.replace(/([a-z_]+)=([-+]?\d+\.?\d*)/g,'<span class="k">$1=</span><span class="n">$2</span>');
-  m=m.replace(/(₹[-+]?\d+\.?\d*[kLCr]?)/g,'<span class="n">$1</span>');
-  return m;
-}
-
-async function jget(u){
-  const t0=performance.now();
-  try{
-    const r=await fetch(u,{credentials:"same-origin"});
-    const dt=Math.round(performance.now()-t0);
-    if(r.status===401){location.href="/login";return null;}
-    if(!r.ok)return null;
-    const j=await r.json();
-    return {data:j,latency:dt};
-  }catch(e){return null;}
-}
-
-function tickClock(){
-  const d=new Date();
-  $("clock").textContent=d.toLocaleTimeString("en-GB",{timeZone:"Asia/Kolkata",hour12:false});
-  $("last-update").textContent=fmt.time(d.toISOString());
-  const ist=new Date(d.toLocaleString("en-US",{timeZone:"Asia/Kolkata"}));
-  const h=ist.getHours(),m=ist.getMinutes(),dow=ist.getDay();
-  let sess="CLOSED";
-  if(dow>=1&&dow<=5){
-    const mins=h*60+m;
-    if(mins>=555&&mins<915)sess="PRE-MARKET";
-    else if(mins>=915&&mins<930)sess="OPENING";
-    else if(mins>=930&&mins<1530-30)sess="REGULAR";
-    else if(mins>=900&&mins<930)sess="OPENING";
-    else if(mins>=540+375&&mins<540+390)sess="CLOSING";
-    else sess="CLOSED";
-    // Simplified: 09:15-15:30 = REGULAR
-    if(mins>=555&&mins<915)sess="PRE-OPEN";
-    else if(mins>=915&&mins<930)sess="OPEN AUCTION";
-    else if(mins>=930&&mins<=930+(15*60-30))sess="REGULAR";
-    else if(mins>=555+375-15&&mins<555+375)sess="CLOSE";
-    else sess="CLOSED";
-  }else sess="WEEKEND";
-  $("session").textContent=sess;
-}
-setInterval(tickClock,1000);tickClock();
-
-async function pollStatus(){
-  const r=await jget("/api/status");if(!r)return;const d=r.data;
-  const m=(d.mode||"PAPER").toUpperCase();
-  $("mode").textContent=m;
-  $("mode").className="mode"+(m==="LIVE"?" live":"");
-  const run=d.running||d.active||(d.heartbeat_age!=null&&d.heartbeat_age<120);
-  $("bot-dot").className="dot "+(run?"ok":(d.heartbeat_age==null||d.heartbeat_age>600?"err":"warn"));
-  $("bot-status").textContent=run?"ACTIVE":"IDLE";
-  const h=d.heartbeat_age;
-  $("hb-age").textContent=fmt.age(h);
-  $("hb-state").textContent=h==null?"no signal":(h<120?"fresh":h<600?"stale":"offline");
-  $("hb-age").className="kpi-val "+(h==null?"zer":h<120?"pos":h<600?"":"neg");
-  if(d.capital!=null)$("capital").textContent=fmt.inr(d.capital);
-  if(d.drawdown!=null)$("dd").textContent="DD "+fmt.pct(d.drawdown);
-}
-
-async function pollMarket(){
-  const r=await jget("/api/market-status");if(!r)return;const d=r.data;
-  const st=(d.state||d.status||"UNKNOWN").toUpperCase();
-  $("mkt-state2").textContent=st;
-  $("mkt-status").textContent=st;
-  $("mkt-eta").textContent=d.next_event||d.countdown||d.message||"—";
-  $("mkt-dot").className="dot "+(st.includes("OPEN")?"ok":st.includes("PRE")?"warn":"");
-}
-
-async function pollLiveState(){
-  const r=await jget("/api/live/state");
-  if(!r){$("pos-body").innerHTML='<tr><td colspan="11" class="empty">No state data</td></tr>';return;}
-  const d=r.data;
-  $("ping").textContent=r.latency+" ms";
-  const syms=d.symbols||d.state||d.live||d;
-  const list=["BNF","NF","MCN"];
-  let html="";let open=0;
-  list.forEach(sym=>{
-    const s=(syms&&syms[sym])||{};
-    const side=s.side||s.position_side||(s.qty>0?"LONG":s.qty<0?"SHORT":null);
-    const qty=s.qty||s.quantity||s.position_qty||0;
-    const en=s.entry_price||s.avg_entry||s.entry||null;
-    const ltp=s.ltp||s.last_price||s.price||null;
-    const prev=s.prev_close||s.previous_close||null;
-    const chg=(ltp!=null&&prev!=null&&prev!==0)?((ltp-prev)/prev*100):null;
-    const pnl=s.unrealized_pnl||s.pnl_unr||s.live_pnl||s.pnl||null;
-    const z=s.z_score!=null?s.z_score:(s.z!=null?s.z:s.zscore);
-    const adx=s.adx||s.adx14||null;
-    const reg=s.regime||s.market_regime||"";
-    const rsn=s.entry_reason||s.last_reason||s.signal||s.note||s.state_note||"—";
-    if(qty&&qty!==0)open++;
-    html+='<tr>'+
-      '<td><span class="sym '+symCls(sym)+'">'+sym+'</span></td>'+
-      '<td>'+sideHtml(side)+'</td>'+
-      '<td class="r">'+(qty||'<span class="faint">0</span>')+'</td>'+
-      '<td class="r '+(en==null?"faint":"")+'">'+(en!=null?Number(en).toFixed(2):"—")+'</td>'+
-      '<td class="r '+(ltp==null?"faint":"")+'">'+(ltp!=null?Number(ltp).toFixed(2):"—")+'</td>'+
-      '<td class="r '+(chg==null?"faint":pcls(chg))+'">'+(chg!=null?(chg>=0?"+":"")+chg.toFixed(2)+"%":"—")+'</td>'+
-      '<td class="r '+pcls(pnl)+'">'+(pnl!=null?fmt.inr(pnl):'<span class="faint">—</span>')+'</td>'+
-      '<td class="r '+zCls(z)+'">'+fmt.num(z,2)+'</td>'+
-      '<td class="r '+(adx==null?"faint":"dim")+'">'+fmt.num(adx,1)+'</td>'+
-      '<td>'+regimeHtml(reg)+'</td>'+
-      '<td><div class="reason">'+esc(rsn)+'</div></td>'+
-    '</tr>';
-  });
-  $("pos-body").innerHTML=html;
-  $("pos-meta").textContent=open+" open · 3 monitored · "+fmt.time(new Date().toISOString());
-}
-
-async function pollPortfolio(){
-  const r=await jget("/api/portfolio");if(!r)return;const d=r.data;
-  if(d.day_pnl!=null){$("day-pnl").textContent=fmt.inr(d.day_pnl);$("day-pnl").className="kpi-val "+pcls(d.day_pnl);}
-  if(d.day_trades!=null)$("day-trades").textContent=d.day_trades+" trades today";
-  const cp=d.total_pnl??d.cumulative_pnl??d.net_pnl;
-  if(cp!=null){$("cum-pnl").textContent=fmt.inr(cp);$("cum-pnl").className="kpi-val "+pcls(cp);}
-  if(d.total_trades!=null)$("cum-trades").textContent=d.total_trades+" total";
-  if(d.capital!=null)$("capital").textContent=fmt.inr(d.capital);
-  if(d.win_rate!=null){const wr=d.win_rate>1?d.win_rate:d.win_rate*100;$("winrate").textContent=wr.toFixed(1)+"%";$("winrate").className="kpi-val "+(wr>=50?"pos":wr>=40?"":"neg");}
-  if(d.trade_count!=null)$("trade-count").textContent=d.trade_count+" all-time";
-}
-
-async function pollLog(){
-  let r=await jget("/api/log?lines=200");if(!r)r=await jget("/api/log");
-  if(!r){$("log-body").innerHTML='<div class="empty">/api/log unavailable</div>';return;}
-  const d=r.data;
-  const lines=d.lines||d.log||d.entries||(Array.isArray(d)?d:[]);
-  if(!lines.length){$("log-body").innerHTML='<div class="empty">log empty</div>';return;}
-  let html="";const seen=new Set();
-  lines.slice(-200).reverse().forEach(line=>{
-    let ts="",tag="info",msg="";
-    if(typeof line==="string"){
-      const m=line.match(/^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[.\d]*Z?)?\s*(\[?(\w+)\]?)?\s*(.*)$/);
-      if(m){ts=m[1]?fmt.time(m[1]):"";tag=(m[3]||"info").toLowerCase();msg=m[4]||line;}else{msg=line;}
-    }else if(typeof line==="object"){
-      ts=fmt.time(line.timestamp||line.time||line.ts);
-      tag=(line.tag||line.event||line.level||"info").toLowerCase();
-      msg=line.message||line.msg||JSON.stringify(line);
-    }
-    const sig=ts+"|"+msg.slice(0,80);if(seen.has(sig))return;seen.add(sig);
-    const lm=msg.toLowerCase();
-    if(lm.includes("entry")||lm.includes("enter "))tag="entry";
-    else if(lm.includes("exit")||lm.includes(" close"))tag="exit";
-    else if(lm.includes("signal")||lm.match(/z\s*=\s*-?\d/))tag="signal";
-    else if(lm.startsWith("skip")||lm.includes("[skip]")||lm.includes(" skip:"))tag="skip";
-    else if(lm.includes("error")||lm.includes("fail")||lm.includes("traceback"))tag="error";
-    else if(lm.includes("warn"))tag="warn";
-    const tagLbl=tag.slice(0,5).toUpperCase().padEnd(5,'\u00A0');
-    html+='<div class="lrow"><span class="ltime">'+(ts||"—")+'</span><span class="ltag '+tag+'">'+tagLbl+'</span><span class="lmsg">'+highlightLog(msg)+'</span></div>';
-  });
-  $("log-body").innerHTML=html||'<div class="empty">no parseable entries</div>';
-  $("log-meta").textContent=lines.length+" events";
-}
-
-let sseLast=null;
-function setupSSE(){
-  if(typeof EventSource==="undefined")return;
-  try{
-    const es=new EventSource("/sse/ticks");
-    es.onopen=()=>{$("feed-dot").className="dot ok";$("feed-status").textContent="LIVE";};
-    es.onmessage=()=>{sseLast=Date.now();$("feed-dot").className="dot ok";$("feed-status").textContent="LIVE";$("sse-age").textContent="<1s";};
-    es.onerror=()=>{$("feed-dot").className="dot warn";$("feed-status").textContent="RECONNECT";};
-  }catch(e){}
-  setInterval(()=>{
-    if(sseLast){
-      const ageS=Math.floor((Date.now()-sseLast)/1000);
-      $("sse-age").textContent=ageS+"s";
-      if(ageS>15){$("feed-dot").className="dot warn";$("feed-status").textContent="STALE";}
-    }else $("sse-age").textContent="—";
-  },1000);
-}
-setupSSE();
-
-function pollAll(){pollStatus();pollMarket();pollLiveState();pollPortfolio();pollLog();}
-pollAll();
-setInterval(pollStatus,10000);
-setInterval(pollMarket,30000);
-setInterval(pollLiveState,3000);
-setInterval(pollPortfolio,5000);
-setInterval(pollLog,5000);
-})();
+function p98fCostsPanel(){return{instrument:"fut",underlying:"BANKNIFTY",lots:1,qty:35,lotSize:35,resolvedQty:35,buyPrice:53780,sellPrice:53830,buyResult:null,sellResult:null,grossPnl:0,totalCharges:0,netPnl:0,pnlPct:0,breakevenPts:0,LOTS:{NIFTY:65,BANKNIFTY:30,FINNIFTY:60,MIDCPNIFTY:120,SENSEX:20,BANKEX:30,RELIANCE:500,HDFCBANK:550,TCS:175,INFY:400,CUSTOM:1},buy(){return this.buyResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp_duty:0,gst:0,total_charges:0};},sell(){return this.sellResult||{turnover:0,brokerage:0,stt:0,exchange:0,sebi:0,stamp_duty:0,gst:0,total_charges:0};},fmt2(n){return Number(n||0).toFixed(2);},fmt4(n){return Number(n||0).toFixed(4);},inr(n){return "Rs "+Number(n||0).toFixed(2);},pct(n){return Number(n||0).toFixed(3)+"%";},pnlCls(n){return n>=0?"bloom-pos":"bloom-neg";},onUnderlyingChange(){this.lotSize=this.LOTS[this.underlying]||1;this.recompute();},async recompute(){try{let u;if(this.underlying==="CUSTOM"){u="/api/calc/roundtrip?instrument="+this.instrument+"&qty="+this.qty+"&buy_price="+this.buyPrice+"&sell_price="+this.sellPrice;}else{u="/api/calc/roundtrip?instrument="+this.instrument+"&underlying="+this.underlying+"&lots="+this.lots+"&buy_price="+this.buyPrice+"&sell_price="+this.sellPrice;}const r=await fetch(u,{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;const x=j.result;this.buyResult=x.buy_leg;this.sellResult=x.sell_leg;this.grossPnl=x.gross_pnl;this.totalCharges=x.total_charges;this.netPnl=x.net_pnl;this.pnlPct=x.pnl_pct;this.breakevenPts=(x.qty>0?x.total_charges/x.qty:0);this.resolvedQty=x.qty;if(x.lot_size)this.lotSize=x.lot_size;}catch(e){}}};}
+function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":"";},fmt(n){return Number(n||0).toFixed(2);},chgStr(n){return this.sgn(n)+Number(n||0).toFixed(2);},pctStr(n){return this.sgn(n)+Number(n||0).toFixed(2)+"%";},async refresh(){try{const r=await fetch("/api/scanner/movers?n=5",{credentials:"same-origin"});if(!r.ok)return;const j=await r.json();if(!j.ok)return;this.gainers=j.result.gainers;this.losers=j.result.losers;}catch(e){}},start(){this.refresh();setInterval(()=>this.refresh(),3000);}};}
 </script>
-</body>
+
+<!-- Phase 9.8g.68: STRATEGY tab -->
+<section id="p98g-strategy-panel" class="bloom-panel" x-data="p98gStrategyPanel()" x-show="activeTab==='strategy'" style="display:none">
+  <div class="panel-header"><div><h2>Strategy Configuration</h2><span class="muted">OU-MRS · Ornstein-Uhlenbeck mean reversion · paper mode</span></div></div>
+  <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:12px;">
+    <div class="bloom-stat"><div class="bloom-stat-label">CAPITAL</div><div class="bloom-stat-value">&#8377;37,50,000</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">MODE</div><div class="bloom-stat-value" style="color:#ff6600">PAPER</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">LIVE TRADING</div><div class="bloom-stat-value">OFF</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">STRATEGY</div><div class="bloom-stat-value">OU-MRS</div></div>
+  </div>
+  <div style="padding:8px 12px;"><h3 style="margin:0 0 6px;color:#ff6600;font-size:11px;letter-spacing:0.05em;">LOT SIZES &middot; May 2026 EXPIRY</h3>
+    <table class="bloom-table"><thead><tr><th>SYMBOL</th><th>LOT</th><th>STATUS</th></tr></thead><tbody>
+      <template x-for="row in lotRows" :key="row.sym"><tr><td x-text="row.sym"></td><td x-text="row.lot"></td><td><span class="badge ok">SUBSCRIBED</span></td></tr></template>
+    </tbody></table>
+  </div>
+  <div style="padding:8px 12px;"><h3 style="margin:0 0 6px;color:#ff6600;font-size:11px;letter-spacing:0.05em;">OU PARAMETERS</h3>
+    <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">
+      <div class="bloom-stat"><div class="bloom-stat-label">Z ENTRY</div><div class="bloom-stat-value">2.0&sigma;</div></div>
+      <div class="bloom-stat"><div class="bloom-stat-label">Z EXIT</div><div class="bloom-stat-value">0.5&sigma;</div></div>
+      <div class="bloom-stat"><div class="bloom-stat-label">WINDOW</div><div class="bloom-stat-value">60 bars</div></div>
+      <div class="bloom-stat"><div class="bloom-stat-label">ADX FILTER</div><div class="bloom-stat-value">&lt; 25</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Phase 9.8g.68: SYSTEM tab -->
+<section id="p98g-system-panel" class="bloom-panel" x-data="p98gSystemPanel()" x-init="init()" x-show="activeTab==='system'" style="display:none">
+  <div class="panel-header"><div><h2>System Health</h2><span class="muted">Service status &middot; Angel feed &middot; deployment</span></div>
+    <div class="panel-actions"><button @click="refresh()" class="btn-secondary">REFRESH</button></div>
+  </div>
+  <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:12px;">
+    <div class="bloom-stat"><div class="bloom-stat-label">SERVICE</div><div class="bloom-stat-value" :style="{color: serviceColor}" x-text="info.service"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">ANGEL WEBSOCKET</div><div class="bloom-stat-value" :style="{color: wsColor}" x-text="info.websocket"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">TOKENS SUBSCRIBED</div><div class="bloom-stat-value" x-text="info.tokens"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">LAST COMMIT</div><div class="bloom-stat-value" style="font-size:12px;font-family:JetBrains Mono,monospace" x-text="info.commit"></div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">PHASE</div><div class="bloom-stat-value">9.8g</div></div>
+    <div class="bloom-stat"><div class="bloom-stat-label">ACTIVITY ROWS</div><div class="bloom-stat-value" x-text="info.activityCount"></div></div>
+  </div>
+  <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
+</section>
+</main>
+<script src="/static/app.js?v=p97ax1779200595"></script>
+    <script src="/static/sse-ticks.js?v=2"></script>
+    <script src="/static/topbar-controls.js?v=3"></script>
+
+    <div class="kbd-modal" id="kbd-modal" hidden>
+      <div class="kbd-modal-inner">
+        <div class="kbd-header">
+          <h2>Keyboard shortcuts</h2>
+          <button class="kbd-close" type="button" aria-label="Close">×</button>
+        </div>
+        <table class="kbd-table">
+          <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+          <tr><td><kbd>r</kbd></td><td>Refresh dashboard now</td></tr>
+          <tr><td><kbd>t</kbd></td><td>Toggle theme (dark/light)</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Jump to BNF / NF / MCN symbol card</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Focus log search box</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>e</kbd></td><td>Go to Equity Curve</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>r</kbd></td><td>Go to Market Regime</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>p</kbd></td><td>Go to PFM Risk</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>t</kbd></td><td>Go to Trade History</td></tr>
+          <tr><td><kbd>g</kbd> then <kbd>l</kbd></td><td>Go to Live Bot Log</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close modal / unfocus</td></tr>
+        </table>
+        <div class="kbd-foot muted">Shortcuts ignored when typing in inputs · Press <kbd>?</kbd> any time</div>
+      </div>
+    </div>
+  </body>
 </html>
