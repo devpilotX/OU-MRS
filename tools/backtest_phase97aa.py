@@ -80,7 +80,7 @@ results_sorted = sorted(results, key=lambda r: r.get('composite_score', -999), r
 print()
 print("=" * 120)
 print(f"{'RANK':>4}  {'VC':>3} {'AP':>3} {'HL_MIN':>6} {'HL_MAX':>6} {'ZV_DIS':>6}  "
-      f"{'TRD':>4} {'WIN%':>5} {'PF':>5} {'SHARPE':>+7} {'RET%':>+7} {'TPD':>4}  {'SCORE':>+7}")
+      f"{'TRD':>4} {'WIN%':>5} {'PF':>5} {'SHARPE':>7} {'RET%':>7} {'TPD':>4}  {'SCORE':>7}")
 print("-" * 120)
 for rank, r in enumerate(results_sorted, 1):
     c = r.get('config', {})
