@@ -1,24 +1,24 @@
 {
   "TREND": {
     "trades": 1,
-    "win_rate": 0.0,
-    "total_pnl": -85.19,
-    "avg_pnl": -85.19,
-    "profit_factor": 0.0
+    "win_rate": 1.0,
+    "total_pnl": 1132.86,
+    "avg_pnl": 1132.86,
+    "profit_factor": 999.0
   },
   "RANGE": {
-    "trades": 13,
-    "win_rate": 0.5385,
-    "total_pnl": -3281.29,
-    "avg_pnl": -252.41,
-    "profit_factor": 0.844
+    "trades": 30,
+    "win_rate": 0.4667,
+    "total_pnl": -9050.93,
+    "avg_pnl": -301.7,
+    "profit_factor": 0.761
   },
   "CHOP": {
-    "trades": 3,
-    "win_rate": 0.6667,
-    "total_pnl": 1675.78,
-    "avg_pnl": 558.59,
-    "profit_factor": 1.305
+    "trades": 6,
+    "win_rate": 0.5,
+    "total_pnl": 816.94,
+    "avg_pnl": 136.16,
+    "profit_factor": 1.172
   },
   "UNKNOWN": {
     "trades": 0,

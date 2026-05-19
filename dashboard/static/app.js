@@ -3242,3 +3242,43 @@ window.p98gInstrSearch = function p98gInstrSearch() {
     }
   };
 };
+
+// ===== Phase 9.7AF: market-status + bot-liveness banner =====
+(function(){
+  function ensureBanner(){
+    var b = document.getElementById("market-banner");
+    if (b) return b;
+    b = document.createElement("div");
+    b.id = "market-banner";
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;padding:6px 14px;font:600 12px/1.4 'JetBrains Mono',Consolas,monospace;letter-spacing:.5px;text-align:center;color:#fff;background:#374151;border-bottom:1px solid rgba(0,0,0,.3);";
+    document.body.appendChild(b);
+    document.body.style.paddingTop = "28px";
+    return b;
+  }
+  function paint(b, text, bg){ b.textContent = text; b.style.background = bg; }
+  async function tick(){
+    try {
+      var r1 = await fetch("/api/market-status",{credentials:"same-origin"});
+      var r2 = await fetch("/api/status",{credentials:"same-origin"});
+      if (!r1.ok || !r2.ok) return;
+      var m = await r1.json(), s = await r2.json();
+      var b = ensureBanner();
+      var mkt = m.status || "unknown";
+      var hb = (typeof s.heartbeat_age_s === "number") ? s.heartbeat_age_s : null;
+      var mode = s.live_mode ? "LIVE" : "PAPER";
+      if (mkt === "open") {
+        if (hb != null && hb < 120) paint(b, "● MARKET OPEN  ·  BOT ACTIVE ("+mode+")  ·  last tick "+Math.round(hb)+"s ago", "#065f46");
+        else if (hb != null && hb < 600) paint(b, "▲ MARKET OPEN  ·  BOT STALE — no heartbeat for "+Math.round(hb)+"s ("+mode+")", "#92400e");
+        else paint(b, "✕ MARKET OPEN  ·  BOT NOT RUNNING — check ou-mrs.service", "#7f1d1d");
+      } else if (mkt === "pre_open") {
+        paint(b, "◐ PRE-MARKET  ·  Bot arms at 09:15 IST  ("+mode+")", "#1e40af");
+      } else {
+        var ago = hb != null ? (hb < 3600 ? Math.round(hb/60)+"m" : Math.round(hb/3600)+"h") + " ago" : "—";
+        paint(b, "○ MARKET CLOSED  ·  Last live snapshot "+ago+"  ·  Auto-resume Mon-Fri 09:15 IST  ("+mode+")", "#374151");
+      }
+    } catch (e) {}
+  }
+  function init(){ tick(); setInterval(tick, 15000); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
