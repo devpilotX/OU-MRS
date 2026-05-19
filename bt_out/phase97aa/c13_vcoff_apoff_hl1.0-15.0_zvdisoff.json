@@ -1,0 +1,32 @@
+{
+  "trades": 41,
+  "win_rate": 0.4878,
+  "avg_win": 1179.24,
+  "avg_loss": -1415.09,
+  "profit_factor": 0.794,
+  "total_pnl": -6132.13,
+  "return_pct": -4.09,
+  "sharpe": -1.603,
+  "sortino": -1.98,
+  "max_drawdown_pct": -6.57,
+  "trading_days": 37,
+  "trades_per_day": 1.11,
+  "reasons": {
+    "Z_VEL_STALL": 31,
+    "TIME_STOP_HL": 6,
+    "TARGET": 4
+  },
+  "name": "c13_vcoff_apoff_hl1.0-15.0_zvdisoff",
+  "config": {
+    "OU_VOL_CONFIRM": "off",
+    "OU_ATR_PCT_FILTER": "off",
+    "OU_HL_MIN": "1.0",
+    "OU_HL_MAX": "15.0",
+    "OU_DISABLE_Z_VEL_STALL": "off",
+    "BT_ADX": "32",
+    "BT_ZENTRY": "1.5",
+    "BT_ZSTOP": "3.5",
+    "BT_REGIME_FILTER": "CHOP,RANGE"
+  },
+  "elapsed_sec": 46.3
+}
