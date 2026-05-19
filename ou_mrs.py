@@ -44,9 +44,20 @@ assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMEN
 
 # Phase 8f: capital-aware lot caps and tier labels
 # 1 BNF lot needs ~Rs40k margin + ~Rs35k buffer = ~Rs75k per lot
+# Phase 9.7AL (19 May 2026): dual-cap sizing — margin AND notional leverage.
+# Smoking gun: 19 May 12:46 BNF entry was 48 lots = 1440 contracts = ~Rs7.7Cr notional
+# on Rs37.5L capital (20.6x leverage). Root cause: min(50, capital//margin) ignored notional.
+# Fix: cap = min(margin_cap, notional_cap). NOTIONAL_LEVERAGE_MAX env (default 3.0x).
+NOTIONAL_LEVERAGE_MAX = float(os.environ.get("NOTIONAL_LEVERAGE_MAX", 3.0))
+_APPROX_SPOT_AL = {"BNF": 53_500.0, "NF": 24_800.0, "MCN": 14_300.0, "SENSEX": 80_000.0}
+_LOT_SIZE_AL    = {"BNF": 30,       "NF": 75,       "MCN": 120,      "SENSEX": 10}
 def max_lots_for_capital(capital: int, instrument: str = "BNF") -> int:
-    per_lot = {"BNF": 65_000, "NF": 130_000, "MCN": 225_000, "SENSEX": 90_000}[instrument]
-    return max(1, min(50, capital // per_lot))
+    margin_per_lot = {"BNF": 65_000, "NF": 130_000, "MCN": 225_000, "SENSEX": 90_000}[instrument]
+    lot_size_sym   = _LOT_SIZE_AL[instrument]
+    spot_sym       = _APPROX_SPOT_AL[instrument]
+    margin_cap   = max(1, capital // margin_per_lot)
+    notional_cap = max(1, int((capital * NOTIONAL_LEVERAGE_MAX) // (spot_sym * lot_size_sym)))
+    return min(margin_cap, notional_cap)
 
 def capital_tier(capital: int) -> str:
     # 8p.0: asset-management tier labels (no retail prop-firm vocab)
