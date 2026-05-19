@@ -91,3 +91,12 @@ html[data-theme="light"] .footer,html[data-theme="light"] footer{background:#fff
 .tb-mode{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.08em;font-family:'JetBrains Mono',monospace}
 .tb-mode-paper{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.45)}
 .tb-mode-live{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.45)}
+
+/* Phase 9.7AG: nav polish — active tab unmistakable + hover affordance */
+.bloom-nav { box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+.bloom-nav-btn { background: transparent; color: #ccc; border: 1px solid #333; padding: 6px 14px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.6px; cursor: pointer; transition: all 0.15s ease; }
+.bloom-nav-btn:hover { background: rgba(255,102,0,0.12); border-color: #ff6600; color: #fff; }
+.bloom-nav-btn-active { background: #ff6600 !important; color: #000 !important; border: 1px solid #ff6600 !important; padding: 6px 14px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; cursor: pointer; box-shadow: 0 0 14px rgba(255,102,0,0.45); }
+.bloom-tab-header { background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%); padding: 6px 14px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.bloom-tab-name { color: #ff6600; font-weight: 700; letter-spacing: 1px; }
+.tab-meta { color: #666; }

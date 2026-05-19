@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/style.css?v=28"/>
   <link rel="stylesheet" href="/static/css/panels-fix.css?v=9"/>
   <link rel="stylesheet" href="/static/css/bloomberg-theme.css?v=9"/>
-  <link rel="stylesheet" href="/static/css/clean-theme.css?v=75"/>
+  <link rel="stylesheet" href="/static/css/clean-theme.css?v=p97ag1779190233"/>
 <link rel="preconnect" href="https://fonts.gstatic.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -55,7 +55,7 @@
     <div class="kpi"><span class="kpi-label">STRATEGY</span><div id="strategy-detail" class="kpi-strategy">--</div></div>
   </section>
   <div id="deep-dive-notice" class="deep-dive-notice" x-show="activeTab==='live'"></div>
-    <section class="symbols-grid">
+    <section class="symbols-grid" x-show="activeTab==='live'">
     <div class="symbol-card sc-offline" id="card-BNF" x-show="activeTab==='live'">
       <div class="sc-row1">
         <div class="sc-id"><div class="sc-sym">BNF</div><div class="sc-name">BANKNIFTY · 26MAY26</div></div>
@@ -133,11 +133,11 @@
           <div class="pfm-cell"><span class="pfm-lbl">Target Progress</span><span class="pfm-val" id="pfm-prog">--</span><div class="pfm-bar"><div class="pfm-bar-fill" id="pfm-prog-bar" style="width:0%"></div></div></div>
         </div>
       </section>
-  <section class="grid-2">
+  <section class="grid-2" x-show="activeTab==='portfolio'">
     <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Daily P&L</h2><span class="muted">Per-day aggregated</span></div><div id="daily-pnl-wrap"><canvas id="daily-pnl-chart"></canvas></div></div>
     <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Drawdown</h2><span id="current-dd" class="muted">--</span></div><div id="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div></div>
   </section>
-  <section class="grid-2">
+  <section class="grid-2" x-show="activeTab==='portfolio'">
     <div class="panel" x-show="activeTab==='history'"><div class="panel-header"><div><h2>Backtest Metrics</h2><span class="muted">24 trades · 37 days · historical only · not live</span></div><span class="panel-badge" style="background:rgba(245,158,11,.1);color:var(--amber)">BACKTEST</span></div><div id="metrics-view" class="metrics-grid"></div></div>
     <div class="panel" x-show="activeTab==='portfolio'"><div class="panel-header"><h2>Live Portfolio</h2><span id="portfolio-ts" class="muted">--</span></div><div id="portfolio-view">--</div><hr/><h3 class="panel-sub">Next Scheduled Run</h3><div id="schedule-time" class="schedule">--</div><div id="heartbeat-info" class="muted">--</div></div>
   </section>
@@ -250,7 +250,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
 </script>
 
 <!-- Phase 9.8g.68: STRATEGY tab -->
-<section id="p98g-strategy-panel" class="bloom-panel" x-data="p98gStrategyPanel()" x-show="activeTab==='strategy'" style="display:none">
+<section id="p98g-strategy-panel" class="bloom-panel" x-data="p98gStrategyPanel()" x-show="activeTab==='strategy'">
   <div class="panel-header"><div><h2>Strategy Configuration</h2><span class="muted">OU-MRS · Ornstein-Uhlenbeck mean reversion · paper mode</span></div></div>
   <div class="bloom-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:12px;">
     <div class="bloom-stat"><div class="bloom-stat-label">CAPITAL</div><div class="bloom-stat-value">&#8377;37,50,000</div></div>
@@ -274,7 +274,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
 </section>
 
 <!-- Phase 9.8g.68: SYSTEM tab -->
-<section id="p98g-system-panel" class="bloom-panel" x-data="p98gSystemPanel()" x-init="init()" x-show="activeTab==='system'" style="display:none">
+<section id="p98g-system-panel" class="bloom-panel" x-data="p98gSystemPanel()" x-init="init()" x-show="activeTab==='system'">
   <div class="panel-header"><div><h2>System Health</h2><span class="muted">Service status &middot; Angel feed &middot; deployment</span></div>
     <div class="panel-actions"><button @click="refresh()" class="btn-secondary">REFRESH</button></div>
   </div>
@@ -289,7 +289,7 @@ function p98fMoversPanel(){return{gainers:[],losers:[],sgn(n){return n>=0?"+":""
   <div style="padding:8px 12px;color:#888;font-size:11px;" x-text="'Last refresh: ' + (lastRefresh||'never')"></div>
 </section>
 </main>
-<script src="/static/app.js?v=p97af1779187835"></script>
+<script src="/static/app.js?v=p97ag1779190233"></script>
     <script src="/static/sse-ticks.js?v=2"></script>
     <script src="/static/topbar-controls.js?v=3"></script>
 
