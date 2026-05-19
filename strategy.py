@@ -213,6 +213,9 @@ def should_time_stop_hl(bars_held, half_life):
 
 
 def should_velocity_stop(z_history, side):
+    # Phase 9.7AC: env-controlled disable (3/3 historical Z_VEL_STALL = loss)
+    if _os_p95.environ.get('OU_DISABLE_Z_VEL_STALL', 'off').lower() == 'on':
+        return False
     needed = 3 + VEL_STALL_BARS
     if z_history is None or len(z_history) < needed:
         return False
