@@ -28,7 +28,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 15.6,
+    "elapsed_sec": 15.0,
     "composite_score": 0.3852
   },
   {
@@ -60,7 +60,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 16.1,
+    "elapsed_sec": 15.2,
     "composite_score": 0.3852
   },
   {
@@ -93,7 +93,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 22.6,
+    "elapsed_sec": 21.6,
     "composite_score": 0.3566
   },
   {
@@ -126,7 +126,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 23.3,
+    "elapsed_sec": 22.6,
     "composite_score": 0.3566
   },
   {
@@ -159,7 +159,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 15.8,
+    "elapsed_sec": 15.0,
     "composite_score": 0.3167
   },
   {
@@ -192,7 +192,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 15.9,
+    "elapsed_sec": 15.4,
     "composite_score": 0.3167
   },
   {
@@ -224,7 +224,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 22.3,
+    "elapsed_sec": 21.7,
     "composite_score": 0.0396
   },
   {
@@ -256,7 +256,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 22.8,
+    "elapsed_sec": 22.9,
     "composite_score": 0.0396
   },
   {
@@ -288,7 +288,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 45.0,
+    "elapsed_sec": 41.9,
     "composite_score": -0.2145
   },
   {
@@ -320,7 +320,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 46.4,
+    "elapsed_sec": 45.0,
     "composite_score": -0.2145
   },
   {
@@ -352,7 +352,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 25.1,
+    "elapsed_sec": 24.8,
     "composite_score": -0.2419
   },
   {
@@ -384,7 +384,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 27.2,
+    "elapsed_sec": 25.7,
     "composite_score": -0.2419
   },
   {
@@ -417,7 +417,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 24.9,
+    "elapsed_sec": 24.8,
     "composite_score": -0.2448
   },
   {
@@ -450,7 +450,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 26.5,
+    "elapsed_sec": 25.5,
     "composite_score": -0.2448
   },
   {
@@ -483,7 +483,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 46.3,
+    "elapsed_sec": 44.5,
     "composite_score": -0.2893
   },
   {
@@ -516,7 +516,7 @@
       "BT_ZSTOP": "3.5",
       "BT_REGIME_FILTER": "CHOP,RANGE"
     },
-    "elapsed_sec": 48.0,
+    "elapsed_sec": 45.7,
     "composite_score": -0.3198
   }
 ]
