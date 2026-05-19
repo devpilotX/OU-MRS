@@ -121,9 +121,11 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
         return None
     theta, mu, sigma_eq, half_life, r2 = est
 
-    if not (p.min_half_life <= half_life <= p.max_half_life):
+    _hl_min = float(__import__('os').environ.get('OU_HL_MIN', str(p.min_half_life)))
+    _hl_max = float(__import__('os').environ.get('OU_HL_MAX', str(p.max_half_life)))
+    if not (_hl_min <= half_life <= _hl_max):
         import logging as _lg97z
-        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z half_life: ' + format(half_life, '.2f') + ' not in [' + str(p.min_half_life) + ', ' + str(p.max_half_life) + ']')
+        _lg97z.getLogger('ou_mrs').info(f'[skip] Phase 9.7Z half_life: ' + format(half_life, '.2f') + ' not in [' + str(_hl_min) + ', ' + str(_hl_max) + ']')
         return None
     if r2 < p.min_r2:
         import logging as _lg97z
