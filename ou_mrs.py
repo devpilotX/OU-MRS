@@ -34,7 +34,7 @@ _TIER_NAME, _POLICY = _get_policy(CAPITAL)
 # --- Phase 8g: multi-instrument config ---
 INSTRUMENT_CFG = {
     "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 65_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
-    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"), "lot_size": 65, "margin_per_lot": 130_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"), "lot_size": 75, "margin_per_lot": 130_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
     "MCN": {"symbol": os.environ.get("MIDCPNIFTY_FUT_SYMBOL", "MIDCPNIFTY26MAY26FUT"), "token": os.environ.get("MIDCPNIFTY_FUT_TOKEN", "66070"), "lot_size": 120, "margin_per_lot": 225_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},  # Phase 9.7O: FNF -> MIDCPNIFTY (FNF never traded)
 }
 INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
@@ -71,6 +71,7 @@ MAX_LOTS_BNF  = max_lots_for_capital(CAPITAL, "BNF")  # Phase 8g.4.a: legacy sta
 CAPITAL_TIER  = capital_tier(CAPITAL)
 MAX_TRADES    = 8           # Phase 8g.5: now AGGREGATE cap across runners (was per-symbol)
 MAX_CONCURRENT_POSITIONS = int(os.environ.get("MAX_CONCURRENT_POSITIONS", _POLICY["max_concurrent_positions"]))  # Phase 8g.5: corr cap
+DAILY_LOSS_LIMIT = float(os.environ.get("DAILY_LOSS_LIMIT", -50_000))  # Phase 9.7AN: agg daily P&L kill
 DAILY_LOSS    = _POLICY["daily_loss_cap_pct"]  # 8p.2: tier-aware
 SESSION_START = dtime(9, 30)
 SESSION_END   = dtime(14, 45)
@@ -624,6 +625,34 @@ def main():
                     reason = None
                     z = sig.z
                     # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
+                    # Phase 9.7AP (21 May 2026): paper-side STOP enforcement + BE ratchet
+                    _pos_p97ap = runner.position
+                    _side_p97ap  = _pos_p97ap["side"]
+                    _entry_p97ap = _pos_p97ap["entry_px"]
+                    _atr_p97ap   = _pos_p97ap.get("atr", 0) or 0
+                    _ltp_p97ap   = float(sig.price)
+                    _pts_p97ap   = (_ltp_p97ap - _entry_p97ap) * (1 if _side_p97ap == "BUY" else -1)
+                    _pk_p97ap    = max(_pos_p97ap.get("peak_pnl_pts", 0.0), _pts_p97ap)
+                    _pos_p97ap["peak_pnl_pts"] = _pk_p97ap
+                    if _atr_p97ap > 0 and _pk_p97ap >= 1.0 * _atr_p97ap:
+                        _be_buf  = 0.05 * _atr_p97ap
+                        _new_trig_p97ap = _entry_p97ap + _be_buf * (1 if _side_p97ap == "BUY" else -1)
+                        _old_trig_p97ap = _pos_p97ap.get("sl_trigger", 0) or 0
+                        if (_side_p97ap == "BUY" and _new_trig_p97ap > _old_trig_p97ap) or (_side_p97ap == "SELL" and _new_trig_p97ap < _old_trig_p97ap):
+                            _pos_p97ap["sl_trigger"] = _new_trig_p97ap
+                            log.info(f"[9.7AP] [{runner.symbol}] BE-ratchet: SL {_old_trig_p97ap:.2f} -> {_new_trig_p97ap:.2f} (peak={_pk_p97ap:.1f} atr={_atr_p97ap:.1f})")
+                    _cur_trig_p97ap = _pos_p97ap.get("sl_trigger")
+                    if _cur_trig_p97ap is not None:
+                        if (_side_p97ap == "BUY" and _ltp_p97ap <= _cur_trig_p97ap) or (_side_p97ap == "SELL" and _ltp_p97ap >= _cur_trig_p97ap):
+                            _stop_pnl = _exit(broker, runner.position, bar, "STOP", symbol=runner.symbol, lot_size=runner.lot_size)
+                            runner.pnl_today += _stop_pnl
+                            runner.position = None
+                            runner.reasons_log.append("STOP")
+                            log.info(f"[9.7AP-STOP] [{runner.symbol}] paper SL hit @ {_ltp_p97ap:.2f} (trig {_cur_trig_p97ap:.2f}) pnl=Rs{_stop_pnl:,.0f}")
+                            if runner.reasons_log[-STOP_CIRCUIT_THRESHOLD:].count("STOP") >= STOP_CIRCUIT_THRESHOLD:
+                                runner.kill = True
+                                log.warning(f"CIRCUIT BREAKER: {STOP_CIRCUIT_THRESHOLD} consecutive STOPs -- shutting down for day.")
+                            continue
                     _mtm = (sig.price - runner.position["entry_px"]) * (1 if runner.position["side"] == "BUY" else -1)
                     _profitable = _mtm > 0
                     if   runner.position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
@@ -662,6 +691,12 @@ def main():
                 if not (SESSION_START <= bar.name.time() <= SESSION_END):
                     continue
                 # Phase 8g.5: correlation + aggregate trade cap
+                # Phase 9.7AN: daily loss circuit breaker (kills ALL runners)
+                _agg_pnl_p97an = sum(r.pnl_today for r in runners.values())
+                if _agg_pnl_p97an <= DAILY_LOSS_LIMIT and not all(r.kill for r in runners.values()):
+                    log.warning(f"[9.7AN] DAILY_LOSS_KILL: agg pnl Rs{_agg_pnl_p97an:,.0f} <= limit Rs{DAILY_LOSS_LIMIT:,.0f} -- killing all runners")
+                    for _r_p97an in runners.values():
+                        _r_p97an.kill = True
                 _can, _block_reason = _can_enter_new_position(runners, runner, MAX_CONCURRENT_POSITIONS, MAX_TRADES)
                 if not _can:
                     log.debug(f"[entry_blocked] [{sym}] {_block_reason}")

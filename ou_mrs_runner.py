@@ -29,9 +29,21 @@ class OuMrsRunner:
         self.exchange = self.cfg.get("exchange", "NFO")
         self.symbol_full = self.cfg.get("symbol")
         self.margin_per_lot = self.cfg.get("margin_per_lot", 75_000)
-        self.atr_mult = self.cfg.get("atr_mult", 1.5)
+        # Phase 9.7AO: OU_ATR_MULT env override > cfg > default
+        import os as _os_p97ao
+        _atr_mult_env = _os_p97ao.environ.get("OU_ATR_MULT")
+        self.atr_mult = float(_atr_mult_env) if _atr_mult_env else self.cfg.get("atr_mult", 1.5)
         # Phase 8g.4.a: per-symbol max lots from capital and margin_per_lot
-        self.max_lots = max(1, min(50, int(self.capital // self.margin_per_lot)))
+        # Phase 9.7AL.1 (21 May 2026): dual-cap = min(margin_cap, notional_cap @ 3x leverage)
+        import os as _os_p97al1
+        _nlm = float(_os_p97al1.environ.get("NOTIONAL_LEVERAGE_MAX", 3.0))
+        _approx_spot = {"BNF": 53_500.0, "NF": 24_800.0, "MCN": 14_300.0, "SENSEX": 80_000.0}
+        _lot_nse     = {"BNF": 30,       "NF": 75,       "MCN": 120,      "SENSEX": 10}
+        _spot  = _approx_spot.get(self.symbol, self.cfg.get("approx_spot", 50_000.0))
+        _lsize = _lot_nse.get(self.symbol, self.lot_size)
+        _margin_cap   = max(1, int(self.capital // self.margin_per_lot))
+        _notional_cap = max(1, int((self.capital * _nlm) // (_spot * _lsize)))
+        self.max_lots = min(_margin_cap, _notional_cap)
 
     def status(self):
         """Snapshot for dashboard + multi-symbol aggregation."""
