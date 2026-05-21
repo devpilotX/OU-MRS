@@ -34,7 +34,7 @@ _TIER_NAME, _POLICY = _get_policy(CAPITAL)
 # --- Phase 8g: multi-instrument config ---
 INSTRUMENT_CFG = {
     "BNF": {"symbol": os.environ.get("BANKNIFTY_FUT_SYMBOL", "BANKNIFTY26MAY26FUT"), "token": os.environ.get("BANKNIFTY_FUT_TOKEN", "66068"), "lot_size": 30, "margin_per_lot": 65_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
-    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"), "lot_size": 75, "margin_per_lot": 130_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
+    "NF":  {"symbol": os.environ.get("NIFTY_FUT_SYMBOL", "NIFTY26MAY26FUT"),         "token": os.environ.get("NIFTY_FUT_TOKEN", "66071"), "lot_size": 65, "margin_per_lot": 130_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},
     "MCN": {"symbol": os.environ.get("MIDCPNIFTY_FUT_SYMBOL", "MIDCPNIFTY26MAY26FUT"), "token": os.environ.get("MIDCPNIFTY_FUT_TOKEN", "66070"), "lot_size": 120, "margin_per_lot": 225_000, "atr_mult": _POLICY["atr_mult"], "exchange": "NFO"},  # Phase 9.7O: FNF -> MIDCPNIFTY (FNF never traded)
 }
 INSTRUMENTS = [s.strip().upper() for s in os.environ.get("INSTRUMENTS", "BNF").split(",") if s.strip().upper() in INSTRUMENT_CFG]
