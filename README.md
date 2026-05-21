@@ -28,3 +28,4 @@ Quick start:
 Disclaimer: Educational use. Past performance does not predict future returns.
 Indian F&O losses can exceed deposits. Paper only - do not flip LIVE=true
 without walk-forward validation + 30 paper sessions post-armor + risk review.
+without walk-forward validation, 30 paper sessions post-armor, and independent risk review.
