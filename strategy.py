@@ -4,6 +4,11 @@ Shared between live bot and backtest so they produce identical signals.
 
 Phase 8c: ADX-based regime filter added. Skips entries when market is
 trending (ADX > threshold). Addresses walk-forward Fold1 weakness.
+
+Phase 9.8g.4 (25 May 2026 audit B6): removed dead vols.sum<=0 check
+after the TWAP fallback. The fallback assigns np.ones_like(vols), so
+the subsequent sum is always > 0. Misleading 'Strict volume' comment
+also removed.
 """
 import math
 import numpy as np
@@ -102,14 +107,11 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
     lows   = w["low"].to_numpy(dtype=float)
     vols   = w["volume"].to_numpy(dtype=float)
 
-    # Phase 9.1: TWAP fallback when volume is unavailable (e.g. INDEX backfill)
+    # Phase 9.1: TWAP fallback when volume is unavailable (e.g. INDEX backfill).
+    # Phase 9.8g.4: removed dead 'if vols.sum() <= 0: return None' below this
+    # — unreachable because vols is now ones_like with sum == len(vols) > 0.
     if vols.sum() <= 0.0:
         vols = np.ones_like(vols, dtype=float)
-    # Strict volume: futures data always has volume. No silent spot fallback.
-    if vols.sum() <= 0:
-        import logging as _lg97z
-        _lg97z.getLogger('ou_mrs').info('[skip] Phase 9.7Z vols: sum<=0')
-        return None
     center = (closes * vols).sum() / vols.sum()
     center = max(center, 1e-6)
     x = np.log(closes) - math.log(center)
