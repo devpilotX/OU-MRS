@@ -42,13 +42,13 @@ def test_be_ratchet_hit_not_armed_returns_false():
 
 
 def test_be_ratchet_hit_armed_above_lock_returns_false():
-    # armed (peak 3.0 > 2.0), current 1.0 > lock floor 0.2 (=0.1*2.0)
+    # armed (peak 3.0 > 2.0), current 1.0 > lock floor 0.2 (=0.1*2.0) -> no hit
     assert be_ratchet_hit(current_pnl_pts=1.0, peak_pnl_pts=3.0, atr=2.0,
                           trigger_mult=1.0, lock_mult=0.1) is False
 
 
 def test_be_ratchet_hit_armed_at_lock_returns_true():
-    # armed (peak 3.0), current = lock floor exactly
+    # armed (peak 3.0), current = lock floor exactly -> hit (inclusive)
     assert be_ratchet_hit(current_pnl_pts=0.2, peak_pnl_pts=3.0, atr=2.0,
                           trigger_mult=1.0, lock_mult=0.1) is True
 
@@ -79,4 +79,26 @@ def test_paper_sl_long_below_stop_returns_true():
 
 
 def test_paper_sl_short_below_stop_returns_false():
-    
+    # short entry 100, ATR 2, mult 2 -> stop at 104. Adverse 103 < 104 -> no hit
+    assert paper_sl_hit(adverse_px=103.0, entry_px=100.0, side="SELL",
+                        atr=2.0, sl_mult=2.0) is False
+
+
+def test_paper_sl_short_at_stop_returns_true():
+    assert paper_sl_hit(adverse_px=104.0, entry_px=100.0, side="SELL",
+                        atr=2.0, sl_mult=2.0) is True
+
+
+def test_paper_sl_short_above_stop_returns_true():
+    assert paper_sl_hit(adverse_px=105.0, entry_px=100.0, side="SELL",
+                        atr=2.0, sl_mult=2.0) is True
+
+
+def test_paper_sl_zero_mult_disabled():
+    assert paper_sl_hit(adverse_px=50.0, entry_px=100.0, side="BUY",
+                        atr=2.0, sl_mult=0.0) is False
+
+
+def test_paper_sl_unknown_side_returns_false():
+    assert paper_sl_hit(adverse_px=50.0, entry_px=100.0, side="UNKNOWN",
+                        atr=2.0, sl_mult=2.0) is False
