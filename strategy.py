@@ -14,6 +14,13 @@ Phase 9.8h (25 May 2026 02:45 IST): BE ratchet + paper SL added as the
 9.7AP-equivalent protective layer. Both env-gated with non-zero defaults
 (Sacred Rule #41). log_config_sanity() emits the effective env values at
 startup so any future kill-switch regression surfaces immediately.
+
+Phase 9.8h.3 (25 May 2026 03:20 IST): in-code defaults updated to the
+sweep-winning config from the DSR-corrected coarse sweep (Sacred Rule
+#43). paper=1.5, be=1.25, trail=3.0/0.3. Previous defaults (paper=2.0,
+be=1.0, trail=0.0/0.0) were placeholders -- they are now the global
+compromise that gives BNF its global optimum, MCN 83% of its optimum,
+and NF its least-bad row on the 27 Mar -> 22 May sample.
 """
 import math
 import numpy as np
@@ -249,8 +256,9 @@ def _env_float_p95g(name, default):
     except Exception:
         return float(default)
 
-OU_TRAIL_TRIGGER_ATR_MULT = _env_float_p95g("OU_TRAIL_TRIGGER_ATR_MULT", 0.0)
-OU_TRAIL_LOCK_PCT = _env_float_p95g("OU_TRAIL_LOCK_PCT", 0.0)
+# Phase 9.8h.3: in-code defaults updated to sweep-winning config (Sacred Rule #43)
+OU_TRAIL_TRIGGER_ATR_MULT = _env_float_p95g("OU_TRAIL_TRIGGER_ATR_MULT", 3.0)
+OU_TRAIL_LOCK_PCT = _env_float_p95g("OU_TRAIL_LOCK_PCT", 0.30)
 
 def should_trail_stop(current_pnl_pts, peak_pnl_pts, atr):
     if OU_TRAIL_TRIGGER_ATR_MULT <= 0 or OU_TRAIL_LOCK_PCT <= 0:
@@ -269,10 +277,15 @@ def should_trail_stop(current_pnl_pts, peak_pnl_pts, atr):
 # accidentally disabled at startup (Sacred Rule #41).
 # All helpers expose pure override params so tests can pin values without
 # needing to reload the module.
+#
+# Phase 9.8h.3: defaults updated from DSR-corrected sweep (Sacred Rule #43).
+# Previous in-code defaults (be_trigger=1.0, paper=2.0) were placeholders.
+# Sweep top configs across BNF + MCN converged on be_trigger=1.25 and
+# paper=1.5; NF stays negative on backtest regardless (B11 live/backtest gap).
 
-OU_BE_TRIGGER_ATR_MULT = _env_float_p95g("OU_BE_TRIGGER_ATR_MULT", 1.0)
+OU_BE_TRIGGER_ATR_MULT = _env_float_p95g("OU_BE_TRIGGER_ATR_MULT", 1.25)
 OU_BE_LOCK_ATR_MULT    = _env_float_p95g("OU_BE_LOCK_ATR_MULT",    0.1)
-OU_PAPER_SL_ATR_MULT   = _env_float_p95g("OU_PAPER_SL_ATR_MULT",   2.0)
+OU_PAPER_SL_ATR_MULT   = _env_float_p95g("OU_PAPER_SL_ATR_MULT",   1.5)
 
 
 def be_ratchet_armed(peak_pnl_pts, atr, trigger_mult=None):
