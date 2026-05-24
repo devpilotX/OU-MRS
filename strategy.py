@@ -9,6 +9,11 @@ Phase 9.8g.4 (25 May 2026 audit B6): removed dead vols.sum<=0 check
 after the TWAP fallback. The fallback assigns np.ones_like(vols), so
 the subsequent sum is always > 0. Misleading 'Strict volume' comment
 also removed.
+
+Phase 9.8h (25 May 2026 02:45 IST): BE ratchet + paper SL added as the
+9.7AP-equivalent protective layer. Both env-gated with non-zero defaults
+(Sacred Rule #41). log_config_sanity() emits the effective env values at
+startup so any future kill-switch regression surfaces immediately.
 """
 import math
 import numpy as np
@@ -109,7 +114,7 @@ def compute_signal(df: pd.DataFrame, p: Params = Params()) -> Optional[Signal]:
 
     # Phase 9.1: TWAP fallback when volume is unavailable (e.g. INDEX backfill).
     # Phase 9.8g.4: removed dead 'if vols.sum() <= 0: return None' below this
-    # — unreachable because vols is now ones_like with sum == len(vols) > 0.
+    # - unreachable because vols is now ones_like with sum == len(vols) > 0.
     if vols.sum() <= 0.0:
         vols = np.ones_like(vols, dtype=float)
     center = (closes * vols).sum() / vols.sum()
@@ -257,3 +262,79 @@ def should_trail_stop(current_pnl_pts, peak_pnl_pts, atr):
         return False
     lock_floor = peak_pnl_pts * (1.0 - OU_TRAIL_LOCK_PCT)
     return current_pnl_pts <= lock_floor
+
+
+# === Phase 9.8h: BE ratchet + paper SL + startup config sanity log ===
+# Both env-gated with NON-ZERO defaults so the protective layer is never
+# accidentally disabled at startup (Sacred Rule #41).
+# All helpers expose pure override params so tests can pin values without
+# needing to reload the module.
+
+OU_BE_TRIGGER_ATR_MULT = _env_float_p95g("OU_BE_TRIGGER_ATR_MULT", 1.0)
+OU_BE_LOCK_ATR_MULT    = _env_float_p95g("OU_BE_LOCK_ATR_MULT",    0.1)
+OU_PAPER_SL_ATR_MULT   = _env_float_p95g("OU_PAPER_SL_ATR_MULT",   2.0)
+
+
+def be_ratchet_armed(peak_pnl_pts, atr, trigger_mult=None):
+    """Phase 9.8h: armed once peak unrealized gain >= trigger_mult * ATR.
+    trigger_mult: pure override for tests. None -> use OU_BE_TRIGGER_ATR_MULT."""
+    t = OU_BE_TRIGGER_ATR_MULT if trigger_mult is None else float(trigger_mult)
+    if t <= 0 or atr <= 0:
+        return False
+    return peak_pnl_pts >= t * atr
+
+
+def be_ratchet_hit(current_pnl_pts, peak_pnl_pts, atr,
+                  trigger_mult=None, lock_mult=None):
+    """Phase 9.8h: fires when armed AND current PnL drops to lock floor (~breakeven).
+    lock_mult: pure override for tests. None -> use OU_BE_LOCK_ATR_MULT."""
+    if not be_ratchet_armed(peak_pnl_pts, atr, trigger_mult):
+        return False
+    lk = OU_BE_LOCK_ATR_MULT if lock_mult is None else float(lock_mult)
+    return current_pnl_pts <= lk * atr
+
+
+def paper_sl_hit(adverse_px, entry_px, side, atr, sl_mult=None):
+    """Phase 9.8h: catastrophic stop at entry +/- sl_mult * ATR.
+
+    Caller supplies adverse_px (bar low for long, bar high for short) so the
+    check fires on intra-bar trigger; the backtest fill still executes at the
+    NEXT bar's open with slippage, preserving the no-look-ahead invariant.
+    """
+    m = OU_PAPER_SL_ATR_MULT if sl_mult is None else float(sl_mult)
+    if m <= 0 or atr <= 0:
+        return False
+    distance = m * atr
+    if side == "BUY":
+        return adverse_px <= entry_px - distance
+    if side == "SELL":
+        return adverse_px >= entry_px + distance
+    return False
+
+
+def log_config_sanity():
+    """Phase 9.8h (Sacred Rule #41): emit effective env-gated config + warn
+    on any kill switch (env var <= 0) that disables a protective feature.
+    Call once at startup from live runner and from backtest run().
+    """
+    import logging as _lg
+    log = _lg.getLogger("ou_mrs")
+    cfg = {
+        "OU_HL_MULTIPLIER":          HL_MULTIPLIER,
+        "OU_Z_VEL_STALL":            Z_VEL_STALL_THRESHOLD,
+        "OU_VEL_STALL_BARS":         VEL_STALL_BARS,
+        "OU_DISABLE_Z_VEL_STALL":    _os_p95.environ.get("OU_DISABLE_Z_VEL_STALL", "off"),
+        "OU_TRAIL_TRIGGER_ATR_MULT": OU_TRAIL_TRIGGER_ATR_MULT,
+        "OU_TRAIL_LOCK_PCT":         OU_TRAIL_LOCK_PCT,
+        "OU_BE_TRIGGER_ATR_MULT":    OU_BE_TRIGGER_ATR_MULT,
+        "OU_BE_LOCK_ATR_MULT":       OU_BE_LOCK_ATR_MULT,
+        "OU_PAPER_SL_ATR_MULT":      OU_PAPER_SL_ATR_MULT,
+        "OU_ATR_MULT":               _os_p95.environ.get("OU_ATR_MULT", "1.5"),
+    }
+    log.info("[config-sanity] " + ", ".join(f"{k}={v}" for k, v in cfg.items()))
+    if OU_TRAIL_TRIGGER_ATR_MULT <= 0 or OU_TRAIL_LOCK_PCT <= 0:
+        log.warning("[config-sanity] TRAIL_STOP DISABLED (OU_TRAIL_TRIGGER_ATR_MULT and/or OU_TRAIL_LOCK_PCT <= 0)")
+    if OU_BE_TRIGGER_ATR_MULT <= 0:
+        log.warning("[config-sanity] BE_RATCHET DISABLED (OU_BE_TRIGGER_ATR_MULT <= 0)")
+    if OU_PAPER_SL_ATR_MULT <= 0:
+        log.warning("[config-sanity] PAPER_SL DISABLED (OU_PAPER_SL_ATR_MULT <= 0)")
