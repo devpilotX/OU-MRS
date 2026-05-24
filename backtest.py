@@ -1,7 +1,7 @@
 """Event-driven backtest of OU-MRS on cached 1-min data.
    Fills at NEXT bar's OPEN with slippage (no look-ahead bias).
    Outputs: trades.csv, equity.csv, metrics.json, equity.png"""
-import os, json, math, logging
+import os, json, math, logging, argparse, sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -16,13 +16,27 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
+# Phase 9.8g.8 (audit B7/B8): per-symbol data routing. Pre-9.8g.8 backtest had
+# no --symbol flag; any --symbol BANKNIFTY/NIFTY/MIDCPNIFTY was silently ignored
+# and all runs replayed BANKNIFTY data. New CLI forces correct dataset selection
+# and per-symbol output directory.
+_SYMBOL_TO_DATA = {
+    "BANKNIFTY":  "data/BANKNIFTY_FUT_1min.parquet",
+    "NIFTY":      "data/NIFTY_FUT_1min.parquet",
+    "MIDCPNIFTY": "data/MIDCPNIFTY_FUT_1min.parquet",
+}
+_SYMBOL_TO_LOT = {  # Sacred Rule #6: ratified via data/instruments.db on 21 May 2026 (Phase 9.7AQ)
+    "BANKNIFTY":  30,
+    "NIFTY":      65,
+    "MIDCPNIFTY": 120,
+}
+
 DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
 _HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
 OUT = _HERE / "bt_out"
-OUT.mkdir(exist_ok=True)
 
 # Phase 9.8g.2 (audit I6): env-tunable so backtests can match the live tier
-# (HEDGE_FUND @ ₹37.5L). Defaults preserve the legacy ₹1.5L base for older
+# (HEDGE_FUND @ Rs.37.5L). Defaults preserve the legacy Rs.1.5L base for older
 # scripts that don't set these vars.
 CAPITAL        = float(os.environ.get("BT_CAPITAL",  150_000))
 LOT_SIZE       = int(  os.environ.get("BT_LOT_SIZE", 15))
@@ -77,9 +91,15 @@ def _last_n_stops(trades, n):
     return sum(1 for t in trades[-n:] if t["reason"] == "STOP")
 
 def run():
+    OUT.mkdir(exist_ok=True, parents=True)  # Phase 9.8g.8: moved inside run() so --out / --symbol override works
+    if not DATA.exists():
+        log.error(f"DATA file not found: {DATA}")
+        log.error(f"Run: python tools/fetch_futures_data.py --symbol <SYMBOL>  (or --all)")
+        raise SystemExit(2)
     df = pd.read_parquet(DATA)
-    log.info(f"Loaded {len(df):,} bars")
+    log.info(f"Loaded {len(df):,} bars from {DATA}")
     log.info(f"Backtest config: capital={CAPITAL:,.0f}  lot_size={LOT_SIZE}  max_lots={MAX_LOTS}  atr_mult={_ATR_MULT}  risk_pct={_RISK_PCT:.4f}")
+    log.info(f"Output dir: {OUT}")
 
     # Phase 8h.2: classify regime per bar (full df, smoothing across days)
     from regime import classify_regime
@@ -202,7 +222,7 @@ def run():
     if not edf.empty:
         plt.figure(figsize=(10, 5))
         plt.plot(pd.to_datetime(edf["date"]), edf["equity"])
-        plt.title("OU-MRS Equity Curve (look-ahead fixed)")
+        plt.title(f"OU-MRS Equity Curve ({DATA.stem})")
         plt.ylabel("Rs")
         plt.grid(alpha=0.3)
         plt.tight_layout()
@@ -273,5 +293,30 @@ def compute_regime_metrics(tdf):
     return out
 
 
+def _parse_args():
+    """Phase 9.8g.8 (audit B7): real CLI. Pre-9.8g.8 backtest had no argparse,
+    so any --symbol / --out flag was silently ignored."""
+    p = argparse.ArgumentParser(description="OU-MRS event-driven backtest")
+    p.add_argument("--symbol", choices=sorted(_SYMBOL_TO_DATA.keys()),
+                   help="Symbol selector. Auto-resolves BT_DATA and OUT dir. "
+                        "Overrides BT_DATA env var if both are set.")
+    p.add_argument("--out", default=None,
+                   help="Output directory (default: bt_out/ or bt_out_<symbol>/ when --symbol set)")
+    p.add_argument("--auto-lot", action="store_true",
+                   help="When used with --symbol, auto-set LOT_SIZE from instruments registry "
+                        "(BNF=30, NF=65, MCN=120) instead of relying on BT_LOT_SIZE env.")
+    return p.parse_args()
+
+
 if __name__ == "__main__":
+    args = _parse_args()
+    if args.symbol:
+        # Mutate module globals so run() picks up the override
+        DATA = (_HERE / _SYMBOL_TO_DATA[args.symbol]).resolve()
+        if args.auto_lot:
+            LOT_SIZE = _SYMBOL_TO_LOT[args.symbol]
+        if not args.out:
+            OUT = _HERE / f"bt_out_{args.symbol}"
+    if args.out:
+        OUT = Path(args.out).resolve()
     run()
