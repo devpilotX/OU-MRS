@@ -21,18 +21,21 @@ _HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
 OUT = _HERE / "bt_out"
 OUT.mkdir(exist_ok=True)
 
-CAPITAL        = 150_000
-LOT_SIZE       = 15
-MAX_LOTS       = 2  # Phase 8b.5: halved for prop-firm DD rules
-KELLY_SEED     = 0.05  # Phase 8b.5: halved from 0.10
+# Phase 9.8g.2 (audit I6): env-tunable so backtests can match the live tier
+# (HEDGE_FUND @ ₹37.5L). Defaults preserve the legacy ₹1.5L base for older
+# scripts that don't set these vars.
+CAPITAL        = float(os.environ.get("BT_CAPITAL",  150_000))
+LOT_SIZE       = int(  os.environ.get("BT_LOT_SIZE", 15))
+MAX_LOTS       = int(  os.environ.get("BT_MAX_LOTS", 2))   # Phase 8b.5 default; HEDGE_FUND uses 50
+KELLY_SEED     = float(os.environ.get("BT_KELLY",    0.05))  # Phase 8b.5: halved from 0.10
 BROKERAGE_RT   = 40
 SLIPPAGE_TICKS = 2
 TICK           = 0.05
 SESSION_START  = pd.Timestamp("09:30").time()
 SESSION_END    = pd.Timestamp("14:45").time()
 SQUAREOFF      = pd.Timestamp("15:15").time()
-DAILY_LOSS_PCT = 0.02
-MAX_TRADES_DAY = 8
+DAILY_LOSS_PCT = float(os.environ.get("BT_DAILY_LOSS_PCT", 0.02))
+MAX_TRADES_DAY = int(  os.environ.get("BT_MAX_TRADES_DAY", 8))
 
 # Phase 9.8: optional regime allow-list (e.g. BT_REGIME_FILTER=CHOP or CHOP,RANGE)
 _bt_rf_p98 = os.environ.get("BT_REGIME_FILTER", "CHOP,RANGE").strip()
@@ -45,9 +48,13 @@ PARAMS = Params(
     regime_allow=_regime_allow_p98,
 )
 
+# Phase 9.8g.2 (audit B2 parity): use OU_ATR_MULT if set, mirror live behavior
+_ATR_MULT = float(os.environ.get("OU_ATR_MULT", 1.5))
+_RISK_PCT = float(os.environ.get("BT_RISK_PCT", 0.25 * KELLY_SEED))  # default = legacy 1.25%
+
 def size_lots(atr: float) -> int:
-    stop_rs = max(atr * 1.5, 20)
-    risk_budget = 0.25 * KELLY_SEED * CAPITAL
+    stop_rs = max(atr * _ATR_MULT, 20)
+    risk_budget = _RISK_PCT * CAPITAL
     raw = risk_budget / (stop_rs * LOT_SIZE)
     return max(1, min(MAX_LOTS, int(raw)))
 
@@ -72,6 +79,7 @@ def _last_n_stops(trades, n):
 def run():
     df = pd.read_parquet(DATA)
     log.info(f"Loaded {len(df):,} bars")
+    log.info(f"Backtest config: capital={CAPITAL:,.0f}  lot_size={LOT_SIZE}  max_lots={MAX_LOTS}  atr_mult={_ATR_MULT}  risk_pct={_RISK_PCT:.4f}")
 
     # Phase 8h.2: classify regime per bar (full df, smoothing across days)
     from regime import classify_regime
@@ -118,11 +126,14 @@ def run():
 
             if position:
                 reason = None
+                # Phase 9.8g.2 (audit B3): compute _mtm + refresh peak every bar,
+                # not only on bars where a signal was generated.
+                _mtm = (bar["close"] - position["entry_px"]) * (1 if position["side"] == "BUY" else -1)
+                position["peak_pnl_pts"] = max(position.get("peak_pnl_pts", 0.0), _mtm)
                 if sig:
                     z = sig.z
                     position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
                     # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
-                    _mtm = (bar["close"] - position["entry_px"]) * (1 if position["side"] == "BUY" else -1)
                     _profitable = _mtm > 0
                     if   position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
                     elif position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
@@ -135,12 +146,11 @@ def run():
                     reason = "TIME_STOP_HL"
                 if not reason and should_velocity_stop(position.get("z_history", []), position["side"]):  # Phase 9.5
                     reason = "Z_VEL_STALL"
-                    # Phase 9.5g: trail stop check (last priority)
-                    if not reason:
-                        _ppts_p95g = max(position.get("peak_pnl_pts", 0.0), _mtm)
-                        position["peak_pnl_pts"] = _ppts_p95g
-                        if should_trail_stop(_mtm, _ppts_p95g, position["atr"]):
-                            reason = "TRAIL_STOP"
+                # Phase 9.8g.2 (audit B3): TRAIL_STOP now its own top-level check,
+                # not nested inside Z_VEL_STALL true-branch. Fires whenever no other
+                # exit has fired AND drawdown from peak exceeds the trail threshold.
+                if not reason and should_trail_stop(_mtm, position["peak_pnl_pts"], position["atr"]):
+                    reason = "TRAIL_STOP"
                 if reason:
                     trades.append(_close(position, next_bar, next_bar_ts, reason))
                     pnl_today += trades[-1]["pnl"]
