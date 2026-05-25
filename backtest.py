@@ -39,6 +39,12 @@ _SYMBOL_TO_LOT = {  # Sacred Rule #6: ratified via data/instruments.db on 21 May
     "NIFTY":      65,
     "MIDCPNIFTY": 120,
 }
+# Phase 9.8g.12 (audit B2 parity++): map backtest long names to ou_mrs.INSTRUMENT_CFG short keys
+_LONG_TO_SHORT = {
+    "BANKNIFTY":  "BNF",
+    "NIFTY":      "NF",
+    "MIDCPNIFTY": "MCN",
+}
 
 # Phase 9.8g.11 (Fix B): symbol context for the TOD cutoff helper. Set from
 # --symbol in __main__; remains None for legacy bare `python backtest.py` runs
@@ -74,9 +80,13 @@ PARAMS = Params(
     regime_allow=_regime_allow_p98,
 )
 
-# Phase 9.8g.2 (audit B2 parity): use OU_ATR_MULT if set, mirror live behavior
-_ATR_MULT = float(os.environ.get("OU_ATR_MULT", 1.5))
-_RISK_PCT = float(os.environ.get("BT_RISK_PCT", 0.25 * KELLY_SEED))  # default = legacy 1.25%
+# Phase 9.8g.12 (audit B2 parity++): derive defaults from the same tier policy
+# that drives live (ou_mrs._get_policy, Sacred Rule #33 extended to backtest).
+# Env-vars retain override priority so sensitivity sweeps still work.
+from ou_mrs import _get_policy as _bt_get_policy, max_lots_for_capital as _bt_max_lots_for
+_BT_TIER_NAME, _BT_POLICY = _bt_get_policy(int(CAPITAL))
+_ATR_MULT = float(os.environ.get("OU_ATR_MULT", _BT_POLICY["atr_mult"]))
+_RISK_PCT = float(os.environ.get("BT_RISK_PCT", _BT_POLICY["risk_per_trade_pct"]))
 
 def size_lots(atr: float) -> int:
     stop_rs = max(atr * _ATR_MULT, 20)
@@ -112,7 +122,7 @@ def run():
     log_config_sanity()
     df = pd.read_parquet(DATA)
     log.info(f"Loaded {len(df):,} bars from {DATA}")
-    log.info(f"Backtest config: capital={CAPITAL:,.0f}  lot_size={LOT_SIZE}  max_lots={MAX_LOTS}  atr_mult={_ATR_MULT}  risk_pct={_RISK_PCT:.4f}")
+    log.info(f"Backtest config: tier={_BT_TIER_NAME}  capital={CAPITAL:,.0f}  lot_size={LOT_SIZE}  max_lots={MAX_LOTS}  atr_mult={_ATR_MULT}  risk_pct={_RISK_PCT:.4f}")
     log.info(f"Output dir: {OUT}")
     if _BT_SYMBOL is not None:
         log.info(f"Backtest symbol context (Phase 9.8g.11 TOD cutoff): {_BT_SYMBOL}")
@@ -334,6 +344,10 @@ if __name__ == "__main__":
         DATA = (_HERE / _SYMBOL_TO_DATA[args.symbol]).resolve()
         if args.auto_lot:
             LOT_SIZE = _SYMBOL_TO_LOT[args.symbol]
+            # Phase 9.8g.12 (audit B2 parity++): also auto-set MAX_LOTS from the
+            # tier-aware cap function iff caller has not pinned it via BT_MAX_LOTS.
+            if "BT_MAX_LOTS" not in os.environ:
+                MAX_LOTS = _bt_max_lots_for(int(CAPITAL), _LONG_TO_SHORT[args.symbol])
         if not args.out:
             OUT = _HERE / f"bt_out_{args.symbol}"
         _BT_SYMBOL = args.symbol  # Phase 9.8g.11 (Fix B): feed TOD cutoff helper
