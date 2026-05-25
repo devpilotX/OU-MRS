@@ -21,6 +21,14 @@ sweep-winning config from the DSR-corrected coarse sweep (Sacred Rule
 be=1.0, trail=0.0/0.0) were placeholders -- they are now the global
 compromise that gives BNF its global optimum, MCN 83% of its optimum,
 and NF its least-bad row on the 27 Mar -> 22 May sample.
+
+Phase 9.8g.11 (25 May 2026 15:24 IST, Fix B): symbol-specific time-of-day
+entry cutoff helper. Env-gated, default OFF for all symbols.
+is_entry_blocked_by_tod(symbol, bar_time) returns True iff
+OU_<SHORT>_AFTERNOON_CUTOFF_HHMM env var is set to a valid HHMM and the
+bar's IST hh:mm is >= cutoff. Motivated by Phase 9.8g.10 baseline backtest:
+NF afternoon bucket (13:30-14:45) carried 63% of NF's total backtest loss
+over the 37-day FUT window; BNF/MCN afternoons are net positive.
 """
 import math
 import numpy as np
@@ -343,6 +351,10 @@ def log_config_sanity():
         "OU_BE_LOCK_ATR_MULT":       OU_BE_LOCK_ATR_MULT,
         "OU_PAPER_SL_ATR_MULT":      OU_PAPER_SL_ATR_MULT,
         "OU_ATR_MULT":               _os_p95.environ.get("OU_ATR_MULT", "1.5"),
+        # Phase 9.8g.11 (Fix B): per-symbol TOD entry cutoff. Default OFF (unset / "").
+        "OU_BNF_AFTERNOON_CUTOFF_HHMM": _os_p95.environ.get("OU_BNF_AFTERNOON_CUTOFF_HHMM", ""),
+        "OU_NF_AFTERNOON_CUTOFF_HHMM":  _os_p95.environ.get("OU_NF_AFTERNOON_CUTOFF_HHMM",  ""),
+        "OU_MCN_AFTERNOON_CUTOFF_HHMM": _os_p95.environ.get("OU_MCN_AFTERNOON_CUTOFF_HHMM", ""),
     }
     log.info("[config-sanity] " + ", ".join(f"{k}={v}" for k, v in cfg.items()))
     if OU_TRAIL_TRIGGER_ATR_MULT <= 0 or OU_TRAIL_LOCK_PCT <= 0:
@@ -351,3 +363,59 @@ def log_config_sanity():
         log.warning("[config-sanity] BE_RATCHET DISABLED (OU_BE_TRIGGER_ATR_MULT <= 0)")
     if OU_PAPER_SL_ATR_MULT <= 0:
         log.warning("[config-sanity] PAPER_SL DISABLED (OU_PAPER_SL_ATR_MULT <= 0)")
+
+
+# === Phase 9.8g.11 (25 May 2026 audit Fix B): symbol-specific TOD entry cutoff ===
+# Per Phase 9.8g.10 baseline-backtest TOD analysis (validation/tod_NIFTY.json):
+# NF afternoon bucket 13:30-14:45 IST accumulated 63% of NF's total loss
+# (n=7, 14.3% WR, tSR -2.21, -Rs 8,306 over 37 days). BNF/MCN afternoons are
+# net positive (tSR +0.42 / +0.41) so the cutoff is symbol-specific by design.
+# Ships disabled by default; opt-in via OU_<SHORT>_AFTERNOON_CUTOFF_HHMM env var.
+
+_TOD_SHORT_KEYS_P98G11 = {
+    "BANKNIFTY":  "BNF", "BNF": "BNF",
+    "MIDCPNIFTY": "MCN", "MCN": "MCN",
+    "NIFTY":      "NF",  "NF":  "NF",
+}
+
+
+def is_entry_blocked_by_tod(symbol, bar_time) -> bool:
+    """Phase 9.8g.11 (Fix B): symbol-specific time-of-day entry cutoff.
+
+    Reads OU_<SHORT>_AFTERNOON_CUTOFF_HHMM env var (e.g. OU_NF_AFTERNOON_CUTOFF_HHMM=1330).
+    Returns True iff the cutoff env var is set to a valid HHMM and the bar's IST hh:mm
+    is >= cutoff (i.e. the new entry should be blocked).
+
+    Disabled (returns False) when:
+      - symbol or bar_time is None
+      - symbol is not in {BANKNIFTY, BNF, NIFTY, NF, MIDCPNIFTY, MCN}
+      - env var is unset, empty, "0000", or not a valid 4-digit HHMM
+
+    bar_time: any object exposing integer .hour and .minute attributes
+    (e.g. pd.Timestamp, datetime.datetime, datetime.time).
+
+    Both short (BNF/NF/MCN) and long (BANKNIFTY/NIFTY/MIDCPNIFTY) symbol forms
+    are accepted so the same helper works from backtest.py --symbol and from
+    ou_mrs.py's runner.symbol.
+    """
+    if symbol is None or bar_time is None:
+        return False
+    short = _TOD_SHORT_KEYS_P98G11.get(str(symbol).upper())
+    if short is None:
+        return False
+    raw = _os_p95.environ.get(f"OU_{short}_AFTERNOON_CUTOFF_HHMM", "").strip()
+    if not raw or raw == "0000":
+        return False
+    try:
+        hhmm = int(raw)
+    except (ValueError, TypeError):
+        return False
+    cutoff_h, cutoff_m = divmod(hhmm, 100)
+    if not (0 <= cutoff_h <= 23 and 0 <= cutoff_m <= 59):
+        return False
+    try:
+        bt_h = int(bar_time.hour)
+        bt_m = int(bar_time.minute)
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return (bt_h, bt_m) >= (cutoff_h, cutoff_m)

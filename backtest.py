@@ -6,6 +6,10 @@ Phase 9.8h: PAPER_SL + BE_RATCHET wired into exit cascade.
             log_config_sanity() called at run() start.
             Exit priority: PAPER_SL > TARGET > STOP > BE_RATCHET >
                            TIME_STOP_HL > Z_VEL_STALL > TRAIL_STOP.
+
+Phase 9.8g.11 (Fix B): symbol-specific TOD entry cutoff. The cutoff is OFF
+            by default; opt-in via OU_<SHORT>_AFTERNOON_CUTOFF_HHMM env var.
+            Symbol context is captured from --symbol into _BT_SYMBOL.
 """
 import os, json, math, logging, argparse, sys
 from pathlib import Path
@@ -17,6 +21,7 @@ import matplotlib.pyplot as plt
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
 from strategy import should_trail_stop  # Phase 9.5g
 from strategy import be_ratchet_hit, paper_sl_hit, log_config_sanity  # Phase 9.8h
+from strategy import is_entry_blocked_by_tod  # Phase 9.8g.11 (Fix B)
 from cost_model import compute_rt_cost  # Phase 9.5c
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -34,6 +39,11 @@ _SYMBOL_TO_LOT = {  # Sacred Rule #6: ratified via data/instruments.db on 21 May
     "NIFTY":      65,
     "MIDCPNIFTY": 120,
 }
+
+# Phase 9.8g.11 (Fix B): symbol context for the TOD cutoff helper. Set from
+# --symbol in __main__; remains None for legacy bare `python backtest.py` runs
+# (in which case is_entry_blocked_by_tod is a no-op).
+_BT_SYMBOL = None
 
 DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
 _HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
@@ -104,6 +114,8 @@ def run():
     log.info(f"Loaded {len(df):,} bars from {DATA}")
     log.info(f"Backtest config: capital={CAPITAL:,.0f}  lot_size={LOT_SIZE}  max_lots={MAX_LOTS}  atr_mult={_ATR_MULT}  risk_pct={_RISK_PCT:.4f}")
     log.info(f"Output dir: {OUT}")
+    if _BT_SYMBOL is not None:
+        log.info(f"Backtest symbol context (Phase 9.8g.11 TOD cutoff): {_BT_SYMBOL}")
 
     # Phase 8h.2: classify regime per bar (full df, smoothing across days)
     from regime import classify_regime
@@ -197,6 +209,11 @@ def run():
             if not (SESSION_START <= t <= SESSION_END):
                 continue
             if trades_today >= MAX_TRADES_DAY:
+                continue
+            # Phase 9.8g.11 (Fix B): symbol-specific afternoon cutoff.
+            # Env-gated via OU_<SHORT>_AFTERNOON_CUTOFF_HHMM; default OFF for all symbols.
+            # Per Phase 9.8g.10 TOD analysis: NF 13:30-14:45 carried 63% of NF's loss.
+            if is_entry_blocked_by_tod(_BT_SYMBOL, bar_ts):
                 continue
 
             qty_lots = size_lots(sig.atr)
@@ -319,6 +336,7 @@ if __name__ == "__main__":
             LOT_SIZE = _SYMBOL_TO_LOT[args.symbol]
         if not args.out:
             OUT = _HERE / f"bt_out_{args.symbol}"
+        _BT_SYMBOL = args.symbol  # Phase 9.8g.11 (Fix B): feed TOD cutoff helper
     if args.out:
         OUT = Path(args.out).resolve()
     run()
