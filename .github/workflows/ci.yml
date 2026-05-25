@@ -37,6 +37,4 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
       - name: Run pytest
-        # test_size_lots.py is excluded until phase 9.8g.10 B2 signature
-        # change (size_lots(runner, atr)) lands on the VPS.
-        run: pytest -v --tb=short --ignore=tests/test_size_lots.py
+        run: pytest -v --tb=short

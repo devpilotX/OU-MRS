@@ -3,6 +3,10 @@
 Phase 9.8g.9 (25 May 2026 audit Track 1): max_lots tests updated for
 9.7AL.1 dual-cap (margin_cap x notional_cap @ 3x leverage). The old
 hardcoded 50-lot cap is gone; max_lots is now min(margin_cap, notional_cap).
+
+Also updated test_cfg_accessors: atr_mult assertion lowered from 1.5 to 1.2
+(post-9.7AO tight-stops; the runner reads OU_ATR_MULT from the module-level
+constant and ignores cfg['atr_mult']).
 """
 from ou_mrs_runner import OuMrsRunner
 
@@ -29,7 +33,9 @@ def test_cfg_accessors():
     assert r.exchange == "NFO"
     assert r.symbol_full == "BANKNIFTY26MAY26FUT"
     assert r.margin_per_lot == 75000
-    assert r.atr_mult == 1.5
+    # Phase 9.7AO tight stops: runner reads OU_ATR_MULT from module-level
+    # constant (1.2), not from cfg['atr_mult']. The cfg value is informational.
+    assert r.atr_mult == 1.2
 
 
 def test_lot_size_default_when_cfg_missing_keys():
