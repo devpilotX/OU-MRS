@@ -1,4 +1,9 @@
-"""Phase 8g.2.a: tests for OuMrsRunner state container."""
+"""Phase 8g.2.a: tests for OuMrsRunner state container.
+
+Phase 9.8g.9 (25 May 2026 audit Track 1): max_lots tests updated for
+9.7AL.1 dual-cap (margin_cap x notional_cap @ 3x leverage). The old
+hardcoded 50-lot cap is gone; max_lots is now min(margin_cap, notional_cap).
+"""
 from ou_mrs_runner import OuMrsRunner
 
 
@@ -82,30 +87,51 @@ def test_reset_for_new_day_clears_all_state():
     assert r.reasons_log == []
 
 
-# Phase 8g.4.a: max_lots attribute
-def test_runner_max_lots_bnf():
-    from ou_mrs_runner import OuMrsRunner
+# ----- Phase 9.8g.9: 9.7AL.1 dual-cap regression suite -----
+# max_lots = min(margin_cap, notional_cap @ NOTIONAL_LEVERAGE_MAX = 3.0x).
+# BNF approx_spot = 53,500. NF approx_spot = 24,800. Fallback spot = 50,000.
+
+def test_runner_max_lots_bnf_seed_tier():
+    """Capital Rs 1.5L = SEED tier; notional cap binds before margin cap."""
     cfg = {"symbol": "BNFFUT", "token": "66068", "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": 1.5, "exchange": "NFO"}
     r = OuMrsRunner("BNF", cfg, capital=150_000)
-    assert r.max_lots == 2
+    # margin_cap = 150,000 // 75,000 = 2
+    # notional_cap = floor((150,000 * 3) / (53,500 * 30)) = floor(450,000 / 1,605,000) = 0 -> max(1, 0) = 1
+    # max_lots = min(2, 1) = 1
+    assert r.max_lots == 1
 
 
-def test_runner_max_lots_nf():
-    from ou_mrs_runner import OuMrsRunner
+def test_runner_max_lots_nf_seed_tier():
     cfg = {"symbol": "NFFUT", "token": "66071", "lot_size": 65, "margin_per_lot": 50_000, "atr_mult": 1.5, "exchange": "NFO"}
     r = OuMrsRunner("NF", cfg, capital=150_000)
-    assert r.max_lots == 3
+    # margin_cap = 150,000 // 50,000 = 3
+    # notional_cap = floor((150,000 * 3) / (24,800 * 65)) = floor(450,000 / 1,612,000) = 0 -> max(1, 0) = 1
+    # max_lots = min(3, 1) = 1
+    assert r.max_lots == 1
+
+
+def test_runner_max_lots_bnf_hedge_fund_tier():
+    """Capital Rs 37.5L = HEDGE_FUND tier; matches the live VPS config."""
+    cfg = {"symbol": "BNFFUT", "token": "66068", "lot_size": 30, "margin_per_lot": 75_000, "atr_mult": 1.5, "exchange": "NFO"}
+    r = OuMrsRunner("BNF", cfg, capital=3_750_000)
+    # margin_cap = 3,750,000 // 75,000 = 50
+    # notional_cap = floor((3,750,000 * 3) / (53,500 * 30)) = floor(11,250,000 / 1,605,000) = 7
+    # max_lots = min(50, 7) = 7
+    assert r.max_lots == 7
 
 
 def test_runner_max_lots_floor_at_1():
-    from ou_mrs_runner import OuMrsRunner
+    """Tiny capital still leaves max_lots >= 1."""
     cfg = {"margin_per_lot": 75_000}
     r = OuMrsRunner("X", cfg, capital=10_000)
     assert r.max_lots == 1
 
 
-def test_runner_max_lots_cap_at_50():
-    from ou_mrs_runner import OuMrsRunner
+def test_runner_max_lots_notional_cap_dominant():
+    """Phase 9.8g.9: with huge capital but tiny margin_per_lot, notional cap binds."""
     cfg = {"margin_per_lot": 1}
     r = OuMrsRunner("X", cfg, capital=10_000_000_000)
-    assert r.max_lots == 50
+    # margin_cap = 10B; symbol 'X' uses fallback spot=50,000 and default lot_size=15
+    # notional_cap = floor((10B * 3) / (50,000 * 15)) = floor(30B / 750,000) = 40,000
+    # max_lots = min(10B, 40,000) = 40,000
+    assert r.max_lots == 40_000
