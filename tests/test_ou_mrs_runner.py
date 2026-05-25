@@ -4,9 +4,10 @@ Phase 9.8g.9 (25 May 2026 audit Track 1): max_lots tests updated for
 9.7AL.1 dual-cap (margin_cap x notional_cap @ 3x leverage). The old
 hardcoded 50-lot cap is gone; max_lots is now min(margin_cap, notional_cap).
 
-Also updated test_cfg_accessors: atr_mult assertion lowered from 1.5 to 1.2
-(post-9.7AO tight-stops; the runner reads OU_ATR_MULT from the module-level
-constant and ignores cfg['atr_mult']).
+Phase 9.8g.12 (25 May 2026): atr_mult assertion restored to 1.5 (cfg value).
+The 9.7AO comment claiming runner ignores cfg was wrong — actual precedence
+is OU_ATR_MULT env > cfg > literal 1.5. Test now exercises the cfg path,
+which is the canonical path post-9.8g.12 audit (.env override removed).
 """
 from ou_mrs_runner import OuMrsRunner
 
@@ -33,9 +34,10 @@ def test_cfg_accessors():
     assert r.exchange == "NFO"
     assert r.symbol_full == "BANKNIFTY26MAY26FUT"
     assert r.margin_per_lot == 75000
-    # Phase 9.7AO tight stops: runner reads OU_ATR_MULT from module-level
-    # constant (1.2), not from cfg['atr_mult']. The cfg value is informational.
-    assert r.atr_mult == 1.2
+    # Phase 9.8g.12 (25 May 2026): runner precedence is env OU_ATR_MULT > cfg >
+    # literal 1.5. With OU_ATR_MULT removed from .env in the 9.8g.12 audit,
+    # cfg['atr_mult'] wins. Prior claim that runner ignores cfg was incorrect.
+    assert r.atr_mult == 1.5  # from BNF_CFG['atr_mult']
 
 
 def test_lot_size_default_when_cfg_missing_keys():
