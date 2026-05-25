@@ -5,7 +5,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from angel_adapter import AngelBroker
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
-from strategy import should_trail_stop  # Phase 9.5g
+from strategy import should_trail_stop, log_config_sanity  # Phase 9.5g + 9.8h.5 (Sacred Rule #41)
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
 from ou_mrs_runner import OuMrsRunner  # Phase 8g.2.b
@@ -361,6 +361,8 @@ def reconcile_sl_orders(broker, symbol="BNF"):
 
 
 def main():
+    # Phase 9.8h.5 (Sacred Rule #41): emit effective env-gated config on launch
+    log_config_sanity()
     # Phase 5a: gate Angel login behind market-hours check
     if not _market_hours_check():
         return 0
