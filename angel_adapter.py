@@ -11,7 +11,19 @@ from SmartApi import SmartConnect
 log = logging.getLogger("angel")
 
 import random as _random
-import sys as p98f_rl_sys; p98f_rl_sys.path.insert(0, "/home/ubuntu/bots/ou-mrs/dashboard"); import rate_limit as p98f_rl
+# Portable rate_limit import (was VPS-hardcoded until 9.8g.13)
+import os as _rl_os, sys as _rl_sys
+_rl_dash = _rl_os.path.join(_rl_os.path.dirname(_rl_os.path.abspath(__file__)), "dashboard")
+if _rl_dash not in _rl_sys.path:
+    _rl_sys.path.insert(0, _rl_dash)
+try:
+    import rate_limit as p98f_rl
+except ImportError:
+    class _NoOpRateLimit:
+        def __getattr__(self, name):
+            def noop(*a, **kw): return None
+            return noop
+    p98f_rl = _NoOpRateLimit()
 
 # --- _retry_v2 (2026-05-11) — rate-limit / auth-fail classification ---
 _RATE_LIMIT_UNTIL = [0.0]  # shared epoch deadline across all AngelBroker instances
