@@ -61,8 +61,11 @@ def test_velocity_stop_accepts_short_side():
 
 # ######### trail-stop ##########
 
-def test_trail_stop_dormant_by_default():
-    result = should_trail_stop(current_pnl_pts=10.0, peak_pnl_pts=15.0, atr=2.0)
+def test_trail_stop_dormant_below_activation_threshold():
+    # Phase 9.8h.3 defaults: TRIGGER=3.0, LOCK_PCT=0.30.
+    # Trail stays dormant when peak < activation (TRIGGER * atr = 3*2 = 6).
+    # Old inputs (peak=15, current=10) intentionally fire under sweep-winning defaults.
+    result = should_trail_stop(current_pnl_pts=2.0, peak_pnl_pts=3.0, atr=2.0)
     assert result in (None, False)
 
 
