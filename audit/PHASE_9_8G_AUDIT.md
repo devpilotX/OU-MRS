@@ -235,3 +235,62 @@ git push origin phase-9.8g-audit-fixes
 - **#35** — Any "check" nested inside another check's true-branch is suspect; review its guard expression carefully. TRAIL_STOP was unreachable for 17 days because of one extra level of indentation.
 - **#36** — A single shared output file across multiple symbols is always wrong; per-symbol file routing is mandatory whenever `INSTRUMENTS` has > 1 entry.
 - **#37** — `.env.example` must mirror the production `.env` keyset (values blank). Bootstrap from template should produce a working config after credentials are filled in; otherwise the template is a liability.
+
+---
+
+## Track 1 closeout — 25 May 2026 (Phase 9.8g.12)
+
+**Merged commits:**
+- `0ac120e` — Fix B (NF afternoon TOD cutoff)
+- `c55b9f5` — B1+B2 (drop `_LOT_SIZE_AL`, tier-aware runner-sig `size_lots`)
+- `cd9b895` — Housekeeping (gitignore per-symbol outputs)
+- `6476fcd` — B2-parity++ (`backtest.py` defaults from `_get_policy`)
+- `7a1befb` — Test fix (`test_cfg_accessors` asserts cfg-derived atr_mult)
+
+**Pre-merge portfolio gate (Sacred Rule #46):**
+- 3-symbol backtest @ HEDGE_FUND tier (CAPITAL=3.75M, NF afternoon cutoff=1330)
+- Per-symbol Sharpe: BNF=+2.30, NF=−1.52, MCN=+2.23
+- Per-symbol PnL: BNF=+₹60,613, NF=−₹19,958, MCN=+₹47,049
+- Cross-symbol correlations: BNF↔NF=−0.15, BNF↔MCN=+0.27, NF↔MCN=−0.02
+- **Portfolio EW Sharpe = +2.269** (gate threshold ≥ 1.0)
+- **Portfolio RP Sharpe = +1.680**
+
+**New findings during closeout (file for Track 2 / 9.8h):**
+
+1. **`.env` had `OU_ATR_MULT=1.2` overriding POLICY (1.7)** — silent live drift.
+   Removed in 9.8g.12. Sacred Rule #41 (config-sanity at startup) caught
+   this only because we re-read the log; would have stayed invisible otherwise.
+   *Mitigation: extend config-sanity to alert when env overrides POLICY.*
+
+2. **`.env` has duplicate `OU_Z_STOP_*` keys** (lines 38-40 set 3.5, lines
+   53-55 override to 2.5). Live actually runs Z_STOP=2.5, not 3.5 as the
+   POLICY-shaped first block suggests.
+   *Mitigation: scripts/lint_env.py to detect duplicate keys; reject at startup.*
+
+3. **`atr_mult` is invariant at HEDGE_FUND tier** because `max_lots_for_capital`
+   (notional cap @ 3x leverage) binds on every symbol at CAPITAL=3.75M:
+   - BNF: notional_cap=7 lots (vs Kelly-budget 17 lots @ atr_mult=1.2 or 12 @ 1.7)
+   - NF: notional_cap=6 lots (vs 9 / 6)
+   - MCN: notional_cap=6 lots (vs 4 / 3)
+
+   Effective per-trade risk at HEDGE_FUND is `MAX_LOTS × lot × stop_rs`,
+   which is below the Kelly budget of 0.5% × CAPITAL. `risk_per_trade_pct`
+   is theoretical at this tier — notional safety cap dominates.
+   *Implication: atr_mult tuning has zero P&L impact at notional-bound tiers.
+   The 1.2 vs 1.7 vs 1.5 debate was moot. Stops still differ in WIDTH (live
+   SL offset varies), but lot count is invariant, so PnL identical to the digit.*
+
+4. **NIFTY is the portfolio drag** (Sharpe −1.52 over 13 days). Fix B's
+   afternoon cutoff helped (16 trades→13, −₹13k→−₹20k under POLICY sizing
+   vs −₹4k under .env=1.2 sizing — but as #3 shows, sizing is invariant,
+   so the differences are noise from different runs / regime windows).
+   *Mitigation candidates for 9.8h: NF param-tighten (z_entry ↑), regime
+   filter (drop NF in RANGE), or NF drop entirely.*
+
+5. **PSR / DSR computations errored** in `portfolio_metrics.py`:
+   - `probabilistic_sharpe_ratio() got an unexpected keyword argument 'threshold_sr'`
+   - `float() argument must be a string or a real number, not 'dict'`
+   *Mitigation: fix tools/portfolio_metrics.py PSR/DSR call signatures.*
+
+**State at merge:** branch `phase-9.8g-audit-fixes` HEAD `7a1befb`,
+working tree clean, pytest 153 passed, portfolio gate passed.
