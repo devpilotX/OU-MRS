@@ -1,7 +1,17 @@
 """Event-driven backtest of OU-MRS on cached 1-min data.
    Fills at NEXT bar's OPEN with slippage (no look-ahead bias).
-   Outputs: trades.csv, equity.csv, metrics.json, equity.png"""
-import os, json, math, logging
+   Outputs: trades.csv, equity.csv, metrics.json, equity.png
+
+Phase 9.8h: PAPER_SL + BE_RATCHET wired into exit cascade.
+            log_config_sanity() called at run() start.
+            Exit priority: PAPER_SL > TARGET > STOP > BE_RATCHET >
+                           TIME_STOP_HL > Z_VEL_STALL > TRAIL_STOP.
+
+Phase 9.8g.11 (Fix B): symbol-specific TOD entry cutoff. The cutoff is OFF
+            by default; opt-in via OU_<SHORT>_AFTERNOON_CUTOFF_HHMM env var.
+            Symbol context is captured from --symbol into _BT_SYMBOL.
+"""
+import os, json, math, logging, argparse, sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -10,31 +20,56 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
 from strategy import should_trail_stop  # Phase 9.5g
+from strategy import be_ratchet_hit, paper_sl_hit, log_config_sanity  # Phase 9.8h
+from strategy import is_entry_blocked_by_tod  # Phase 9.8g.11 (Fix B)
 from cost_model import compute_rt_cost  # Phase 9.5c
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
+# Phase 9.8g.8 (audit B7/B8): per-symbol data routing.
+_SYMBOL_TO_DATA = {
+    "BANKNIFTY":  "data/BANKNIFTY_FUT_1min.parquet",
+    "NIFTY":      "data/NIFTY_FUT_1min.parquet",
+    "MIDCPNIFTY": "data/MIDCPNIFTY_FUT_1min.parquet",
+}
+_SYMBOL_TO_LOT = {  # Sacred Rule #6: ratified via data/instruments.db on 21 May 2026 (Phase 9.7AQ)
+    "BANKNIFTY":  30,
+    "NIFTY":      65,
+    "MIDCPNIFTY": 120,
+}
+# Phase 9.8g.12 (audit B2 parity++): map backtest long names to ou_mrs.INSTRUMENT_CFG short keys
+_LONG_TO_SHORT = {
+    "BANKNIFTY":  "BNF",
+    "NIFTY":      "NF",
+    "MIDCPNIFTY": "MCN",
+}
+
+# Phase 9.8g.11 (Fix B): symbol context for the TOD cutoff helper. Set from
+# --symbol in __main__; remains None for legacy bare `python backtest.py` runs
+# (in which case is_entry_blocked_by_tod is a no-op).
+_BT_SYMBOL = None
+
 DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
 _HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
 OUT = _HERE / "bt_out"
-OUT.mkdir(exist_ok=True)
 
-CAPITAL        = 150_000
-LOT_SIZE       = 15
-MAX_LOTS       = 2  # Phase 8b.5: halved for prop-firm DD rules
-KELLY_SEED     = 0.05  # Phase 8b.5: halved from 0.10
+# Phase 9.8g.2 (audit I6): env-tunable so backtests can match the live tier.
+CAPITAL        = float(os.environ.get("BT_CAPITAL",  150_000))
+LOT_SIZE       = int(  os.environ.get("BT_LOT_SIZE", 15))
+MAX_LOTS       = int(  os.environ.get("BT_MAX_LOTS", 2))
+KELLY_SEED     = float(os.environ.get("BT_KELLY",    0.05))
 BROKERAGE_RT   = 40
 SLIPPAGE_TICKS = 2
 TICK           = 0.05
 SESSION_START  = pd.Timestamp("09:30").time()
 SESSION_END    = pd.Timestamp("14:45").time()
 SQUAREOFF      = pd.Timestamp("15:15").time()
-DAILY_LOSS_PCT = 0.02
-MAX_TRADES_DAY = 8
+DAILY_LOSS_PCT = float(os.environ.get("BT_DAILY_LOSS_PCT", 0.02))
+MAX_TRADES_DAY = int(  os.environ.get("BT_MAX_TRADES_DAY", 8))
 
-# Phase 9.8: optional regime allow-list (e.g. BT_REGIME_FILTER=CHOP or CHOP,RANGE)
+# Phase 9.8: optional regime allow-list
 _bt_rf_p98 = os.environ.get("BT_REGIME_FILTER", "CHOP,RANGE").strip()
 _regime_allow_p98 = tuple(r.strip().upper() for r in _bt_rf_p98.split(",") if r.strip()) if _bt_rf_p98 else ()
 PARAMS = Params(
@@ -45,9 +80,17 @@ PARAMS = Params(
     regime_allow=_regime_allow_p98,
 )
 
+# Phase 9.8g.12 (audit B2 parity++): derive defaults from the same tier policy
+# that drives live (ou_mrs._get_policy, Sacred Rule #33 extended to backtest).
+# Env-vars retain override priority so sensitivity sweeps still work.
+from ou_mrs import _get_policy as _bt_get_policy, max_lots_for_capital as _bt_max_lots_for
+_BT_TIER_NAME, _BT_POLICY = _bt_get_policy(int(CAPITAL))
+_ATR_MULT = float(os.environ.get("OU_ATR_MULT", _BT_POLICY["atr_mult"]))
+_RISK_PCT = float(os.environ.get("BT_RISK_PCT", _BT_POLICY["risk_per_trade_pct"]))
+
 def size_lots(atr: float) -> int:
-    stop_rs = max(atr * 1.5, 20)
-    risk_budget = 0.25 * KELLY_SEED * CAPITAL
+    stop_rs = max(atr * _ATR_MULT, 20)
+    risk_budget = _RISK_PCT * CAPITAL
     raw = risk_budget / (stop_rs * LOT_SIZE)
     return max(1, min(MAX_LOTS, int(raw)))
 
@@ -70,8 +113,19 @@ def _last_n_stops(trades, n):
     return sum(1 for t in trades[-n:] if t["reason"] == "STOP")
 
 def run():
+    OUT.mkdir(exist_ok=True, parents=True)
+    if not DATA.exists():
+        log.error(f"DATA file not found: {DATA}")
+        log.error(f"Run: python tools/fetch_futures_data.py --symbol <SYMBOL>  (or --all)")
+        raise SystemExit(2)
+    # Phase 9.8h (Sacred Rule #41): emit effective env-gated config at startup
+    log_config_sanity()
     df = pd.read_parquet(DATA)
-    log.info(f"Loaded {len(df):,} bars")
+    log.info(f"Loaded {len(df):,} bars from {DATA}")
+    log.info(f"Backtest config: tier={_BT_TIER_NAME}  capital={CAPITAL:,.0f}  lot_size={LOT_SIZE}  max_lots={MAX_LOTS}  atr_mult={_ATR_MULT}  risk_pct={_RISK_PCT:.4f}")
+    log.info(f"Output dir: {OUT}")
+    if _BT_SYMBOL is not None:
+        log.info(f"Backtest symbol context (Phase 9.8g.11 TOD cutoff): {_BT_SYMBOL}")
 
     # Phase 8h.2: classify regime per bar (full df, smoothing across days)
     from regime import classify_regime
@@ -89,7 +143,6 @@ def run():
         pnl_today = 0.0
         kill = False
 
-        # len(day) - 1 ensures day.iloc[i+1] always exists (no look-ahead)
         for i in range(PARAMS.window, len(day) - 1):
             bar_ts      = day.index[i]
             bar         = day.iloc[i]
@@ -118,11 +171,21 @@ def run():
 
             if position:
                 reason = None
-                if sig:
+                # Phase 9.8g.2 (audit B3): compute _mtm + refresh peak every bar,
+                # not only on bars where a signal was generated.
+                _mtm = (bar["close"] - position["entry_px"]) * (1 if position["side"] == "BUY" else -1)
+                position["peak_pnl_pts"] = max(position.get("peak_pnl_pts", 0.0), _mtm)
+
+                # Phase 9.8h: PAPER_SL FIRST -- catastrophic intra-bar stop.
+                # Detected on current bar via adverse extreme (low/high); fill at next bar open.
+                adverse_px = float(bar["low"]) if position["side"] == "BUY" else float(bar["high"])
+                if paper_sl_hit(adverse_px, position["entry_px"], position["side"], position["atr"]):
+                    reason = "PAPER_SL"
+
+                if not reason and sig:
                     z = sig.z
-                    position.setdefault("z_history", []).append(z)  # Phase 9.5: z_history append
+                    position.setdefault("z_history", []).append(z)
                     # Phase 9.5d: PnL-gate TARGET to skip breakeven-trap when mean drifts to price
-                    _mtm = (bar["close"] - position["entry_px"]) * (1 if position["side"] == "BUY" else -1)
                     _profitable = _mtm > 0
                     if   position["side"] == "BUY"  and z >= 0 and _profitable: reason = "TARGET"
                     elif position["side"] == "SELL" and z <= 0 and _profitable: reason = "TARGET"
@@ -131,16 +194,17 @@ def run():
                          (position["side"] == "SELL" and z > 0)):
                         reason = "STOP"
                 position["bars_held"] += 1
+
+                # Phase 9.8h: BE_RATCHET -- between STOP and TIME_STOP_HL.
+                # Once peak gain hit trigger * ATR, exit at lock floor (~breakeven).
+                if not reason and be_ratchet_hit(_mtm, position["peak_pnl_pts"], position["atr"]):
+                    reason = "BE_RATCHET"
                 if not reason and should_time_stop_hl(position["bars_held"], position["half_life"]):  # Phase 9.5
                     reason = "TIME_STOP_HL"
                 if not reason and should_velocity_stop(position.get("z_history", []), position["side"]):  # Phase 9.5
                     reason = "Z_VEL_STALL"
-                    # Phase 9.5g: trail stop check (last priority)
-                    if not reason:
-                        _ppts_p95g = max(position.get("peak_pnl_pts", 0.0), _mtm)
-                        position["peak_pnl_pts"] = _ppts_p95g
-                        if should_trail_stop(_mtm, _ppts_p95g, position["atr"]):
-                            reason = "TRAIL_STOP"
+                if not reason and should_trail_stop(_mtm, position["peak_pnl_pts"], position["atr"]):  # 9.5g + 9.8g.2 dedent
+                    reason = "TRAIL_STOP"
                 if reason:
                     trades.append(_close(position, next_bar, next_bar_ts, reason))
                     pnl_today += trades[-1]["pnl"]
@@ -156,9 +220,13 @@ def run():
                 continue
             if trades_today >= MAX_TRADES_DAY:
                 continue
+            # Phase 9.8g.11 (Fix B): symbol-specific afternoon cutoff.
+            # Env-gated via OU_<SHORT>_AFTERNOON_CUTOFF_HHMM; default OFF for all symbols.
+            # Per Phase 9.8g.10 TOD analysis: NF 13:30-14:45 carried 63% of NF's loss.
+            if is_entry_blocked_by_tod(_BT_SYMBOL, bar_ts):
+                continue
 
             qty_lots = size_lots(sig.atr)
-            # Entry fills at NEXT bar's OPEN with slippage (no look-ahead)
             entry_px = next_bar["open"] + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
             position = {
                 "peak_pnl_pts": 0.0,
@@ -166,8 +234,8 @@ def run():
                 "entry_px": entry_px, "entry_ts": next_bar_ts,
                 "half_life": sig.half_life, "atr": sig.atr,
                 "bars_held": 0,
-                "regime": str(regime_series.shift(1).get(next_bar_ts, "UNKNOWN")),  # B-0d.1: signal bar (filter-eval), not entry bar
-                "z_history": [sig.z],  # Phase 9.5: z_history seed
+                "regime": str(regime_series.shift(1).get(next_bar_ts, "UNKNOWN")),
+                "z_history": [sig.z],
             }
             trades_today += 1
 
@@ -183,7 +251,6 @@ def run():
         json.dump(metrics, f, indent=2, default=str)
     log.info("METRICS:\n" + json.dumps(metrics, indent=2, default=str))
 
-    # Phase 8h.2: per-regime metrics
     regime_metrics = compute_regime_metrics(tdf)
     with open(OUT / "regime_metrics.json", "w") as f:
         json.dump(regime_metrics, f, indent=2, default=str)
@@ -192,7 +259,7 @@ def run():
     if not edf.empty:
         plt.figure(figsize=(10, 5))
         plt.plot(pd.to_datetime(edf["date"]), edf["equity"])
-        plt.title("OU-MRS Equity Curve (look-ahead fixed)")
+        plt.title(f"OU-MRS Equity Curve ({DATA.stem})")
         plt.ylabel("Rs")
         plt.grid(alpha=0.3)
         plt.tight_layout()
@@ -232,9 +299,6 @@ def compute_metrics(tdf: pd.DataFrame, edf: pd.DataFrame) -> dict:
     }
 
 def compute_regime_metrics(tdf):
-    """Phase 8h.2: split metrics by ADX regime (TREND/RANGE/CHOP).
-    Mean-reversion edge expected in RANGE, neutral CHOP, hostile TREND.
-    """
     if tdf.empty or 'regime' not in tdf.columns:
         return {}
     out = {}
@@ -263,5 +327,30 @@ def compute_regime_metrics(tdf):
     return out
 
 
+def _parse_args():
+    p = argparse.ArgumentParser(description="OU-MRS event-driven backtest")
+    p.add_argument("--symbol", choices=sorted(_SYMBOL_TO_DATA.keys()),
+                   help="Symbol selector. Auto-resolves BT_DATA and OUT dir.")
+    p.add_argument("--out", default=None,
+                   help="Output directory (default: bt_out/ or bt_out_<symbol>/ when --symbol set)")
+    p.add_argument("--auto-lot", action="store_true",
+                   help="With --symbol, auto-set LOT_SIZE from instruments registry.")
+    return p.parse_args()
+
+
 if __name__ == "__main__":
+    args = _parse_args()
+    if args.symbol:
+        DATA = (_HERE / _SYMBOL_TO_DATA[args.symbol]).resolve()
+        if args.auto_lot:
+            LOT_SIZE = _SYMBOL_TO_LOT[args.symbol]
+            # Phase 9.8g.12 (audit B2 parity++): also auto-set MAX_LOTS from the
+            # tier-aware cap function iff caller has not pinned it via BT_MAX_LOTS.
+            if "BT_MAX_LOTS" not in os.environ:
+                MAX_LOTS = _bt_max_lots_for(int(CAPITAL), _LONG_TO_SHORT[args.symbol])
+        if not args.out:
+            OUT = _HERE / f"bt_out_{args.symbol}"
+        _BT_SYMBOL = args.symbol  # Phase 9.8g.11 (Fix B): feed TOD cutoff helper
+    if args.out:
+        OUT = Path(args.out).resolve()
     run()

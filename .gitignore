@@ -81,3 +81,10 @@ data/activity_log.db
 data/*.db-shm
 data/*.db-wal
 data/instruments.db
+
+# Phase 9.8g.12 (25 May 2026): retire legacy bt_out/ artifacts + per-symbol output dirs
+bt_out/*
+!bt_out/eod/
+bt_out_*/
+bt_sweep_*/
+validation/

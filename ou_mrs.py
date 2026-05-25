@@ -50,10 +50,10 @@ assert INSTRUMENTS, "INSTRUMENTS env var resolved to empty list; check INSTRUMEN
 # Fix: cap = min(margin_cap, notional_cap). NOTIONAL_LEVERAGE_MAX env (default 3.0x).
 NOTIONAL_LEVERAGE_MAX = float(os.environ.get("NOTIONAL_LEVERAGE_MAX", 3.0))
 _APPROX_SPOT_AL = {"BNF": 53_500.0, "NF": 24_800.0, "MCN": 14_300.0, "SENSEX": 80_000.0}
-_LOT_SIZE_AL    = {"BNF": 30,       "NF": 75,       "MCN": 120,      "SENSEX": 10}
 def max_lots_for_capital(capital: int, instrument: str = "BNF") -> int:
     margin_per_lot = {"BNF": 65_000, "NF": 130_000, "MCN": 225_000, "SENSEX": 90_000}[instrument]
-    lot_size_sym   = _LOT_SIZE_AL[instrument]
+    # Phase 9.8g.12 (audit B1): canonical lot size from INSTRUMENT_CFG (Sacred Rule #33).
+    lot_size_sym   = INSTRUMENT_CFG[instrument]["lot_size"] if instrument in INSTRUMENT_CFG else 10  # SENSEX fallback
     spot_sym       = _APPROX_SPOT_AL[instrument]
     margin_cap   = max(1, capital // margin_per_lot)
     notional_cap = max(1, int((capital * NOTIONAL_LEVERAGE_MAX) // (spot_sym * lot_size_sym)))
@@ -154,13 +154,19 @@ HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
 STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
 
-def size_lots(atr: float, lot_size: int, max_lots: int = 1, capital: int = None) -> int:
-    """Phase 8g.4.a: pure. Pass per-symbol lot_size/max_lots; capital defaults to module CAPITAL."""
-    if capital is None:
-        capital = CAPITAL
-    stop = max(atr * 1.5, 20)
-    budget = 0.25 * 0.05 * capital  # Phase 8b.5: Kelly halved from 0.10
-    return max(1, min(max_lots, int(budget / (stop * lot_size))))
+def size_lots(runner, atr: float) -> int:
+    """Phase 9.8g.12 (audit B2): tier-aware risk-based sizing.
+
+    risk_per_trade_pct from _POLICY (HEDGE_FUND=0.5%; was hardcoded 1.25%).
+    Stop distance from runner.atr_mult x ATR (was hardcoded 1.5x).
+    """
+    atr_mult = float(getattr(runner, "atr_mult", 1.5))
+    stop_rs  = max(atr * atr_mult, 20.0)
+    risk_pct = float(_POLICY.get("risk_per_trade_pct", 0.005))
+    capital  = getattr(runner, "capital", CAPITAL)
+    budget   = risk_pct * capital
+    raw      = budget / (stop_rs * runner.lot_size)
+    return max(1, min(runner.max_lots, int(raw)))
 
 
 def _can_enter_new_position(runners, current_runner, max_concurrent, max_agg_trades):
@@ -703,7 +709,7 @@ def main():
                     runner.reasons_log.append(f"BLOCKED:{_block_reason.split()[0]}")
                     continue
 
-                qty_lots = size_lots(sig.atr, lot_size=runner.lot_size, max_lots=runner.max_lots, capital=CAPITAL)
+                qty_lots = size_lots(runner, sig.atr)  # Phase 9.8g.12 (audit B2)
                 qty = qty_lots * runner.lot_size
                 # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
                 _sl_offset = max(runner.atr_mult * sig.atr, 20.0)

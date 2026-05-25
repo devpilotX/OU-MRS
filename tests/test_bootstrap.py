@@ -1,7 +1,14 @@
 """Determinism and sanity tests for validation.bootstrap."""
+import os
 import numpy as np
 import pytest
 from validation.bootstrap import bootstrap_trade_stats, _stationary_resample_indices
+
+# Phase 9.8g.9 (25 May 2026): the bt_out/ tree is no longer tracked in git,
+# so the two real-data hold-out split tests below are skipped unless the
+# user has run backtest.py locally first.
+_BT_OUT_EQUITY_READY = os.path.exists("bt_out/equity.csv")
+_BT_OUT_TRADES_READY = os.path.exists("bt_out/trades.csv")
 
 
 def test_resample_indices_length_and_range():
@@ -156,9 +163,13 @@ def test_walk_forward_zero_mean_noise_inconsistent():
 
 
 # -----------------------------------------------------------------------------
-# Phase B-0g: hold-out split tests
+# Phase B-0g: hold-out split tests (require bt_out/ to be populated)
 # -----------------------------------------------------------------------------
 
+@pytest.mark.skipif(
+    not _BT_OUT_EQUITY_READY,
+    reason="bt_out/equity.csv not present; run backtest.py first",
+)
 def test_holdout_split_equity_runs_on_real_data():
     from validation.bootstrap import holdout_split_equity
     r = holdout_split_equity("bt_out/equity.csv", train_days=24)
@@ -168,6 +179,10 @@ def test_holdout_split_equity_runs_on_real_data():
     assert "test_point_in_train_ci" in r["decision"]
 
 
+@pytest.mark.skipif(
+    not _BT_OUT_TRADES_READY,
+    reason="bt_out/trades.csv not present; run backtest.py first",
+)
 def test_holdout_split_trades_runs_on_real_data():
     from validation.bootstrap import holdout_split_trades
     r = holdout_split_trades("bt_out/trades.csv", train_days=24)
