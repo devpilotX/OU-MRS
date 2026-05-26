@@ -21,6 +21,8 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
         continue-on-error: true
+      - name: Check .env* for duplicate keys
+        run: python scripts/check_env_dups.py
 
   tests:
     runs-on: ubuntu-latest
