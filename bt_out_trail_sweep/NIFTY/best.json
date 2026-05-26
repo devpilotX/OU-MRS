@@ -1,0 +1,12 @@
+{
+  "OU_TRAIL_TRIGGER_ATR_MULT": 2.5,
+  "OU_TRAIL_LOCK_PCT": 0.3,
+  "trades": 22,
+  "win_rate": 0.2273,
+  "profit_factor": 0.512,
+  "total_pnl": -59172.0,
+  "sharpe": -4.062,
+  "max_drawdown_pct": -1.78,
+  "dsr_n24": 0.0015562311379103996,
+  "config_id": 20
+}
