@@ -1,0 +1,110 @@
+{
+  "BANKNIFTY": {
+    "n_trades_classified": 23,
+    "rv20_tercile_breaks": [
+      0.0076,
+      0.0095
+    ],
+    "by_bucket": {
+      "LOW": {
+        "n_trades": 8,
+        "mean_pnl": 2523.15,
+        "sum_pnl": 20185.23,
+        "win_rate": 0.625,
+        "sharpe": 0.3385,
+        "rv20_min": 0.0057,
+        "rv20_max": 0.0075
+      },
+      "MID": {
+        "n_trades": 7,
+        "mean_pnl": -3641.9,
+        "sum_pnl": -25493.28,
+        "win_rate": 0.2857,
+        "sharpe": -0.2697,
+        "rv20_min": 0.0077,
+        "rv20_max": 0.0092
+      },
+      "HIGH": {
+        "n_trades": 8,
+        "mean_pnl": 3138.82,
+        "sum_pnl": 25110.54,
+        "win_rate": 0.625,
+        "sharpe": 0.1674,
+        "rv20_min": 0.0096,
+        "rv20_max": 0.0142
+      }
+    }
+  },
+  "NIFTY": {
+    "n_trades_classified": 22,
+    "rv20_tercile_breaks": [
+      0.0062,
+      0.0076
+    ],
+    "by_bucket": {
+      "LOW": {
+        "n_trades": 8,
+        "mean_pnl": -3555.91,
+        "sum_pnl": -28447.26,
+        "win_rate": 0.375,
+        "sharpe": -0.4313,
+        "rv20_min": 0.0044,
+        "rv20_max": 0.0062
+      },
+      "MID": {
+        "n_trades": 7,
+        "mean_pnl": -4067.84,
+        "sum_pnl": -28474.89,
+        "win_rate": 0.1429,
+        "sharpe": -0.4088,
+        "rv20_min": 0.0064,
+        "rv20_max": 0.0076
+      },
+      "HIGH": {
+        "n_trades": 7,
+        "mean_pnl": -1786.83,
+        "sum_pnl": -12507.81,
+        "win_rate": 0.4286,
+        "sharpe": -0.1567,
+        "rv20_min": 0.0082,
+        "rv20_max": 0.0096
+      }
+    }
+  },
+  "MIDCPNIFTY": {
+    "n_trades_classified": 15,
+    "rv20_tercile_breaks": [
+      0.0074,
+      0.0095
+    ],
+    "by_bucket": {
+      "LOW": {
+        "n_trades": 5,
+        "mean_pnl": 2631.73,
+        "sum_pnl": 13158.64,
+        "win_rate": 1.0,
+        "sharpe": 3.125,
+        "rv20_min": 0.0052,
+        "rv20_max": 0.0074
+      },
+      "MID": {
+        "n_trades": 5,
+        "mean_pnl": -2287.19,
+        "sum_pnl": -11435.93,
+        "win_rate": 0.4,
+        "sharpe": -0.2885,
+        "rv20_min": 0.0074,
+        "rv20_max": 0.0094
+      },
+      "HIGH": {
+        "n_trades": 5,
+        "mean_pnl": 7395.21,
+        "sum_pnl": 36976.07,
+        "win_rate": 0.4,
+        "sharpe": 0.2691,
+        "rv20_min": 0.0096,
+        "rv20_max": 0.0149
+      }
+    }
+  }
+}
