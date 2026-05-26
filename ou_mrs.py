@@ -3,6 +3,7 @@ import os, time, json, logging
 from datetime import datetime, time as dtime
 import pandas as pd
 from dotenv import load_dotenv
+load_dotenv()  # Phase 9.8h.6 (Sacred Rule #41 follow-up): MUST run before any module-level env reads in strategy.py et al.
 from angel_adapter import AngelBroker
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
 from strategy import should_trail_stop, log_config_sanity  # Phase 9.5g + 9.8h.5 (Sacred Rule #41)
@@ -16,7 +17,6 @@ from pathlib import Path as _A3P  # Phase A3 (idempotent alias)
 from latency import Timer as _LatTimer, flush_if_due as _lat_flush  # Phase A12
 TRADES_PATH = _A3P(__file__).resolve().parent / "trades.jsonl"  # Phase A3: CWD-independent
 
-load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
