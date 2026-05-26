@@ -1,0 +1,160 @@
+{
+  "symbol": "NIFTY",
+  "full_window": {
+    "A": {
+      "trades": 22,
+      "pnl": -59172.0,
+      "exit_reasons": {
+        "BE_RATCHET": {
+          "count": 2,
+          "pnl": -1618.53
+        },
+        "PAPER_SL": {
+          "count": 10,
+          "pnl": -112503.32
+        },
+        "TARGET": {
+          "count": 1,
+          "pnl": 11171.12
+        },
+        "TIME_STOP_HL": {
+          "count": 7,
+          "pnl": 44979.45
+        },
+        "Z_VEL_STALL": {
+          "count": 2,
+          "pnl": -1200.71
+        }
+      },
+      "metrics": {
+        "trades": 22,
+        "win_rate": 0.2273,
+        "avg_win": 12425.81,
+        "avg_loss": -7135.35,
+        "profit_factor": 0.512,
+        "total_pnl": -59172.0,
+        "return_pct": -1.58,
+        "sharpe": -4.062,
+        "sortino": -4.215,
+        "max_drawdown_pct": -1.78,
+        "trading_days": 37,
+        "trades_per_day": 0.59,
+        "reasons": {
+          "PAPER_SL": 10,
+          "TIME_STOP_HL": 7,
+          "BE_RATCHET": 2,
+          "Z_VEL_STALL": 2,
+          "TARGET": 1
+        }
+      }
+    },
+    "B": {
+      "trades": 22,
+      "pnl": -69429.96,
+      "exit_reasons": {
+        "PAPER_SL": {
+          "count": 10,
+          "pnl": -112503.32
+        },
+        "TIME_STOP_HL": {
+          "count": 6,
+          "pnl": 37569.49
+        },
+        "TRAIL_STOP": {
+          "count": 4,
+          "pnl": 6704.59
+        },
+        "Z_VEL_STALL": {
+          "count": 2,
+          "pnl": -1200.71
+        }
+      },
+      "metrics": {
+        "trades": 22,
+        "win_rate": 0.3182,
+        "avg_win": 7178.93,
+        "avg_loss": -7978.83,
+        "profit_factor": 0.42,
+        "total_pnl": -69429.96,
+        "return_pct": -1.85,
+        "sharpe": -5.356,
+        "sortino": -5.044,
+        "max_drawdown_pct": -1.85,
+        "trading_days": 37,
+        "trades_per_day": 0.59,
+        "reasons": {
+          "PAPER_SL": 10,
+          "TIME_STOP_HL": 6,
+          "TRAIL_STOP": 4,
+          "Z_VEL_STALL": 2
+        }
+      }
+    },
+    "delta_pnl": -10257.96,
+    "bootstrap_delta": {
+      "point": -10257.956919599717,
+      "mean": -10544.484848297143,
+      "ci_low_95": -95534.48350660445,
+      "ci_high_95": 78075.72633880326,
+      "prob_delta_positive": 0.405
+    }
+  },
+  "live_window": {
+    "A": {
+      "trades": 10,
+      "pnl": 911.67,
+      "exit_reasons": {
+        "BE_RATCHET": {
+          "count": 1,
+          "pnl": -1516.26
+        },
+        "PAPER_SL": {
+          "count": 2,
+          "pnl": -26059.12
+        },
+        "TARGET": {
+          "count": 1,
+          "pnl": 11171.12
+        },
+        "TIME_STOP_HL": {
+          "count": 4,
+          "pnl": 18516.64
+        },
+        "Z_VEL_STALL": {
+          "count": 2,
+          "pnl": -1200.71
+        }
+      }
+    },
+    "B": {
+      "trades": 10,
+      "pnl": -11997.89,
+      "exit_reasons": {
+        "PAPER_SL": {
+          "count": 2,
+          "pnl": -26059.12
+        },
+        "TIME_STOP_HL": {
+          "count": 3,
+          "pnl": 11106.68
+        },
+        "TRAIL_STOP": {
+          "count": 3,
+          "pnl": 4155.26
+        },
+        "Z_VEL_STALL": {
+          "count": 2,
+          "pnl": -1200.71
+        }
+      }
+    },
+    "delta_pnl": -12909.56,
+    "bootstrap_delta": {
+      "point": -12909.562832399435,
+      "mean": -12902.157020866814,
+      "ci_low_95": -41176.17634123443,
+      "ci_high_95": 16311.456955951691,
+      "prob_delta_positive": 0.1535
+    }
+  }
+}
