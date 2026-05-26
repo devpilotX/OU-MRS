@@ -1,0 +1,65 @@
+{
+  "full_window": {
+    "delta_pnl": -36287.93,
+    "bootstrap_delta": {
+      "point": -36287.932585202216,
+      "mean": -35512.193746400386,
+      "ci_low_95": -291785.7110360419,
+      "ci_high_95": 238284.15047922227,
+      "prob_delta_positive": 0.404
+    }
+  },
+  "live_window": {
+    "delta_pnl": -11941.61,
+    "bootstrap_delta": {
+      "point": -11941.607555999726,
+      "mean": -12294.30365940397,
+      "ci_low_95": -147194.0389023029,
+      "ci_high_95": 113128.84306234005,
+      "prob_delta_positive": 0.4155
+    }
+  },
+  "timing_seconds": {
+    "BANKNIFTY/A": 14.993728399276733,
+    "BANKNIFTY/B": 15.014995813369751,
+    "NIFTY/A": 15.054748058319092,
+    "NIFTY/B": 14.973421573638916,
+    "MIDCPNIFTY/A": 14.44856858253479,
+    "MIDCPNIFTY/B": 14.724398851394653
+  },
+  "common_env": {
+    "BT_CAPITAL": "3750000",
+    "OU_ADX_THRESHOLD": "32",
+    "OU_Z_ENTRY": "1.5",
+    "OU_REGIME_FILTER": "CHOP,RANGE",
+    "OU_Z_STOP_BNF": "2.5",
+    "OU_Z_STOP_NF": "2.5",
+    "OU_Z_STOP_MCN": "2.5",
+    "OU_VOL_CONFIRM": "on",
+    "OU_ATR_PCT_FILTER": "on",
+    "OU_HL_MIN": "0.5",
+    "OU_HL_MAX": "5.0",
+    "OU_DISABLE_Z_VEL_STALL": "off",
+    "NOTIONAL_LEVERAGE_MAX": "3.0",
+    "DAILY_LOSS_LIMIT": "-50000",
+    "OU_ATR_MULT": "1.5",
+    "OU_BE_TRIGGER_ATR_MULT": "1.25",
+    "OU_BE_LOCK_ATR_MULT": "0.1",
+    "OU_PAPER_SL_ATR_MULT": "1.5"
+  },
+  "configs": {
+    "A": {
+      "OU_TRAIL_TRIGGER_ATR_MULT": "3.0",
+      "OU_TRAIL_LOCK_PCT": "0.30"
+    },
+    "B": {
+      "OU_TRAIL_TRIGGER_ATR_MULT": "1.5",
+      "OU_TRAIL_LOCK_PCT": "0.40"
+    }
+  },
+  "symbols": [
+    "BANKNIFTY",
+    "NIFTY",
+    "MIDCPNIFTY"
+  ]
+}

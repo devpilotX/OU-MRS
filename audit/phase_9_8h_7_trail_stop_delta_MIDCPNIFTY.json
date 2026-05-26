@@ -1,0 +1,158 @@
+{
+  "symbol": "MIDCPNIFTY",
+  "full_window": {
+    "A": {
+      "trades": 15,
+      "pnl": 47049.31,
+      "exit_reasons": {
+        "BE_RATCHET": {
+          "count": 1,
+          "pnl": 339.36
+        },
+        "PAPER_SL": {
+          "count": 5,
+          "pnl": -40034.17
+        },
+        "TARGET": {
+          "count": 1,
+          "pnl": 3351.62
+        },
+        "TIME_STOP_HL": {
+          "count": 3,
+          "pnl": 67607.69
+        },
+        "TRAIL_STOP": {
+          "count": 4,
+          "pnl": 19345.6
+        },
+        "Z_VEL_STALL": {
+          "count": 1,
+          "pnl": -3560.78
+        }
+      },
+      "metrics": {
+        "trades": 15,
+        "win_rate": 0.6,
+        "avg_win": 10071.59,
+        "avg_loss": -7265.83,
+        "profit_factor": 2.079,
+        "total_pnl": 47049.31,
+        "return_pct": 1.25,
+        "sharpe": 2.007,
+        "sortino": 3.626,
+        "max_drawdown_pct": -0.39,
+        "trading_days": 37,
+        "trades_per_day": 0.41,
+        "reasons": {
+          "PAPER_SL": 5,
+          "TRAIL_STOP": 4,
+          "TIME_STOP_HL": 3,
+          "BE_RATCHET": 1,
+          "TARGET": 1,
+          "Z_VEL_STALL": 1
+        }
+      }
+    },
+    "B": {
+      "trades": 15,
+      "pnl": 38698.78,
+      "exit_reasons": {
+        "PAPER_SL": {
+          "count": 5,
+          "pnl": -40034.17
+        },
+        "TARGET": {
+          "count": 1,
+          "pnl": 3351.62
+        },
+        "TIME_STOP_HL": {
+          "count": 3,
+          "pnl": 67607.69
+        },
+        "TRAIL_STOP": {
+          "count": 5,
+          "pnl": 11334.43
+        },
+        "Z_VEL_STALL": {
+          "count": 1,
+          "pnl": -3560.78
+        }
+      },
+      "metrics": {
+        "trades": 15,
+        "win_rate": 0.6,
+        "avg_win": 9143.75,
+        "avg_loss": -7265.83,
+        "profit_factor": 1.888,
+        "total_pnl": 38698.78,
+        "return_pct": 1.03,
+        "sharpe": 1.678,
+        "sortino": 3.138,
+        "max_drawdown_pct": -0.39,
+        "trading_days": 37,
+        "trades_per_day": 0.41,
+        "reasons": {
+          "TRAIL_STOP": 5,
+          "PAPER_SL": 5,
+          "TIME_STOP_HL": 3,
+          "TARGET": 1,
+          "Z_VEL_STALL": 1
+        }
+      }
+    },
+    "delta_pnl": -8350.53,
+    "bootstrap_delta": {
+      "point": -8350.530559201572,
+      "mean": -9312.973757493928,
+      "ci_low_95": -129102.30243809946,
+      "ci_high_95": 102882.8456877569,
+      "prob_delta_positive": 0.361
+    }
+  },
+  "live_window": {
+    "A": {
+      "trades": 5,
+      "pnl": 57072.5,
+      "exit_reasons": {
+        "PAPER_SL": {
+          "count": 2,
+          "pnl": -7864.76
+        },
+        "TIME_STOP_HL": {
+          "count": 2,
+          "pnl": 62054.61
+        },
+        "TRAIL_STOP": {
+          "count": 1,
+          "pnl": 2882.64
+        }
+      }
+    },
+    "B": {
+      "trades": 5,
+      "pnl": 57072.5,
+      "exit_reasons": {
+        "PAPER_SL": {
+          "count": 2,
+          "pnl": -7864.76
+        },
+        "TIME_STOP_HL": {
+          "count": 2,
+          "pnl": 62054.61
+        },
+        "TRAIL_STOP": {
+          "count": 1,
+          "pnl": 2882.64
+        }
+      }
+    },
+    "delta_pnl": 0.0,
+    "bootstrap_delta": {
+      "point": 0.0,
+      "mean": 1006.4812772231868,
+      "ci_low_95": -61399.51652880052,
+      "ci_high_95": 61399.51652880053,
+      "prob_delta_positive": 0.3485
+    }
+  }
+}

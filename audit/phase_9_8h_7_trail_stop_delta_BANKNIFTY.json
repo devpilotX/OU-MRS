@@ -1,0 +1,183 @@
+{
+  "symbol": "BANKNIFTY",
+  "full_window": {
+    "A": {
+      "trades": 24,
+      "pnl": 60612.79,
+      "exit_reasons": {
+        "BE_RATCHET": {
+          "count": 2,
+          "pnl": -8609.6
+        },
+        "PAPER_SL": {
+          "count": 9,
+          "pnl": -109723.71
+        },
+        "TARGET": {
+          "count": 4,
+          "pnl": 40691.3
+        },
+        "TIME_STOP_HL": {
+          "count": 6,
+          "pnl": 88573.75
+        },
+        "TRAIL_STOP": {
+          "count": 2,
+          "pnl": 45742.36
+        },
+        "Z_VEL_STALL": {
+          "count": 1,
+          "pnl": 3938.7
+        }
+      },
+      "metrics": {
+        "trades": 24,
+        "win_rate": 0.5417,
+        "avg_win": 13765.08,
+        "avg_loss": -10757.57,
+        "profit_factor": 1.512,
+        "total_pnl": 60612.79,
+        "return_pct": 1.62,
+        "sharpe": 2.077,
+        "sortino": 2.468,
+        "max_drawdown_pct": -1.4,
+        "trading_days": 37,
+        "trades_per_day": 0.65,
+        "reasons": {
+          "PAPER_SL": 9,
+          "TIME_STOP_HL": 6,
+          "TARGET": 4,
+          "BE_RATCHET": 2,
+          "TRAIL_STOP": 2,
+          "Z_VEL_STALL": 1
+        }
+      }
+    },
+    "B": {
+      "trades": 24,
+      "pnl": 42933.35,
+      "exit_reasons": {
+        "BE_RATCHET": {
+          "count": 1,
+          "pnl": -3408.4
+        },
+        "PAPER_SL": {
+          "count": 9,
+          "pnl": -109723.71
+        },
+        "TARGET": {
+          "count": 3,
+          "pnl": 29440.83
+        },
+        "TIME_STOP_HL": {
+          "count": 6,
+          "pnl": 85793.91
+        },
+        "TRAIL_STOP": {
+          "count": 4,
+          "pnl": 36892.02
+        },
+        "Z_VEL_STALL": {
+          "count": 1,
+          "pnl": 3938.7
+        }
+      },
+      "metrics": {
+        "trades": 24,
+        "win_rate": 0.5833,
+        "avg_win": 11147.53,
+        "avg_loss": -11313.21,
+        "profit_factor": 1.379,
+        "total_pnl": 42933.35,
+        "return_pct": 1.14,
+        "sharpe": 1.605,
+        "sortino": 1.718,
+        "max_drawdown_pct": -1.88,
+        "trading_days": 37,
+        "trades_per_day": 0.65,
+        "reasons": {
+          "PAPER_SL": 9,
+          "TIME_STOP_HL": 6,
+          "TRAIL_STOP": 4,
+          "TARGET": 3,
+          "BE_RATCHET": 1,
+          "Z_VEL_STALL": 1
+        }
+      }
+    },
+    "delta_pnl": -17679.45,
+    "bootstrap_delta": {
+      "point": -17679.445106400897,
+      "mean": -18630.675293228138,
+      "ci_low_95": -192039.7738049748,
+      "ci_high_95": 148220.61587487027,
+      "prob_delta_positive": 0.412
+    }
+  },
+  "live_window": {
+    "A": {
+      "trades": 10,
+      "pnl": 74583.79,
+      "exit_reasons": {
+        "BE_RATCHET": {
+          "count": 1,
+          "pnl": -5201.21
+        },
+        "PAPER_SL": {
+          "count": 3,
+          "pnl": -19059.3
+        },
+        "TARGET": {
+          "count": 2,
+          "pnl": 19972.9
+        },
+        "TIME_STOP_HL": {
+          "count": 1,
+          "pnl": 29190.34
+        },
+        "TRAIL_STOP": {
+          "count": 2,
+          "pnl": 45742.36
+        },
+        "Z_VEL_STALL": {
+          "count": 1,
+          "pnl": 3938.7
+        }
+      }
+    },
+    "B": {
+      "trades": 10,
+      "pnl": 75551.75,
+      "exit_reasons": {
+        "PAPER_SL": {
+          "count": 3,
+          "pnl": -19059.3
+        },
+        "TARGET": {
+          "count": 2,
+          "pnl": 19972.9
+        },
+        "TIME_STOP_HL": {
+          "count": 2,
+          "pnl": 51080.75
+        },
+        "TRAIL_STOP": {
+          "count": 2,
+          "pnl": 19618.7
+        },
+        "Z_VEL_STALL": {
+          "count": 1,
+          "pnl": 3938.7
+        }
+      }
+    },
+    "delta_pnl": 967.96,
+    "bootstrap_delta": {
+      "point": 967.9552763997053,
+      "mean": 497.779667796296,
+      "ci_low_95": -63558.41978073091,
+      "ci_high_95": 63288.26703023997,
+      "prob_delta_positive": 0.597
+    }
+  }
+}
