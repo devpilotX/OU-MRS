@@ -1,0 +1,22 @@
+name: CI Health Check
+
+on:
+  schedule:
+    # Daily at 04:00 UTC (09:30 IST). Detects silent GitHub Actions outages
+    # affecting this repo (see audit/phase_9_8h_8_ci_incident_rca.md).
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Emit heartbeat
+        run: |
+          echo "[ci-health] alive @ $(date -u +%FT%TZ)"
+          echo "[ci-health] sha: $GITHUB_SHA"
+          echo "[ci-health] ref: $GITHUB_REF"
+          echo "[ci-health] runner: $RUNNER_OS / $RUNNER_ARCH"
+          echo "[ci-health] workflow: $GITHUB_WORKFLOW"
+          echo "[ci-health] run-id: $GITHUB_RUN_ID"
