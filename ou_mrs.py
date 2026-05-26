@@ -212,18 +212,35 @@ def _exit(broker, pos, bar, reason, symbol, *, lot_size):  # Phase 9.8h.B.2: dro
     cost = compute_rt_cost(pos["entry_px"], float(bar["close"]), lot_size, pos["qty"], side=pos["side"])
     pnl = gross - cost  # Phase A1
     log.info(f"EXIT ({reason}) @ {bar['close']:.2f} pnl=Rs{pnl:.0f}")
-    with open(TRADES_PATH, "a") as f:
-        f.write(json.dumps({
-            "entry_ts": str(pos["entry_ts"]),
-            "exit_ts": str(bar.name),
-            "side": pos["side"],
-            "qty": pos["qty"],
-            "entry": pos["entry_px"],
-            "exit": float(bar["close"]),
-            "pnl": pnl,
-            "reason": reason,
-            "symbol": symbol,  # Phase 9.8h.B.2: data-quality fix surfaced by B.1
-        }) + "\n")
+    # Phase 9.8h.B.3: defensive wrap. Prior unwrapped open() block silently
+    # lost the May 12 13:19 NIFTY trade (+Rs32164) on a transient I/O failure;
+    # internal pfm/equity captured the trade but trades.jsonl missed the row,
+    # making the May 12 P&L irreconcilable until forensic investigation. Any
+    # future write failure must be loud and leave a full reconstructable record.
+    _trade_row = {
+        "entry_ts": str(pos["entry_ts"]),
+        "exit_ts": str(bar.name),
+        "side": pos["side"],
+        "qty": pos["qty"],
+        "entry": pos["entry_px"],
+        "exit": float(bar["close"]),
+        "pnl": pnl,
+        "reason": reason,
+        "symbol": symbol,  # Phase 9.8h.B.2: data-quality fix surfaced by B.1
+    }
+    try:
+        with open(TRADES_PATH, "a") as f:
+            f.write(json.dumps(_trade_row) + "\n")
+    except Exception as _trade_write_err:
+        # CRITICAL: include the full row payload so an operator can backfill
+        # by parsing the log line. Do not raise; the position is already flat
+        # and re-raising here would mask the exit_reason for downstream readers.
+        log.critical(
+            f"[LEDGER-DESYNC] trades.jsonl write FAILED for {symbol} "
+            f"{pos['side']} qty={pos['qty']} pnl={pnl:.2f} reason={reason} "
+            f"err={type(_trade_write_err).__name__}:{_trade_write_err} "
+            f"ROW_PAYLOAD={json.dumps(_trade_row)}"
+        )
     try:
         signal_publisher.publish_exit(realized_pnl=pnl)  # Phase 8f.5
     except Exception as _e:

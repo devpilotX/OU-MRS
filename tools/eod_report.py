@@ -2,7 +2,7 @@
 """Phase 9.7AD: End-of-Day report for OU-MRS.
 Runs at 15:35 IST via ou-mrs-eod.timer. Reads trades.jsonl + state/.
 No sudo / no journalctl dependency."""
-import json, os, subprocess, sys
+import json, os, re, subprocess, sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -140,6 +140,36 @@ if pfm:
     R.append(f"- profit_target_progress: {pfm.get('profit_target_progress', 0)}")
     R.append(f"- consistency_frac: {pfm.get('consistency_frac', 0)}")
     R.append(f"- best_day_pnl: {fmt_inr(pfm.get('best_day_pnl', 0))}")
+
+# Phase 9.8h.B.3: ledger-vs-log reconciliation.
+# Counts "EXIT (" lines for today across all log archives and compares against
+# trades.jsonl rows for today. Any mismatch indicates a silent write failure
+# (like the May 12 13:19 NIFTY trade lost prior to B.3 hardening).
+log_exit_count = 0
+log_paths = sorted((ROOT / "logs").glob("ou_mrs_*.log")) if (ROOT / "logs").exists() else []
+log_exit_re = re.compile(rf"^{re.escape(today)} \d\d:\d\d:\d\d.*\[INFO\] EXIT \(")
+for lp in log_paths:
+    try:
+        for line in lp.read_text(errors="replace").splitlines():
+            if log_exit_re.match(line):
+                log_exit_count += 1
+    except Exception:
+        pass
+ledger_count = len(today_trades)
+R.append("")
+R.append("## Ledger-vs-log reconciliation (Phase 9.8h.B.3)")
+R.append("")
+R.append(f"- trades.jsonl rows for {today}: **{ledger_count}**")
+R.append(f"- `EXIT (` log lines for {today}: **{log_exit_count}**")
+if log_exit_count != ledger_count:
+    R.append("")
+    R.append(f"> ⚠️ **[LEDGER-DESYNC]** ledger has {ledger_count} rows but log has "
+             f"{log_exit_count} EXIT lines. Grep `logs/` for `[LEDGER-DESYNC]` "
+             f"CRITICAL entries and check today's log archives for the missing trade. "
+             f"If the bot’s defensive wrap (Phase 9.8h.B.3) caught the write failure, "
+             f"the full row payload is in the log line.")
+else:
+    R.append("- ✅ counts match — ledger is in sync with log.")
 
 text = "\n".join(R) + "\n"
 report_path.write_text(text)
