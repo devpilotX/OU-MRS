@@ -184,7 +184,7 @@ def _can_enter_new_position(runners, current_runner, max_concurrent, max_agg_tra
         return False, f"max_trades_agg {agg_trades}/{max_agg_trades}"
     return True, "ok"
 
-def _exit(broker, pos, bar, reason, symbol="BNF", *, lot_size):
+def _exit(broker, pos, bar, reason, symbol, *, lot_size):  # Phase 9.8h.B.2: dropped misleading default
     side = "SELL" if pos["side"] == "BUY" else "BUY"
     qty = pos["qty"] * lot_size
     # Phase 8d: cancel pending SL before closing (skip if reason==STOP — SL already fired)
@@ -222,6 +222,7 @@ def _exit(broker, pos, bar, reason, symbol="BNF", *, lot_size):
             "exit": float(bar["close"]),
             "pnl": pnl,
             "reason": reason,
+            "symbol": symbol,  # Phase 9.8h.B.2: data-quality fix surfaced by B.1
         }) + "\n")
     try:
         signal_publisher.publish_exit(realized_pnl=pnl)  # Phase 8f.5
