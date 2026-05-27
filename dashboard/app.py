@@ -74,13 +74,16 @@ def logout():
 def dashboard(session: str = Cookie(default=None)):
     if not is_authed(session):
         return RedirectResponse("/login", status_code=303)
-    return (APP_DIR / "static" / "index.html").read_text()
+    # Phase 9.8h.J: new dashboard (cleanly replaces index.html)
+    return (APP_DIR / "static" / "dashboard.html").read_text()
+
 # Phase 9.8h.I: /v2 parallel mount (Dashboard 2.0 preview, zero risk to /)
 @app.get("/v2", response_class=HTMLResponse)
 def dashboard_v2(session: str = Cookie(default=None)):
     if not is_authed(session):
         return RedirectResponse("/login", status_code=303)
-    return (APP_DIR / "static" / "v2.html").read_text()
+    # Phase 9.8h.J: new dashboard (replaces v2.html preview)
+    return (APP_DIR / "static" / "dashboard.html").read_text()
 
 def sd_active(unit):
     try:
