@@ -19,6 +19,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
+from strategy_vol_regime import (
+    compute_rv20 as _vr_compute_rv20,
+    passes_vol_filter as _vr_passes_vol_filter,
+    vol_size_multiplier as _vr_size_multiplier,
+)  # Phase 9.8h.C.1
 from strategy import should_trail_stop  # Phase 9.5g
 from strategy import be_ratchet_hit, paper_sl_hit, log_config_sanity  # Phase 9.8h
 from strategy import is_entry_blocked_by_tod  # Phase 9.8g.11 (Fix B)
@@ -226,7 +231,18 @@ def run():
             if is_entry_blocked_by_tod(_BT_SYMBOL, bar_ts):
                 continue
 
-            qty_lots = size_lots(sig.atr)
+            # Phase 9.8h.C.1: vol-regime gate from B.5 findings.
+            try:
+                _vr_closes_c1 = window["close"].tolist()[-21:]
+            except Exception:
+                _vr_closes_c1 = []
+            _vr_rv20_c1 = _vr_compute_rv20(_vr_closes_c1)
+            _vr_sym_c1 = (_BT_SYMBOL or "")
+            _vr_ok_c1, _vr_reason_c1 = _vr_passes_vol_filter(_vr_sym_c1, _vr_rv20_c1)
+            if not _vr_ok_c1:
+                continue
+            _vr_mult_c1 = _vr_size_multiplier(_vr_sym_c1, _vr_rv20_c1)
+            qty_lots = max(1, int(size_lots(sig.atr) * _vr_mult_c1))  # Phase 9.8h.C.1: vol-aware sizing
             entry_px = next_bar["open"] + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
             position = {
                 "peak_pnl_pts": 0.0,

@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()  # Phase 9.8h.6 (Sacred Rule #41 follow-up): MUST run before any module-level env reads in strategy.py et al.
 from angel_adapter import AngelBroker
 from strategy import compute_signal, Params, should_time_stop_hl, should_velocity_stop  # Phase 9.5
+from strategy_vol_regime import (
+    compute_rv20 as _vr_compute_rv20,
+    passes_vol_filter as _vr_passes_vol_filter,
+    vol_size_multiplier as _vr_size_multiplier,
+)  # Phase 9.8h.C.1
 from strategy import should_trail_stop, log_config_sanity  # Phase 9.5g + 9.8h.5 (Sacred Rule #41)
 import live_hook
 from account import ACCOUNT_ID, sl_orders_log_path  # Phase 8f.2
@@ -729,7 +734,22 @@ def main():
                     runner.reasons_log.append(f"BLOCKED:{_block_reason.split()[0]}")
                     continue
 
-                qty_lots = size_lots(runner, sig.atr)  # Phase 9.8g.12 (audit B2)
+                # Phase 9.8h.C.1: vol-regime gate from B.5 findings.
+                # BNF: skip entries inside the mid-vol chop trap band.
+                # MCN: scale size in the LOW-vol bucket (5/5 wins per-trade Sharpe 3.13 in B.5).
+                try:
+                    _vr_closes_c1 = df["close"].tolist()[-21:]
+                except Exception:
+                    _vr_closes_c1 = []
+                _vr_rv20_c1 = _vr_compute_rv20(_vr_closes_c1)
+                _vr_ok_c1, _vr_reason_c1 = _vr_passes_vol_filter(runner.symbol, _vr_rv20_c1)
+                if not _vr_ok_c1:
+                    log.debug(f"[entry_blocked] [{sym}] {_vr_reason_c1}")
+                    runner.reasons_log.append("BLOCKED:vol_band")
+                    continue
+                _vr_mult_c1 = _vr_size_multiplier(runner.symbol, _vr_rv20_c1)
+                _vr_base_lots_c1 = size_lots(runner, sig.atr)  # Phase 9.8g.12 (audit B2)
+                qty_lots = max(1, min(runner.max_lots, int(_vr_base_lots_c1 * _vr_mult_c1)))  # Phase 9.8h.C.1: vol-aware sizing
                 qty = qty_lots * runner.lot_size
                 # Phase 8d: compute server-side SL price at entry ± 1.5 * ATR
                 _sl_offset = max(runner.atr_mult * sig.atr, 20.0)
