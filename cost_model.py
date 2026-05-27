@@ -135,3 +135,80 @@ def estimate_slippage_ticks(
     if ticks < 0.0:
         ticks = 0.0
     return ticks
+
+# =====================================================================
+# Phase 9.8h.C.3: intra-bar stop-fill gap risk.
+#
+# When a STOP-class market exit fires on a high-range bar (TR > N*ATR),
+# the actual fill price slips beyond the bar's open by an amount roughly
+# proportional to the excess range. The flat C.2 slippage models the
+# average spread, but does NOT capture the conditional widening of fills
+# when volatility spikes. C.3 adds a tick surcharge that only fires when
+# bar_range/ATR exceeds a threshold and only for STOP-class exits.
+#
+# TARGET (limit-order take-profit) exits are exempt: limit orders do not
+# cross the spread, so they pay zero slippage when they fill.
+#
+# Gated by OU_COST_MODEL_V2 (same master switch as C.2).
+# Threshold: OU_GAP_THRESHOLD_ATR (default 1.5).
+# Slope:     OU_GAP_PENALTY_SLOPE (default 1.0 ticks per excess range/ATR unit).
+# =====================================================================
+
+# Reasons that represent market-order exits (cross the spread, suffer gap risk).
+STOP_CLASS_EXIT_REASONS = frozenset({
+    "STOP",
+    "PAPER_SL",
+    "BE_RATCHET",
+    "TIME_STOP_HL",
+    "Z_VEL_STALL",
+    "TRAIL_STOP",
+})
+
+# Reasons that represent limit-order take-profit exits (do not cross spread).
+LIMIT_TP_EXIT_REASONS = frozenset({"TARGET"})
+
+
+def estimate_gap_slippage_ticks(
+    bar_range: Optional[float],
+    atr: Optional[float],
+    reason: Optional[str],
+    env=None,
+) -> float:
+    """Phase 9.8h.C.3: gap-risk slippage on STOP-class exits in violent bars.
+
+    Returns a non-negative float number of ticks to ADD to the C.2 estimate.
+    Returns 0.0 when:
+      * OU_COST_MODEL_V2 is off (legacy mode)
+      * reason is not a STOP-class market exit (TARGET, unknown, None)
+      * inputs are missing or non-positive
+      * bar_range / atr is below the threshold
+    """
+    e = env if env is not None else os.environ
+    if not _is_v2_enabled(e):
+        return 0.0
+    if not reason or reason not in STOP_CLASS_EXIT_REASONS:
+        return 0.0
+    if atr is None or bar_range is None:
+        return 0.0
+    try:
+        atr_f = float(atr)
+        range_f = float(bar_range)
+    except (TypeError, ValueError):
+        return 0.0
+    if atr_f <= 0.0 or range_f <= 0.0:
+        return 0.0
+    try:
+        threshold = float(e.get("OU_GAP_THRESHOLD_ATR", "1.5"))
+    except (TypeError, ValueError):
+        threshold = 1.5
+    try:
+        slope = float(e.get("OU_GAP_PENALTY_SLOPE", "1.0"))
+    except (TypeError, ValueError):
+        slope = 1.0
+    excess = (range_f / atr_f) - threshold
+    if excess <= 0.0:
+        return 0.0
+    surcharge = slope * excess
+    if surcharge < 0.0:
+        return 0.0
+    return float(surcharge)
