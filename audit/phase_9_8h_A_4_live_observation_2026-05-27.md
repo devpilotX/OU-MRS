@@ -20,3 +20,16 @@
 
 ## Verdict reasons
 - PASS: bot booted cleanly with all required artifacts including [config-sanity]
+
+## NF clarification (Phase 9.8h.I)
+
+The Phase H commit notes flagged the absence of NF from `runner_init` as "unexpected".
+It is NOT unexpected. NF was deliberately disabled in Phase 9.8h.C.1 via `.env`:
+
+```
+INSTRUMENTS=BNF,MCN  # Phase 9.8h.C.1: NF disabled (PSR 0.009, 0/6 WF windows positive in B.5)
+```
+
+NF's walk-forward performance during Phase 9.8h.B.5 was 0/6 windows positive with PSR 0.009.
+The instrument was correctly removed from the active runner set. Today's `runner_init` line
+showing 2 symbols (BNF + MCN) is the CORRECT state, not a regression.

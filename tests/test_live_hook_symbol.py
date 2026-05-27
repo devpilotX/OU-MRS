@@ -1,12 +1,24 @@
-"""Phase 8g.6: tests for per-symbol live state writer."""
+"""Phase 8g.6 + 9.8h.I: tests for per-symbol live state writer.
+
+Phase 9.8h.I fix: every test now uses monkeypatch on BOTH _STATE and
+_HEARTBEAT_PATH so we don't pollute the real state/heartbeat.jsonl. The
+autouse fixture in conftest.py also redirects for any future tests.
+"""
 import json
 import live_hook
 
 
-def test_tick_symbol_writes_per_symbol_file(tmp_path, monkeypatch):
+def _patch_paths(tmp_path, monkeypatch):
     state_dir = tmp_path / "state"
-    state_dir.mkdir()
+    state_dir.mkdir(exist_ok=True)
     monkeypatch.setattr(live_hook, "_STATE", state_dir / "live.json")
+    monkeypatch.setattr(live_hook, "_HEARTBEAT_PATH", state_dir / "heartbeat.jsonl")
+    monkeypatch.setattr(live_hook, "_LAST_HEARTBEAT_TS", {})
+    return state_dir
+
+
+def test_tick_symbol_writes_per_symbol_file(tmp_path, monkeypatch):
+    state_dir = _patch_paths(tmp_path, monkeypatch)
     live_hook.tick_symbol(symbol="BNF", ltp=56500, state="idle", trades_today=0, pnl_today=0.0, max_lots=2, lot_size=30)
     out = state_dir / "live_BNF.json"
     assert out.exists()
@@ -19,9 +31,7 @@ def test_tick_symbol_writes_per_symbol_file(tmp_path, monkeypatch):
 
 
 def test_tick_symbol_writes_position(tmp_path, monkeypatch):
-    state_dir = tmp_path / "state"
-    state_dir.mkdir()
-    monkeypatch.setattr(live_hook, "_STATE", state_dir / "live.json")
+    state_dir = _patch_paths(tmp_path, monkeypatch)
     pos = {"side": "BUY", "qty": 2, "entry": 56400.0, "unrealized_pnl": 120.0}
     live_hook.tick_symbol(symbol="NF", state="in_trade", position=pos, trades_today=1, pnl_today=120.0)
     data = json.loads((state_dir / "live_NF.json").read_text())
@@ -34,6 +44,8 @@ def test_tick_symbol_writes_position(tmp_path, monkeypatch):
 def test_tick_symbol_never_raises_on_bad_path(tmp_path, monkeypatch):
     bad_path = tmp_path / "nonexistent_dir" / "live.json"
     monkeypatch.setattr(live_hook, "_STATE", bad_path)
+    monkeypatch.setattr(live_hook, "_HEARTBEAT_PATH", tmp_path / "nonexistent_dir" / "heartbeat.jsonl")
+    monkeypatch.setattr(live_hook, "_LAST_HEARTBEAT_TS", {})
     try:
         live_hook.tick_symbol(symbol="FNF", state="idle")
     except Exception as e:
@@ -41,9 +53,7 @@ def test_tick_symbol_never_raises_on_bad_path(tmp_path, monkeypatch):
 
 
 def test_tick_symbol_isolates_state_per_symbol(tmp_path, monkeypatch):
-    state_dir = tmp_path / "state"
-    state_dir.mkdir()
-    monkeypatch.setattr(live_hook, "_STATE", state_dir / "live.json")
+    state_dir = _patch_paths(tmp_path, monkeypatch)
     live_hook.tick_symbol(symbol="BNF", state="in_trade", pnl_today=100.0)
     live_hook.tick_symbol(symbol="NF", state="cooldown", pnl_today=-50.0)
     bnf = json.loads((state_dir / "live_BNF.json").read_text())
@@ -52,10 +62,13 @@ def test_tick_symbol_isolates_state_per_symbol(tmp_path, monkeypatch):
     assert nf["state"] == "cooldown" and nf["pnl_today"] == -50.0
 
 
-def test_tick_symbol_writes_rich_fields_8o3c():
-    """8o.3c: tick_symbol writes z, mean, std, intraday_candles, depth, ohlc_today, portfolio, etc."""
-    import live_hook, json
-    from pathlib import Path
+def test_tick_symbol_writes_rich_fields_8o3c(tmp_path, monkeypatch):
+    """8o.3c: tick_symbol writes z, mean, std, intraday_candles, depth, ohlc_today, portfolio, etc.
+
+    Phase 9.8h.I fix: previously this test wrote to real state/ and polluted
+    state/heartbeat.jsonl with TEST8O3C fixture entries. Now monkeypatched.
+    """
+    state_dir = _patch_paths(tmp_path, monkeypatch)
     live_hook.tick_symbol(
         symbol="TEST8O3C",
         ltp=100.5, z=1.8, mean=99.2, std=0.7, window=40,
@@ -68,9 +81,8 @@ def test_tick_symbol_writes_rich_fields_8o3c():
         trades_today=2, pnl_today=150.0, kill=False,
         max_lots=10, lot_size=30, reasons_log=["test reason"],
     )
-    p = Path(live_hook.__file__).parent / "state" / "live_TEST8O3C.json"
+    p = state_dir / "live_TEST8O3C.json"
     d = json.loads(p.read_text())
-    # Verify all 8o.3c rich fields propagate
     assert d["z"] == 1.8
     assert d["mean"] == 99.2
     assert d["std"] == 0.7
@@ -86,4 +98,6 @@ def test_tick_symbol_writes_rich_fields_8o3c():
     assert d["max_lots"] == 10
     assert d["lot_size"] == 30
     assert d["reasons_log"] == ["test reason"]
-    p.unlink()  # cleanup
+    # Phase 9.8h.I: also assert no pollution of REAL state/heartbeat.jsonl
+    real_state = __import__("pathlib").Path(live_hook.__file__).parent / "state" / "live_TEST8O3C.json"
+    assert not real_state.exists(), "Real state/live_TEST8O3C.json was created \u2014 monkeypatch failed"
