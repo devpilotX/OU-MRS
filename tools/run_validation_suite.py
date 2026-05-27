@@ -44,7 +44,7 @@ def run_backtest(symbol: str) -> dict:
     out_dir = HERE / f"bt_out_{symbol}"
     if out_dir.exists():
         shutil.rmtree(out_dir)
-    cmd = ["python", "backtest.py", "--symbol", symbol, "--auto-lot"]
+    cmd = [sys.executable, "backtest.py", "--symbol", symbol, "--auto-lot"]
     r = subprocess.run(cmd, cwd=str(HERE), capture_output=True, text=True, timeout=180)
     if r.returncode != 0:
         return {"error": "backtest failed", "stderr": r.stderr[-1500:]}
