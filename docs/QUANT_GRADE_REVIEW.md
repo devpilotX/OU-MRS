@@ -196,3 +196,27 @@ Gap analysis vs a notional world-grade institutional setup:
 The OU-MRS strategy in its current form is **a credible candidate for continued paper-trading with disciplined sample accumulation**. It is **not yet a candidate for live capital deployment**. The 9.8h sprint produced the validation framework needed to make that judgement honestly. The C.4/C.4.b detour was the most important experiment of the sprint because it prevented a costly wrong fix (regime gating against a basis-effect artifact). The next material progress requires time, not code.
 
 This is the most honest report we can produce on this strategy today.
+
+
+---
+
+## Retraction (Phase G, 27 May 2026)
+
+Phase F (commit `f8df8ad`) introduced an "open case OC-7" claiming that the live bot needed to mirror Phases C.2 (`OU_COST_MODEL_V2`) and C.3 (`OU_GAP_THRESHOLD_ATR`, `OU_GAP_PENALTY_SLOPE`) cost-model logic into `ou_mrs.py` PnL accounting. **That framing was wrong.**
+
+**Why it was wrong.** C.2 (`estimate_slippage_ticks`) and C.3 (`estimate_gap_slippage_ticks`) are slippage-*estimation* functions. They exist because the backtester has no real fills and must synthesize fill prices from bar OHLC. The live bot receives actual fill prices from the Angel One broker; whatever slippage occurs is already baked into those fills. There is nothing to "mirror" — you cannot apply estimated slippage to a real fill.
+
+**The correct relationship.** Backtest *estimates* slippage; live *measures* it. The honest validation question is whether the live empirical slippage distribution falls inside the envelope C.2/C.3 predicted. That is a post-hoc empirical reconciliation, not a code-change-in-live-bot task.
+
+**Replacement open case OC-7' (post-trade slippage reconciliation).** After the bot accumulates 30+ closed trades:
+
+1. Instrument the runner to log per-trade `signal_price` (the bar value when entry was decided) and `fill_price` (the Angel fill response) into `trades.jsonl`.
+2. Compute realized per-trade slippage in ticks: `(fill_price - signal_price) / TICK`, side-adjusted.
+3. Compute the C.2/C.3-predicted slippage envelope for the same trades.
+4. Report the empirical-vs-predicted CDF gap. If the live distribution falls outside the predicted envelope, recalibrate `SLIPPAGE_PROFILES` and `OU_GAP_PENALTY_SLOPE`.
+
+This is a future phase, deferred until trade volume is sufficient for the comparison to be statistically meaningful.
+
+**Phase F audit doc retraction.** `audit/phase_9_8h_A_4_live_observation.md` was rewritten in Phase G commit to remove the wrong OC-7 framing and to add the [config-sanity] check the audit doc previously omitted.
+
+**Phase F config-sanity claim was wrong too.** The Phase F audit doc also stated that the live bot did not emit a `[config-sanity]` startup line. That was based on stale-log evidence from 25 May, which predated the addition. `log_config_sanity()` is in fact called at `ou_mrs.py:388` (Phase 9.8h.5 / Sacred Rule #41). The 28 May bot run will be the first one observed to emit the line; A.4 v2 will verify it.
