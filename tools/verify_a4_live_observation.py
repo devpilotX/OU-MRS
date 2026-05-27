@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-"""Phase 9.8h.A.4 (v2 / Phase G): verify live bot observation against Sacred Rule #19.
+"""Phase 9.8h.A.4 (v3 / Phase H): verify live bot observation using journalctl as primary source.
 
-Reads today's ou_mrs_<YYYYMMDD>_091401.log and produces a structured verdict:
-- Did the bot start cleanly (Angel login, pfm init, runner init, startup line)?
-- Did the Phase 9.8h.5 [config-sanity] line fire (Sacred Rule #41)?
-- Did the 9.7Z window-prime skip phase fire?
-- Did any vol_band BLOCKED line fire (Sacred Rule #19 specifically named BNF)?
-- Any errors before 10:30 IST?
-
-v2 changes (Phase G):
-- ADDED config_sanity_line check (Sacred Rule #41 verification)
-- REMOVED the wrong OC-7 OC caveat about C.2/C.3 needing to be mirrored into live
-  (retracted in audit/phase_9_8h_A_4_live_observation.md)
+v3 fix (Phase H, 27 May 2026):
+- v2 bug: read logs/ou_mrs_<date>_*.log which is the ROTATED-previous file, not today's run.
+  run_bot.sh moves ou_mrs.log -> logs/ou_mrs_<NOW>_<NOW>.log AT NEXT STARTUP, so the file
+  named with today's timestamp contains YESTERDAY's content. v2 produced a PASS verdict
+  that classified yesterday's run as today's.
+- v3 fix: primary source is `journalctl -u ou-mrs.service --since <date> -o cat --no-pager`.
+  Fall back to rotated log only if journal is empty.
 
 Usage:
     ./venv/bin/python tools/verify_a4_live_observation.py [YYYY-MM-DD]
@@ -19,7 +15,7 @@ Usage:
 Writes verdict to audit/phase_9_8h_A_4_live_observation_<date>.md.
 Exit 0 on PASS, 1 on FAIL.
 """
-import argparse, datetime as dt, sys
+import argparse, datetime as dt, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,16 +23,33 @@ LOGS = ROOT / "logs"
 AUDIT = ROOT / "audit"
 
 
-def find_log(date_str: str):
+def read_journal(date_str: str) -> tuple[str, str]:
+    """Return (text, source_label) from journalctl for the given date."""
+    try:
+        end = (dt.date.fromisoformat(date_str) + dt.timedelta(days=1)).isoformat()
+        cmd = [
+            "journalctl", "-u", "ou-mrs.service",
+            "--since", date_str, "--until", end,
+            "-o", "cat", "--no-pager",
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout, f"journalctl ou-mrs.service {date_str}"
+    except Exception:
+        pass
+    return "", ""
+
+
+def find_rotated_log(date_str: str) -> Path | None:
+    """NOTE: filename uses next-startup timestamp, not run date. Use only as fallback."""
     pat = f"ou_mrs_{date_str.replace('-', '')}_*.log"
     candidates = sorted(LOGS.glob(pat))
     return candidates[0] if candidates else None
 
 
-def classify(log_path: Path) -> dict:
-    text = log_path.read_text(errors="replace")
+def classify(text: str, source: str) -> dict:
     out = {
-        "log": str(log_path),
+        "source": source,
         "startup": None,
         "runner_init": None,
         "angel_login": None,
@@ -48,8 +61,10 @@ def classify(log_path: Path) -> dict:
         "warnings": 0,
         "first_trade": None,
         "heartbeats": 0,
+        "raw_lines": 0,
     }
     for line in text.splitlines():
+        out["raw_lines"] += 1
         if "OU-MRS started" in line:
             out["startup"] = line.strip()
         elif "[config-sanity]" in line and "DISABLED" not in line:
@@ -99,18 +114,23 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("date", nargs="?", default=dt.date.today().isoformat())
     args = ap.parse_args()
-    log = find_log(args.date)
-    if not log:
-        print(f"No log found for {args.date} under {LOGS}", file=sys.stderr)
-        return 1
-    c = classify(log)
+    text, source = read_journal(args.date)
+    if not text:
+        rotated = find_rotated_log(args.date)
+        if not rotated:
+            print(f"FAIL: no journal entries or rotated log for {args.date}", file=sys.stderr)
+            return 1
+        text = rotated.read_text(errors="replace")
+        source = f"{rotated} (FALLBACK: rotated file may contain previous run's content)"
+    c = classify(text, source)
     v, reasons = verdict(c)
     AUDIT.mkdir(exist_ok=True)
     md = AUDIT / f"phase_9_8h_A_4_live_observation_{args.date}.md"
-    body = [f"# Phase 9.8h.A.4 live observation — {args.date}", ""]
+    body = [f"# Phase 9.8h.A.4 live observation \u2014 {args.date}", ""]
     body.append(f"**Verdict:** {v}")
     body.append("")
-    body.append(f"**Log:** `{c['log']}`")
+    body.append(f"**Source:** `{c['source']}`")
+    body.append(f"**Raw lines processed:** {c['raw_lines']}")
     body.append("")
     body.append("## Findings")
     for k in ("angel_login", "pfm_init", "runner_init", "startup", "config_sanity", "first_trade"):
@@ -132,6 +152,7 @@ def main():
     md.write_text("\n".join(body) + "\n")
     print(f"Verdict: {v}")
     print(f"Audit doc: {md}")
+    print(f"Source: {c['source']}")
     for r in reasons:
         print(f"  - {r}")
     return 0 if v == "PASS" else 1

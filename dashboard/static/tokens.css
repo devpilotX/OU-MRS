@@ -1,0 +1,134 @@
+/* OU-MRS Dashboard 2.0 - Design tokens (Phase 9.8h.D.2)
+ *
+ * Loadable by theme-toggle.js (sets data-theme="dark" or "light" on documentElement).
+ * NOT WIRED into index.html yet -- the live dashboard uses bloomberg-theme.css.
+ * This file exists so the Dashboard 2.0 foundation has its missing piece for any
+ * future wire-up. To activate, add the following to index.html <head>:
+ *   <link rel="stylesheet" href="/static/tokens.css">
+ *   <script src="/static/js/theme-toggle.js" defer></script>
+ *   <script src="/static/js/components/Card.js" defer></script>
+ */
+
+:root {
+	/* Default = dark (live trading default per Phase 9.8a spec) */
+	--ou-color-bg: #0e1014;
+	--ou-color-bg-elev-1: #161a21;
+	--ou-color-bg-elev-2: #1d2230;
+	--ou-color-border: #2a3142;
+	--ou-color-text-primary: #e8ebf0;
+	--ou-color-text-secondary: #8d96a8;
+	--ou-color-text-muted: #5a6276;
+	--ou-color-profit: #2dc26b;
+	--ou-color-loss: #ef4f4f;
+	--ou-color-warn: #f5a623;
+	--ou-color-critical: #b8003e;
+	--ou-color-idle: #5a6276;
+	--ou-color-accent: #4488ff;
+
+	/* Spacing tokens */
+	--ou-space-1: 4px;
+	--ou-space-2: 8px;
+	--ou-space-3: 12px;
+	--ou-space-4: 16px;
+	--ou-space-5: 24px;
+	--ou-space-6: 32px;
+
+	/* Typography tokens */
+	--ou-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--ou-font-family-mono: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace;
+	--ou-font-size-xs: 11px;
+	--ou-font-size-sm: 13px;
+	--ou-font-size-md: 14px;
+	--ou-font-size-lg: 16px;
+	--ou-font-size-xl: 20px;
+	--ou-font-size-2xl: 28px;
+	--ou-font-weight-regular: 400;
+	--ou-font-weight-medium: 500;
+	--ou-font-weight-bold: 700;
+
+	/* Radius tokens */
+	--ou-radius-sm: 3px;
+	--ou-radius-md: 6px;
+	--ou-radius-lg: 10px;
+
+	/* Elevation / shadow tokens */
+	--ou-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+	--ou-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="light"] {
+	--ou-color-bg: #fafbfc;
+	--ou-color-bg-elev-1: #ffffff;
+	--ou-color-bg-elev-2: #f1f3f7;
+	--ou-color-border: #d8dde5;
+	--ou-color-text-primary: #14181f;
+	--ou-color-text-secondary: #4a5566;
+	--ou-color-text-muted: #8d96a8;
+	--ou-color-profit: #1f8f4d;
+	--ou-color-loss: #c0392b;
+	--ou-color-warn: #d68910;
+	--ou-color-critical: #8b0000;
+	--ou-color-idle: #8d96a8;
+	--ou-color-accent: #1f6feb;
+	--ou-shadow-1: 0 1px 2px rgba(20, 24, 31, 0.08);
+	--ou-shadow-2: 0 4px 12px rgba(20, 24, 31, 0.12);
+}
+
+/* Card component styles (consumed by Card.js) */
+.ou-card {
+	background: var(--ou-color-bg-elev-1);
+	border: 1px solid var(--ou-color-border);
+	border-radius: var(--ou-radius-md);
+	padding: var(--ou-space-4);
+	color: var(--ou-color-text-primary);
+	font-family: var(--ou-font-family-base);
+	box-shadow: var(--ou-shadow-1);
+	display: flex;
+	flex-direction: column;
+	gap: var(--ou-space-2);
+}
+
+.ou-card-header {
+	font-size: var(--ou-font-size-sm);
+	color: var(--ou-color-text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-weight: var(--ou-font-weight-medium);
+}
+
+.ou-card-metric {
+	font-size: var(--ou-font-size-2xl);
+	font-family: var(--ou-font-family-mono);
+	font-weight: var(--ou-font-weight-bold);
+	color: var(--ou-color-text-primary);
+}
+
+.ou-card-supporting {
+	display: flex;
+	gap: var(--ou-space-3);
+	font-size: var(--ou-font-size-xs);
+	color: var(--ou-color-text-secondary);
+	font-family: var(--ou-font-family-mono);
+}
+
+.ou-card.ou-profit .ou-card-metric { color: var(--ou-color-profit); }
+.ou-card.ou-loss .ou-card-metric { color: var(--ou-color-loss); }
+.ou-card.ou-warn .ou-card-metric { color: var(--ou-color-warn); }
+.ou-card.ou-critical .ou-card-metric { color: var(--ou-color-critical); }
+.ou-card.ou-idle .ou-card-metric { color: var(--ou-color-idle); }
+
+#ou-theme-toggle {
+	position: fixed;
+	bottom: var(--ou-space-3);
+	right: var(--ou-space-3);
+	background: var(--ou-color-bg-elev-2);
+	color: var(--ou-color-text-secondary);
+	border: 1px solid var(--ou-color-border);
+	border-radius: var(--ou-radius-sm);
+	padding: var(--ou-space-1) var(--ou-space-3);
+	font-size: var(--ou-font-size-xs);
+	font-family: var(--ou-font-family-base);
+	cursor: pointer;
+	z-index: 9999;
+}
+#ou-theme-toggle:hover { color: var(--ou-color-text-primary); }
