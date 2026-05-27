@@ -27,7 +27,7 @@ from strategy_vol_regime import (
 from strategy import should_trail_stop  # Phase 9.5g
 from strategy import be_ratchet_hit, paper_sl_hit, log_config_sanity  # Phase 9.8h
 from strategy import is_entry_blocked_by_tod  # Phase 9.8g.11 (Fix B)
-from cost_model import compute_rt_cost  # Phase 9.5c
+from cost_model import compute_rt_cost, estimate_slippage_ticks  # Phase 9.5c / 9.8h.C.2
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("bt")
@@ -101,7 +101,10 @@ def size_lots(atr: float) -> int:
 
 def _close(pos, fill_bar, fill_ts, reason):
     """Fill at NEXT bar's OPEN with slippage. No look-ahead."""
-    exit_px = fill_bar["open"] - (SLIPPAGE_TICKS * TICK) * (1 if pos["side"] == "BUY" else -1)
+    # Phase 9.8h.C.2: per-symbol + size-aware slippage. Falls back to legacy
+    # flat BT_SLIPPAGE_TICKS when OU_COST_MODEL_V2 is off (default).
+    _slip_ticks_c2 = estimate_slippage_ticks(_BT_SYMBOL, pos["qty"], rv20=None)
+    exit_px = fill_bar["open"] - (_slip_ticks_c2 * TICK) * (1 if pos["side"] == "BUY" else -1)
     pnl_pts = (exit_px - pos["entry_px"]) * (1 if pos["side"] == "BUY" else -1)
     gross   = pnl_pts * pos["qty"] * LOT_SIZE
     net     = gross - compute_rt_cost(pos["entry_px"], exit_px, LOT_SIZE, pos["qty"], side=pos["side"])  # Phase 9.5c
@@ -243,7 +246,10 @@ def run():
                 continue
             _vr_mult_c1 = _vr_size_multiplier(_vr_sym_c1, _vr_rv20_c1)
             qty_lots = max(1, int(size_lots(sig.atr) * _vr_mult_c1))  # Phase 9.8h.C.1: vol-aware sizing
-            entry_px = next_bar["open"] + (SLIPPAGE_TICKS * TICK) * (1 if sig.side == "BUY" else -1)
+            # Phase 9.8h.C.2: per-symbol + size-aware slippage. qty_lots already
+            # reflects C.1 vol-multiplier so size penalty kicks in for MCN low-vol bursts.
+            _slip_ticks_c2 = estimate_slippage_ticks(_BT_SYMBOL, qty_lots, rv20=_vr_rv20_c1)
+            entry_px = next_bar["open"] + (_slip_ticks_c2 * TICK) * (1 if sig.side == "BUY" else -1)
             position = {
                 "peak_pnl_pts": 0.0,
                 "side": sig.side, "qty": qty_lots,
