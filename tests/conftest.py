@@ -1,26 +1,23 @@
-"""Shared pytest fixtures.
+"""Phase 9.8h.I autouse fixture: redirect live_hook state paths to tmp_path.
 
-Autouse fixture ensures PFM state is clean before and after every test, so
-test runs cannot pollute production state/pfm_halt.json, which would cause
-the live bot to start halted on the next timer-triggered run.
+Without this, any test that imports live_hook and calls tick / tick_symbol writes
+to the REAL state/live*.json and APPENDS to state/heartbeat.jsonl, polluting the
+running dashboard's data. _HEARTBEAT_PATH is computed at module load time, so a
+per-test monkeypatch of _STATE alone is not enough.
 """
-import pathlib
 import pytest
-
-_PFM_HALT_PATH = pathlib.Path("state/pfm_halt.json")
 
 
 @pytest.fixture(autouse=True)
-def _cleanup_pfm_halt_state():
-    """Remove state/pfm_halt.json before and after each test.
-
-    This prevents PFM tests (which intentionally trigger halt states)
-    from leaking into the production state file. If that file exists
-    when the live bot starts, the bot will auto-load it and refuse
-    to trade.
-    """
-    if _PFM_HALT_PATH.exists():
-        _PFM_HALT_PATH.unlink()
+def _isolate_live_hook_state(tmp_path, monkeypatch):
+    try:
+        import live_hook
+    except Exception:
+        return
+    state_dir = tmp_path / "_state_isolated"
+    state_dir.mkdir(exist_ok=True)
+    monkeypatch.setattr(live_hook, "_STATE", state_dir / "live.json", raising=False)
+    monkeypatch.setattr(live_hook, "_HEARTBEAT_PATH", state_dir / "heartbeat.jsonl", raising=False)
+    # Reset the throttle dict so each test gets a clean heartbeat-emit cadence.
+    monkeypatch.setattr(live_hook, "_LAST_HEARTBEAT_TS", {}, raising=False)
     yield
-    if _PFM_HALT_PATH.exists():
-        _PFM_HALT_PATH.unlink()

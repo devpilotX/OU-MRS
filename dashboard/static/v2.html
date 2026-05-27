@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OU-MRS · Dashboard 2.0 (Preview)</title>
+<link rel="stylesheet" href="/static/tokens.css"/>
+<style>
+	body { margin: 0; background: var(--ou-color-bg); color: var(--ou-color-text-primary); font-family: var(--ou-font-family-base); padding: var(--ou-space-4); }
+	header.v2-hdr { display: flex; justify-content: space-between; align-items: center; padding-bottom: var(--ou-space-3); border-bottom: 1px solid var(--ou-color-border); margin-bottom: var(--ou-space-5); }
+	header.v2-hdr .v2-brand { font-size: var(--ou-font-size-lg); font-weight: var(--ou-font-weight-bold); letter-spacing: 0.04em; }
+	header.v2-hdr .v2-brand .v2-mark { color: var(--ou-color-accent); }
+	header.v2-hdr .v2-banner { font-size: var(--ou-font-size-xs); color: var(--ou-color-warn); border: 1px solid var(--ou-color-warn); padding: var(--ou-space-1) var(--ou-space-3); border-radius: var(--ou-radius-sm); text-transform: uppercase; letter-spacing: 0.06em; }
+	header.v2-hdr a { color: var(--ou-color-text-secondary); text-decoration: none; font-size: var(--ou-font-size-sm); margin-left: var(--ou-space-3); }
+	header.v2-hdr a:hover { color: var(--ou-color-text-primary); }
+	#v2-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--ou-space-4); }
+	#v2-trades-section { margin-top: var(--ou-space-5); }
+	#v2-trades-section h2 { font-size: var(--ou-font-size-md); font-weight: var(--ou-font-weight-medium); color: var(--ou-color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--ou-space-3); }
+	#v2-trades { width: 100%; border-collapse: collapse; font-family: var(--ou-font-family-mono); font-size: var(--ou-font-size-sm); }
+	#v2-trades th, #v2-trades td { padding: var(--ou-space-2) var(--ou-space-3); text-align: left; border-bottom: 1px solid var(--ou-color-border); }
+	#v2-trades th { color: var(--ou-color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--ou-font-size-xs); font-weight: var(--ou-font-weight-medium); }
+	#v2-trades td.pnl-pos { color: var(--ou-color-profit); }
+	#v2-trades td.pnl-neg { color: var(--ou-color-loss); }
+	footer.v2-foot { margin-top: var(--ou-space-6); padding-top: var(--ou-space-3); border-top: 1px solid var(--ou-color-border); font-size: var(--ou-font-size-xs); color: var(--ou-color-text-muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<header class="v2-hdr">
+	<div class="v2-brand"><span class="v2-mark">OU</span>·MRS Dashboard 2.0</div>
+	<div class="v2-banner">Preview · Phase 9.8h.I</div>
+	<div><a href="/">← Bloomberg</a><a href="/logout">Logout</a></div>
+</header>
+
+<div id="v2-grid"></div>
+
+<section id="v2-trades-section">
+	<h2>Last 10 trades</h2>
+	<table id="v2-trades">
+		<thead><tr><th>Entry IST</th><th>Sym</th><th>Side</th><th>Qty</th><th>Entry</th><th>Exit</th><th>P&L ₹</th><th>Reason</th></tr></thead>
+		<tbody></tbody>
+	</table>
+</section>
+
+<footer class="v2-foot">
+	<span>OU-MRS Dashboard 2.0 · parallel preview · zero-risk additive route</span>
+	<span id="v2-refresh-status">loading…</span>
+</footer>
+
+<script src="/static/js/theme-toggle.js" defer></script>
+<script src="/static/js/components/Card.js" defer></script>
+<script src="/static/js/v2-app.js" defer></script>
+</body>
+</html>
