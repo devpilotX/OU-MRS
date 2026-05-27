@@ -88,3 +88,7 @@ bt_out/*
 bt_out_*/
 bt_sweep_*/
 validation/
+
+# Phase 9.8h.D.1: ignore dashboard backup files left by past iterations
+dashboard/static/*.bak.*
+dashboard/static/*.bak
