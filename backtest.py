@@ -34,11 +34,40 @@ log = logging.getLogger("bt")
 
 # ---------- CONFIG ----------
 # Phase 9.8g.8 (audit B7/B8): per-symbol data routing.
-_SYMBOL_TO_DATA = {
+# Phase 9.8h.C.4: BT_USE_INDEX swaps FUT -> INDEX 1-min parquets to expand
+# sample size (BNF 38 -> 137 sessions, MCN 37 -> 151). NIFTY INDEX is not
+# yet fetched; INDEX mode fails fast for NIFTY rather than silently using
+# stale FUT data.
+_SYMBOL_TO_DATA_FUT = {
     "BANKNIFTY":  "data/BANKNIFTY_FUT_1min.parquet",
     "NIFTY":      "data/NIFTY_FUT_1min.parquet",
     "MIDCPNIFTY": "data/MIDCPNIFTY_FUT_1min.parquet",
 }
+_SYMBOL_TO_DATA_INDEX = {
+    "BANKNIFTY":  "data/BANKNIFTY_INDEX_1min_tz.parquet",
+    "MIDCPNIFTY": "data/MIDCPNIFTY_INDEX_1min.parquet",
+    # NIFTY intentionally omitted: no INDEX parquet on disk yet.
+}
+
+
+def _use_index_mode() -> bool:
+    v = os.environ.get("BT_USE_INDEX", "off").strip().lower()
+    return v in ("on", "true", "1", "yes")
+
+
+def _resolve_data_path(symbol: str) -> str:
+    if _use_index_mode():
+        if symbol not in _SYMBOL_TO_DATA_INDEX:
+            raise SystemExit(
+                f"BT_USE_INDEX=on but no INDEX parquet for {symbol}. "
+                f"Available: {sorted(_SYMBOL_TO_DATA_INDEX)}. "
+                f"Either fetch {symbol}_INDEX_1min.parquet first or run with BT_USE_INDEX=off."
+            )
+        return _SYMBOL_TO_DATA_INDEX[symbol]
+    return _SYMBOL_TO_DATA_FUT[symbol]
+
+
+_SYMBOL_TO_DATA = _SYMBOL_TO_DATA_FUT  # legacy alias retained for any external use
 _SYMBOL_TO_LOT = {  # Sacred Rule #6: ratified via data/instruments.db on 21 May 2026 (Phase 9.7AQ)
     "BANKNIFTY":  30,
     "NIFTY":      65,
@@ -371,7 +400,7 @@ def _parse_args():
 if __name__ == "__main__":
     args = _parse_args()
     if args.symbol:
-        DATA = (_HERE / _SYMBOL_TO_DATA[args.symbol]).resolve()
+        DATA = (_HERE / _resolve_data_path(args.symbol)).resolve()
         if args.auto_lot:
             LOT_SIZE = _SYMBOL_TO_LOT[args.symbol]
             # Phase 9.8g.12 (audit B2 parity++): also auto-set MAX_LOTS from the
