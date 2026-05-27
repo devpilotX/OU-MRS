@@ -30,7 +30,23 @@ logging.basicConfig(
 log = logging.getLogger("ou_mrs")
 
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
-CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
+# Phase 9.8h.L.1 (2026-05-27): auto-compounding capital from pfm.json peak_equity.
+# Reads state/pfm.json["peak_equity"] at startup. Env CAPITAL acts as floor (baseline).
+# Position sizing in _cap_lots() / size_lots() now scales with realized paper PnL.
+# Disable via OU_DISABLE_AUTO_CAPITAL=1 for deterministic backtests.
+_BASE_CAPITAL_P98HL1 = int(os.environ.get("CAPITAL", 150_000))
+def _resolve_capital_p98hl1():
+    if os.environ.get("OU_DISABLE_AUTO_CAPITAL", "").lower() in ("1","true","on"):
+        return _BASE_CAPITAL_P98HL1
+    try:
+        import json as _j_p98hl1
+        with open("state/pfm.json","r") as _f_p98hl1:
+            _pfm_p98hl1 = _j_p98hl1.load(_f_p98hl1)
+        _peak_p98hl1 = float(_pfm_p98hl1.get("peak_equity") or 0)
+        return max(_BASE_CAPITAL_P98HL1, int(_peak_p98hl1)) if _peak_p98hl1 > 0 else _BASE_CAPITAL_P98HL1
+    except Exception:
+        return _BASE_CAPITAL_P98HL1
+CAPITAL       = _resolve_capital_p98hl1()
 
 # 8p.2: tier-aware parameter regime auto-applied by capital
 from tier_policy import get_policy as _get_policy
