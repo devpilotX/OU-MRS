@@ -1,0 +1,257 @@
+{
+  "BANKNIFTY": {
+    "metrics": {
+      "trades": 16,
+      "total_pnl": 6963.51,
+      "win_rate": 0.6875,
+      "profit_factor": 1.707,
+      "sharpe": 2.251,
+      "max_drawdown": -3.44,
+      "reasons": {
+        "TIME_STOP_HL": 4,
+        "PAPER_SL": 4,
+        "TRAIL_STOP": 4,
+        "TARGET": 2,
+        "BE_RATCHET": 1,
+        "Z_VEL_STALL": 1
+      }
+    },
+    "verdict": {
+      "PASS": false,
+      "checks": {
+        "PSR_at_0_>=0.95": {
+          "pass": false,
+          "value": 0.7982188006912805
+        },
+        "DSR_N20_>=0.50": {
+          "pass": false,
+          "value": 0.15777327820497922
+        },
+        "WF_consistency_>=0.60": {
+          "pass": true,
+          "value": 1.0
+        },
+        "WF_stability_<=1.50": {
+          "pass": true,
+          "value": 0.1179495706575904
+        },
+        "LjungBox_p_>=0.05": {
+          "pass": true,
+          "value": 0.5962942690419906
+        },
+        "Holdout_same_sign": {
+          "pass": true,
+          "value": true
+        }
+      },
+      "acceptance": {
+        "psr_at_zero_min": 0.95,
+        "dsr_n20_min": 0.5,
+        "wf_consistency_min": 0.6,
+        "wf_stability_max": 1.5,
+        "ljung_box_p_min": 0.05,
+        "holdout_same_sign": true
+      }
+    },
+    "validation_summary": {
+      "n_trades": 16,
+      "point_mean_pnl": 435.219581750101,
+      "ci95_mean_pnl": [
+        -326.80344353114936,
+        1224.8350303776042
+      ],
+      "p_value_one_sided": 0.129,
+      "point_annualized_sharpe": 2.280665863250783,
+      "ci95_annualized_sharpe": [
+        -2.1387598868369677,
+        8.290999141342555
+      ],
+      "psr_at_zero": 0.7982188006912805,
+      "dsr_n10": 0.24568173704625473,
+      "dsr_n20": 0.15777327820497922,
+      "ljung_box_lag5_p": 0.5962942690419906,
+      "ljung_box_lag10_p": 0.34920184569498697,
+      "adf_p": 0.7396959816468794,
+      "wf_consistency_rate": 1.0,
+      "wf_stability": 0.1179495706575904,
+      "wf_sharpe_mean": 0.1758770262241605,
+      "holdout_train_sharpe": 0.10128988638618698,
+      "holdout_test_sharpe": 0.30647987948932565,
+      "holdout_decision": {
+        "split_method": "by_entry_day(col=entry_ts)",
+        "test_point_in_train_ci": true,
+        "same_sign": "True",
+        "ci_overlap": true
+      }
+    }
+  },
+  "NIFTY": {
+    "metrics": {
+      "trades": 22,
+      "total_pnl": -12436.99,
+      "win_rate": 0.2727,
+      "profit_factor": 0.395,
+      "sharpe": -5.705,
+      "max_drawdown": -8.29,
+      "reasons": {
+        "PAPER_SL": 10,
+        "TIME_STOP_HL": 6,
+        "TRAIL_STOP": 4,
+        "Z_VEL_STALL": 2
+      }
+    },
+    "verdict": {
+      "PASS": false,
+      "checks": {
+        "PSR_at_0_>=0.95": {
+          "pass": false,
+          "value": 0.07373226903403655
+        },
+        "DSR_N20_>=0.50": {
+          "pass": false,
+          "value": 0.0009043233647464153
+        },
+        "WF_consistency_>=0.60": {
+          "pass": false,
+          "value": 0.0
+        },
+        "WF_stability_<=1.50": {
+          "pass": true,
+          "value": 0.22960771827176904
+        },
+        "LjungBox_p_>=0.05": {
+          "pass": true,
+          "value": 0.46419042555120504
+        },
+        "Holdout_same_sign": {
+          "pass": true,
+          "value": true
+        }
+      },
+      "acceptance": {
+        "psr_at_zero_min": 0.95,
+        "dsr_n20_min": 0.5,
+        "wf_consistency_min": 0.6,
+        "wf_stability_max": 1.5,
+        "ljung_box_p_min": 0.05,
+        "holdout_same_sign": true
+      }
+    },
+    "validation_summary": {
+      "n_trades": 22,
+      "point_mean_pnl": -565.3178776679754,
+      "ci95_mean_pnl": [
+        -1091.751256563554,
+        -55.86478491548169
+      ],
+      "p_value_one_sided": 0.9846,
+      "point_annualized_sharpe": -5.7916872298573585,
+      "ci95_annualized_sharpe": [
+        -10.593168321562873,
+        -1.437733228187426
+      ],
+      "psr_at_zero": 0.07373226903403655,
+      "dsr_n10": 0.002304186731790416,
+      "dsr_n20": 0.0009043233647464153,
+      "ljung_box_lag5_p": 0.46419042555120504,
+      "ljung_box_lag10_p": 0.7267437346001802,
+      "adf_p": 0.011702306324880684,
+      "wf_consistency_rate": 0.0,
+      "wf_stability": 0.22960771827176904,
+      "wf_sharpe_mean": -0.4502471052061262,
+      "holdout_train_sharpe": -0.512616809382426,
+      "holdout_test_sharpe": -0.21782762363148295,
+      "holdout_decision": {
+        "split_method": "by_entry_day(col=entry_ts)",
+        "test_point_in_train_ci": true,
+        "same_sign": "True",
+        "ci_overlap": true
+      }
+    }
+  },
+  "MIDCPNIFTY": {
+    "metrics": {
+      "trades": 15,
+      "total_pnl": 5859.8,
+      "win_rate": 0.6,
+      "profit_factor": 1.781,
+      "sharpe": 1.525,
+      "max_drawdown": -1.66,
+      "reasons": {
+        "TRAIL_STOP": 5,
+        "PAPER_SL": 5,
+        "TIME_STOP_HL": 3,
+        "TARGET": 1,
+        "Z_VEL_STALL": 1
+      }
+    },
+    "verdict": {
+      "PASS": false,
+      "checks": {
+        "PSR_at_0_>=0.95": {
+          "pass": false,
+          "value": 0.7444585049457528
+        },
+        "DSR_N20_>=0.50": {
+          "pass": false,
+          "value": 0.05501891396152936
+        },
+        "WF_consistency_>=0.60": {
+          "pass": true,
+          "value": 1.0
+        },
+        "WF_stability_<=1.50": {
+          "pass": true,
+          "value": 0.0
+        },
+        "LjungBox_p_>=0.05": {
+          "pass": true,
+          "value": 0.72508885790651
+        },
+        "Holdout_same_sign": {
+          "pass": false,
+          "value": false
+        }
+      },
+      "acceptance": {
+        "psr_at_zero_min": 0.95,
+        "dsr_n20_min": 0.5,
+        "wf_consistency_min": 0.6,
+        "wf_stability_max": 1.5,
+        "ljung_box_p_min": 0.05,
+        "holdout_same_sign": true
+      }
+    },
+    "validation_summary": {
+      "n_trades": 15,
+      "point_mean_pnl": 390.653155679872,
+      "ci95_mean_pnl": [
+        -506.6894928581198,
+        1475.2830414458704
+      ],
+      "p_value_one_sided": 0.2485,
+      "point_annualized_sharpe": 2.1961970592779414,
+      "ci95_annualized_sharpe": [
+        -2.7050456991136134,
+        4.553665771218624
+      ],
+      "psr_at_zero": 0.7444585049457528,
+      "dsr_n10": 0.11292920502794807,
+      "dsr_n20": 0.05501891396152936,
+      "ljung_box_lag5_p": 0.72508885790651,
+      "ljung_box_lag10_p": 0.8254729228062971,
+      "adf_p": 0.0015201659554973242,
+      "wf_consistency_rate": 1.0,
+      "wf_stability": 0.0,
+      "wf_sharpe_mean": 0.1480256835730404,
+      "holdout_train_sharpe": -0.4634475984126264,
+      "holdout_test_sharpe": 0.38698031624154183,
+      "holdout_decision": {
+        "split_method": "by_entry_day(col=entry_ts)",
+        "test_point_in_train_ci": true,
+        "same_sign": "False",
+        "ci_overlap": true
+      }
+    }
+  }
+}
