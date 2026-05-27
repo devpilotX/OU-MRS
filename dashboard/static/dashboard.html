@@ -1,139 +1,183 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OU-MRS · Live Dashboard</title>
-<link rel="stylesheet" href="/static/css/dashboard.css?v=4" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OU-MRS · Live Quant Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/favicon.svg"/>
+<link rel="stylesheet" href="/static/css/dashboard.css?v=5"/>
 </head>
 <body>
 
+<!-- Animated gradient background -->
+<div class="bg-grad"></div>
+<div class="bg-grid"></div>
+
+<!-- TOPBAR -->
 <header class="topbar">
-  <div class="topbar-left">
-    <div class="brand"><span class="brand-mark">OU</span>·MRS</div>
-    <span id="mode-badge" class="badge">—</span>
+  <div class="brand">
+    <div class="brand-logo">Ω</div>
+    <div class="brand-text">
+      <div class="brand-title">OU-MRS</div>
+      <div class="brand-sub">Quant Desk · <span id="build-tag">v9.8h.J</span></div>
+    </div>
   </div>
-  <nav class="tabs" role="tablist">
-    <button data-tab="overview" class="tab active" role="tab">Overview</button>
-    <button data-tab="trades" class="tab" role="tab">Trades</button>
-    <button data-tab="live" class="tab" role="tab">Live</button>
-    <button data-tab="performance" class="tab" role="tab">Performance</button>
-    <button data-tab="system" class="tab" role="tab">System</button>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="trades">Trades</button>
+    <button class="tab" data-tab="live">Live</button>
+    <button class="tab" data-tab="performance">Performance</button>
+    <button class="tab" data-tab="system">System</button>
   </nav>
+
   <div class="topbar-right">
-    <span id="bot-status-pill" class="pill">—</span>
-    <span id="market-status-pill" class="pill">—</span>
-    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">☾</button>
-    <a href="/logout" class="icon-btn" title="Logout" aria-label="Logout">⎋</a>
+    <div class="pill pill-live" id="mode-pill"><span class="dot pulse"></span><span id="mode-text">—</span></div>
+    <div class="pill pill-status" id="bot-pill"><span class="dot"></span><span id="bot-text">—</span></div>
+    <div class="pill pill-market" id="market-pill"><span class="dot"></span><span id="market-text">—</span></div>
+    <button class="icon-btn" id="theme-toggle" title="Toggle theme">☾</button>
+    <a class="icon-btn" href="/logout" title="Logout">⏻</a>
   </div>
 </header>
 
-<main>
-  <section data-section="overview" class="section active">
-    <div class="kpi-grid" id="kpi-grid"></div>
-    <div class="dual-grid">
-      <div class="panel">
-        <h3 class="panel-title">Equity curve <span class="panel-sub">live trades only</span></h3>
-        <div id="overview-sparkline" class="chart-wrap chart-sm"></div>
-      </div>
-      <div class="panel">
-        <h3 class="panel-title">Recent trades <span class="panel-sub">last 5</span></h3>
-        <table class="trades-table compact">
-          <thead><tr><th>When</th><th>Sym</th><th>Side</th><th>P&amp;L</th><th>Reason</th></tr></thead>
-          <tbody id="overview-trades-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+<!-- LIVE TICKER -->
+<div class="ticker" id="ticker">
+  <div class="tick" data-sym="BNF"><b>BNF</b> <span class="ltp">—</span> <span class="chg">—</span></div>
+  <div class="tick" data-sym="NF"><b>NF</b> <span class="ltp">—</span> <span class="chg">—</span></div>
+  <div class="tick" data-sym="MCN"><b>MCN</b> <span class="ltp">—</span> <span class="chg">—</span></div>
+  <div class="tick"><b>EQUITY</b> <span class="ltp" id="tick-eq">—</span></div>
+  <div class="tick"><b>TODAY</b> <span class="ltp" id="tick-day">—</span></div>
+  <div class="tick"><b>WIN%</b> <span class="ltp" id="tick-wr">—</span></div>
+  <div class="tick"><b>HEARTBEAT</b> <span class="ltp" id="tick-hb">—</span></div>
+</div>
 
-  <section data-section="trades" class="section">
-    <div class="filter-bar">
-      <label>Symbol
-        <select id="filter-symbol"><option value="">All</option><option>BNF</option><option>NF</option><option>MCN</option></select>
-      </label>
-      <label>Side
-        <select id="filter-side"><option value="">All</option><option>BUY</option><option>SELL</option></select>
-      </label>
-      <label>Exit reason
-        <select id="filter-reason"><option value="">All</option></select>
-      </label>
-      <label>Search <input id="filter-search" type="search" placeholder="timestamp, price, qty…" /></label>
-      <span class="filter-stats" id="filter-stats">—</span>
-      <a class="btn" href="/api/export/trades" download>Export CSV</a>
-    </div>
-    <div class="panel">
-      <table class="trades-table" id="trades-full">
-        <thead><tr>
-          <th>Entry IST</th><th>Exit IST</th><th>Sym</th><th>Side</th><th>Qty</th>
-          <th>Entry</th><th>Exit</th><th>P&amp;L (₹)</th><th>Cum P&amp;L</th><th>Exit reason</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
+<!-- MAIN -->
+<main class="main">
 
-  <section data-section="live" class="section">
-    <div class="live-grid" id="live-grid"></div>
+<!-- OVERVIEW -->
+<section class="tab-panel active" data-panel="overview">
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="row-2">
     <div class="panel">
-      <h3 class="panel-title">Portfolio &amp; risk snapshot</h3>
-      <div class="portfolio-grid" id="portfolio-grid"></div>
+      <div class="panel-h"><h3>Equity curve</h3><span class="panel-sub" id="eq-sub">—</span></div>
+      <div class="chart-wrap lg" id="chart-eq-overview"></div>
     </div>
-  </section>
+    <div class="panel">
+      <div class="panel-h"><h3>Recent activity</h3><span class="panel-sub">Last 8 trades</span></div>
+      <div class="recent-list" id="recent-list"></div>
+    </div>
+  </div>
+</section>
 
-  <section data-section="performance" class="section">
-    <div class="panel">
-      <h3 class="panel-title">Equity curve <span class="panel-sub">backtest + live, scaled to live capital</span></h3>
-      <div id="equity-chart" class="chart-wrap chart-lg"></div>
+<!-- TRADES -->
+<section class="tab-panel" data-panel="trades">
+  <div class="stats-row" id="trades-stats"></div>
+  <div class="filter-bar">
+    <div class="chip-group" id="flt-sym">
+      <button class="chip active" data-v="">All</button>
+      <button class="chip sym-bnf" data-v="BNF">BNF</button>
+      <button class="chip sym-nf" data-v="NF">NF</button>
+      <button class="chip sym-mcn" data-v="MCN">MCN</button>
     </div>
-    <div class="dual-grid">
-      <div class="panel">
-        <h3 class="panel-title">Drawdown %</h3>
-        <div id="drawdown-chart" class="chart-wrap chart-md"></div>
-      </div>
-      <div class="panel">
-        <h3 class="panel-title">Daily P&amp;L <span class="panel-sub">last 30 trading days</span></h3>
-        <div id="daily-pnl-chart" class="chart-wrap chart-md"></div>
-      </div>
+    <div class="chip-group" id="flt-side">
+      <button class="chip active" data-v="">All sides</button>
+      <button class="chip side-long" data-v="LONG">Long</button>
+      <button class="chip side-short" data-v="SHORT">Short</button>
     </div>
-    <div class="panel">
-      <h3 class="panel-title">Rolling metrics</h3>
-      <div id="rolling-metrics" class="rolling-grid"></div>
-    </div>
-  </section>
+    <select id="flt-reason"><option value="">All reasons</option></select>
+    <input id="flt-search" placeholder="Search…" />
+    <button class="btn-primary" id="export-csv">↓ Export CSV</button>
+  </div>
+  <div class="panel p-0">
+    <table class="trades-table">
+      <thead><tr>
+        <th>Open</th><th>Close</th><th>Sym</th><th>Side</th><th class="r">Qty</th>
+        <th class="r">Entry</th><th class="r">Exit</th><th class="r">P&amp;L</th>
+        <th class="r">Cum</th><th>Reason</th>
+      </tr></thead>
+      <tbody id="trades-tbody"></tbody>
+    </table>
+  </div>
+</section>
 
-  <section data-section="system" class="section">
-    <div class="dual-grid">
-      <div class="panel">
-        <h3 class="panel-title">Dashboard host health</h3>
-        <div id="health-cards" class="health-grid"></div>
-      </div>
-      <div class="panel">
-        <h3 class="panel-title">Bot heartbeat &amp; service</h3>
-        <div id="heartbeat-info" class="kv-block"></div>
-      </div>
-    </div>
-    <div class="dual-grid">
-      <div class="panel">
-        <h3 class="panel-title">Market regime</h3>
-        <div id="regime-info" class="kv-block"></div>
-      </div>
-      <div class="panel">
-        <h3 class="panel-title">Strategy config</h3>
-        <div id="strategy-info" class="kv-block"></div>
-      </div>
+<!-- LIVE -->
+<section class="tab-panel" data-panel="live">
+  <div class="live-grid" id="live-grid"></div>
+  <div class="row-2">
+    <div class="panel">
+      <div class="panel-h"><h3>Portfolio snapshot</h3><span class="panel-sub" id="pf-sub">—</span></div>
+      <div id="pf-body" class="kv-grid"></div>
     </div>
     <div class="panel">
-      <h3 class="panel-title">Recent log lines <span class="panel-sub">tail 40</span></h3>
-      <pre id="log-tail" class="log-pre"></pre>
+      <div class="panel-h"><h3>Recent reasons</h3><span class="panel-sub">Skip / entry / exit</span></div>
+      <div class="reasons-feed" id="reasons-feed"></div>
     </div>
-  </section>
+  </div>
+</section>
+
+<!-- PERFORMANCE -->
+<section class="tab-panel" data-panel="performance">
+  <div class="panel">
+    <div class="panel-h"><h3>Equity curve</h3><span class="panel-sub" id="perf-eq-sub">—</span></div>
+    <div class="chart-wrap lg" id="chart-eq"></div>
+  </div>
+  <div class="row-2">
+    <div class="panel">
+      <div class="panel-h"><h3>Drawdown</h3><span class="panel-sub" id="dd-sub">—</span></div>
+      <div class="chart-wrap md" id="chart-dd"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h3>Daily P&amp;L (30d)</h3><span class="panel-sub" id="dp-sub">—</span></div>
+      <div class="chart-wrap md" id="chart-daily"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-h"><h3>Rolling metrics</h3><span class="panel-sub">Latest window</span></div>
+    <div class="metric-grid" id="metric-grid"></div>
+  </div>
+</section>
+
+<!-- SYSTEM -->
+<section class="tab-panel" data-panel="system">
+  <div class="row-2">
+    <div class="panel">
+      <div class="panel-h"><h3>Host health</h3><span class="panel-sub" id="host-sub">—</span></div>
+      <div id="host-body"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h3>Bot state</h3><span class="panel-sub" id="bot-sub">—</span></div>
+      <div id="bot-state-body" class="kv-grid"></div>
+    </div>
+  </div>
+  <div class="row-2">
+    <div class="panel">
+      <div class="panel-h"><h3>Strategy</h3><span class="panel-sub" id="strat-sub">—</span></div>
+      <div id="strat-body" class="kv-grid"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h3>Regime</h3><span class="panel-sub" id="regime-sub">—</span></div>
+      <div id="regime-body" class="kv-grid"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-h"><h3>Log tail</h3><span class="panel-sub">Latest 60 lines</span></div>
+    <pre class="log-tail" id="log-tail">—</pre>
+  </div>
+</section>
+
 </main>
 
 <footer class="footbar">
-  <span>OU-MRS Dashboard · Phase 9.8h.J · 100% accurate · dark + light themes</span>
-  <span id="refresh-status">loading…</span>
+  <span id="refresh-status">Initialising…</span>
+  <span class="sep">•</span>
+  <span>OU-MRS · Mean-Reversion (Ornstein–Uhlenbeck)</span>
+  <span class="sep">•</span>
+  <a href="https://algo.devpilotx.com" target="_blank">algo.devpilotx.com</a>
 </footer>
 
-<script src="/static/js/dashboard.js?v=4" defer></script>
+<script src="/static/js/dashboard.js?v=5"></script>
 </body>
 </html>
