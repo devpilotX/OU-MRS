@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""Phase 9.8h.A.4: verify live bot observation against Sacred Rule #19.
+"""Phase 9.8h.A.4 (v2 / Phase G): verify live bot observation against Sacred Rule #19.
 
 Reads today's ou_mrs_<YYYYMMDD>_091401.log and produces a structured verdict:
-- Did the bot start cleanly?
-- Which symbols were initialized (INSTRUMENTS)?
+- Did the bot start cleanly (Angel login, pfm init, runner init, startup line)?
+- Did the Phase 9.8h.5 [config-sanity] line fire (Sacred Rule #41)?
 - Did the 9.7Z window-prime skip phase fire?
 - Did any vol_band BLOCKED line fire (Sacred Rule #19 specifically named BNF)?
 - Any errors before 10:30 IST?
 
-IMPORTANT: The C.2 (OU_COST_MODEL_V2) and C.3 (OU_GAP_THRESHOLD_ATR /
-OU_GAP_PENALTY_BPS) changes affect ONLY backtest.py. They do not currently
-have any effect on the live bot (ou_mrs.py). Verifying their values in the
-live log is therefore not meaningful as of phase 9.8h.E. This script
-verifies what CAN be observed live (startup, runner init, filter discipline).
+v2 changes (Phase G):
+- ADDED config_sanity_line check (Sacred Rule #41 verification)
+- REMOVED the wrong OC-7 OC caveat about C.2/C.3 needing to be mirrored into live
+  (retracted in audit/phase_9_8h_A_4_live_observation.md)
 
 Usage:
     ./venv/bin/python tools/verify_a4_live_observation.py [YYYY-MM-DD]
@@ -20,7 +19,7 @@ Usage:
 Writes verdict to audit/phase_9_8h_A_4_live_observation_<date>.md.
 Exit 0 on PASS, 1 on FAIL.
 """
-import argparse, datetime as dt, re, sys
+import argparse, datetime as dt, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +41,7 @@ def classify(log_path: Path) -> dict:
         "runner_init": None,
         "angel_login": None,
         "pfm_init": None,
+        "config_sanity": None,
         "window_skips": 0,
         "vol_band_blocks": 0,
         "errors": [],
@@ -52,6 +52,8 @@ def classify(log_path: Path) -> dict:
     for line in text.splitlines():
         if "OU-MRS started" in line:
             out["startup"] = line.strip()
+        elif "[config-sanity]" in line and "DISABLED" not in line:
+            out["config_sanity"] = line.strip()
         elif "[runners] init" in line:
             out["runner_init"] = line.strip()
         elif "Angel login OK" in line:
@@ -80,6 +82,8 @@ def verdict(c: dict) -> tuple[str, list[str]]:
         ok = False; reasons.append("FAIL: no Angel login OK line")
     if not c["startup"]:
         ok = False; reasons.append("FAIL: no 'OU-MRS started' line")
+    if not c["config_sanity"]:
+        ok = False; reasons.append("FAIL: no [config-sanity] line (Sacred Rule #41)")
     if not c["runner_init"]:
         ok = False; reasons.append("FAIL: no '[runners] init' line")
     if c["heartbeats"] < 5:
@@ -87,7 +91,7 @@ def verdict(c: dict) -> tuple[str, list[str]]:
     if c["errors"]:
         ok = False; reasons.append(f"FAIL: {len(c['errors'])} [ERROR] lines")
     if ok:
-        reasons.append("PASS: bot booted cleanly with all required artifacts")
+        reasons.append("PASS: bot booted cleanly with all required artifacts including [config-sanity]")
     return ("PASS" if ok else "FAIL"), reasons
 
 
@@ -109,7 +113,7 @@ def main():
     body.append(f"**Log:** `{c['log']}`")
     body.append("")
     body.append("## Findings")
-    for k in ("angel_login", "pfm_init", "runner_init", "startup", "first_trade"):
+    for k in ("angel_login", "pfm_init", "runner_init", "startup", "config_sanity", "first_trade"):
         body.append(f"- **{k}**: `{c[k]}`")
     body.append(f"- **heartbeats**: {c['heartbeats']}")
     body.append(f"- **window_skips**: {c['window_skips']}")
@@ -125,15 +129,6 @@ def main():
     body.append("## Verdict reasons")
     for r in reasons:
         body.append(f"- {r}")
-    body.append("")
-    body.append("## Caveat: backtest-vs-live cost model divergence (OC-7)")
-    body.append("")
-    body.append("Phases C.2 (OU_COST_MODEL_V2) and C.3 (OU_GAP_THRESHOLD_ATR, OU_GAP_PENALTY_BPS)")
-    body.append("hardened the BACKTEST cost model only. The live bot (ou_mrs.py) does not consult")
-    body.append("these env values. The provisional FUT PSR figures (BNF 0.837 / MCN 0.795) describe")
-    body.append("the backtest's realism, not the live execution stack. A separate phase is required")
-    body.append("to mirror C.2/C.3 cost adjustments into live PnL accounting before the backtest PSR")
-    body.append("can be claimed as predictive of live results.")
     md.write_text("\n".join(body) + "\n")
     print(f"Verdict: {v}")
     print(f"Audit doc: {md}")
