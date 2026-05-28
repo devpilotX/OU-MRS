@@ -171,6 +171,27 @@ _Z_STOP_PER_SYM = {
 def _z_stop_for_sym(sym):
     return _Z_STOP_PER_SYM.get(sym, getattr(PARAMS, "z_stop", 3.5))
 
+# Phase 9.8h.N (2026-05-28): per-symbol, per-side z_entry overrides.
+# Empirical finding from L-deep BT (Mar 30 - May 26): NIFTY long-side 8% WR / -Rs5,886 (13 trades)
+# vs short-side 44% WR / +Rs376 (9 trades). BNF/MCN show no such asymmetry.
+# This gate demands stronger evidence on the structurally-weaker side rather than disabling it outright.
+# Default = symmetric (matches PARAMS.z_entry) -> no behavior change unless env vars are set.
+_DEFAULT_Z_ENTRY = getattr(PARAMS, "z_entry", 1.5)
+_Z_ENTRY_BUY_PER_SYM = {
+    "BNF": float(os.environ.get("OU_Z_ENTRY_BUY_BNF", _DEFAULT_Z_ENTRY)),
+    "NF":  float(os.environ.get("OU_Z_ENTRY_BUY_NF",  _DEFAULT_Z_ENTRY)),
+    "MCN": float(os.environ.get("OU_Z_ENTRY_BUY_MCN", _DEFAULT_Z_ENTRY)),
+}
+_Z_ENTRY_SELL_PER_SYM = {
+    "BNF": float(os.environ.get("OU_Z_ENTRY_SELL_BNF", _DEFAULT_Z_ENTRY)),
+    "NF":  float(os.environ.get("OU_Z_ENTRY_SELL_NF",  _DEFAULT_Z_ENTRY)),
+    "MCN": float(os.environ.get("OU_Z_ENTRY_SELL_MCN", _DEFAULT_Z_ENTRY)),
+}
+def _z_entry_for(sym, side):
+    """Phase 9.8h.N: returns per-symbol, per-side minimum |z| required for entry."""
+    table = _Z_ENTRY_BUY_PER_SYM if side == "BUY" else _Z_ENTRY_SELL_PER_SYM
+    return table.get(sym, _DEFAULT_Z_ENTRY)
+
 HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
 STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
@@ -732,6 +753,12 @@ def main():
                     continue
 
                 if not sig or not sig.side:
+                    continue
+                # Phase 9.8h.N: per-symbol, per-side asymmetric z-entry gate (defaults to PARAMS.z_entry so no-op unless env vars set).
+                _z_thr_p98hn = _z_entry_for(runner.symbol, sig.side)
+                if abs(getattr(sig, "z", 0.0)) < _z_thr_p98hn:
+                    log.debug(f"[9.8h.N entry_blocked] [{sym}] {sig.side} |z|={abs(sig.z):.2f} < z_entry_{sig.side.lower()}={_z_thr_p98hn:.2f}")
+                    runner.reasons_log.append(f"BLOCKED:z_entry_side")
                     continue
                 if runner.soft_halt:  # Phase 8e: no new entries during soft halt
                     continue
