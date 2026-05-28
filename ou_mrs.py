@@ -289,12 +289,40 @@ def _exit(broker, pos, bar, reason, symbol, *, lot_size):  # Phase 9.8h.B.2: dro
         log.debug(f"signal publish_exit failed: {_e}")
     return pnl
 
+# Phase 9.8h.N.3 (2026-05-28): NSE/BSE 2026 holiday list (Equity Derivatives segment).
+# Sources cross-referenced 2026-05-28: NSE official + Zerodha + Niftyindices + ET.
+# Root cause of 28 May 2026 Bakri Eid "tick-blind" incident: weekday-only gate let the
+# bot start on a holiday, login succeed, then spin heartbeats forever while getCandleData
+# returned [] across the entire NFO segment (zero trades occurred on any contract).
+_NSE_HOLIDAYS_2026 = {
+    "2026-01-26",  # Republic Day
+    "2026-03-03",  # Holi
+    "2026-03-26",  # Shri Ram Navami
+    "2026-03-31",  # Shri Mahavir Jayanti
+    "2026-04-03",  # Good Friday
+    "2026-04-14",  # Dr. Baba Saheb Ambedkar Jayanti
+    "2026-05-01",  # Maharashtra Day
+    "2026-05-28",  # Bakri Id
+    "2026-06-26",  # Muharram
+    "2026-09-14",  # Ganesh Chaturthi
+    "2026-10-02",  # Mahatma Gandhi Jayanti
+    "2026-10-20",  # Dussehra
+    "2026-11-10",  # Diwali-Balipratipada
+    "2026-11-24",  # Prakash Gurpurb Sri Guru Nanak Dev
+    "2026-12-25",  # Christmas
+}
+
 def _market_hours_check():
     """Phase 5a: exit cleanly on weekends / after-hours.
+    Phase 9.8h.N.3 (2026-05-28): also exit on NSE/BSE Equity Derivatives holidays.
     Prevents systemd restart-loops from burning Angel sessions."""
     now = datetime.now()
     if now.weekday() >= 5:
         log.info(f"Weekend ({now.strftime('%A')}) — not trading. Clean exit.")
+        return False
+    _today_iso = now.strftime("%Y-%m-%d")
+    if _today_iso in _NSE_HOLIDAYS_2026:
+        log.info(f"NSE holiday {_today_iso} ({now.strftime('%A')}) — not trading. Clean exit.")
         return False
     if now.time() >= dtime(15, 31):
         log.info(f"After market hours ({now.strftime('%H:%M')}) — clean exit.")
