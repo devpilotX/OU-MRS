@@ -70,6 +70,12 @@ def logout():
     resp.delete_cookie("session")
     return resp
 
+@app.head("/")
+def head_root(session: str = Cookie(default=None)):
+    # Allow nginx/health-check HEAD requests (prevents 405 on -I)
+    if not is_authed(session):
+        return RedirectResponse("/login", status_code=303)
+    return PlainTextResponse("ok")
 @app.get("/", response_class=HTMLResponse)
 def dashboard(session: str = Cookie(default=None)):
     if not is_authed(session):
