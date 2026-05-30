@@ -5,9 +5,11 @@ TEST_LOG = Path("state/equity.jsonl.test")
 
 
 @pytest.fixture(autouse=True)
-def clean_log(monkeypatch):
+def clean_log(monkeypatch, tmp_path):
     import prop_firm_monitor as pfm_mod
     monkeypatch.setattr(pfm_mod, "EQUITY_LOG", TEST_LOG)
+    # Hermetic isolation: never read/write the live trading halt state.
+    monkeypatch.setattr(pfm_mod, "HALT_PATH", tmp_path / "pfm_halt.json")
     if TEST_LOG.exists():
         TEST_LOG.unlink()
     yield

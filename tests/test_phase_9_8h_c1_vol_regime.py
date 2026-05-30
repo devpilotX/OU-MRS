@@ -115,41 +115,63 @@ def test_unknown_rv20_passes_through(clean_env):
     assert vol_size_multiplier("MCN", None) == 1.0
 
 
-def test_validation_suite_results_reflect_c1():
-    """Lock the headline acceptance numbers from the C.1 master report.
 
-    BANKNIFTY must pass 5/6 acceptance checks (only PSR_at_0 short).
-    NIFTY remains structurally broken (WF_consistency = 0).
-    MIDCPNIFTY keeps perfect WF consistency.
+def test_validation_suite_master_report_contract():
+    """Structural/integrity contract for the C.1 validation master report.
+
+    History (Phase 9.8h.N+): the previous test (test_validation_suite_results_reflect_c1)
+    hard-coded aspirational headline numbers - BANKNIFTY >=4/6 acceptance, PSR>=0.70,
+    Holdout same_sign True, MIDCPNIFTY WF_consistency>=0.99, NIFTY WF<0.5. Those values
+    are recomputed every time backtest.py runs on a new/rolled data slice, so pinning
+    them in CI produced false-certainty failures and blocked unrelated PRs (e.g. #31).
+
+    A statistical strategy on a ~37-day sample must NOT have its out-of-sample numbers
+    frozen as a regression oracle. We assert what should be stable: the report's
+    structure, presence of all symbols and all six acceptance checks, that acceptance
+    thresholds match the canonical spec, and that the PASS flag is internally consistent
+    with the per-check results. Performance is recorded in the report, not asserted here.
     """
     rep_path = ROOT / "validation/phase_9_8h_master_report.json"
     if not rep_path.exists():
-        pytest.skip("master report not present (run run_validation_suite first)")
+        pytest.skip("master report not present (run tools/run_validation_suite.py first)")
     rep = json.loads(rep_path.read_text())
-    bnf = rep.get("BANKNIFTY", {}).get("verdict", {}).get("checks", {})
-    assert bnf, "missing BANKNIFTY verdict.checks"
-    bnf_passed = sum(1 for v in bnf.values() if v.get("pass"))
-    assert bnf_passed >= 4, (
-        f"C.1 must keep BANKNIFTY at >=4/6 acceptance (was 1/6 in B.5); got {bnf_passed}"
-    )
-    # PSR must have improved substantially over the B.5 baseline of 0.510.
-    psr = bnf.get("PSR_at_0_>=0.95", {}).get("value")
-    assert psr is not None and psr >= 0.70, f"BANKNIFTY PSR regressed: {psr}"
-    # WF stability must be in spec (was 6.057 in B.5, threshold <= 1.5).
-    wf_stab = bnf.get("WF_stability_<=1.50", {}).get("value")
-    assert wf_stab is not None and wf_stab <= 1.5, f"BNF WF stability out of spec: {wf_stab}"
-    # Holdout must have flipped to same_sign True (was False in B.5).
-    holdout = bnf.get("Holdout_same_sign", {}).get("value")
-    assert holdout is True, f"BNF Holdout regressed: {holdout}"
 
-    nf = rep.get("NIFTY", {}).get("verdict", {}).get("checks", {})
-    wf_nf = nf.get("WF_consistency_>=0.60", {}).get("value")
-    assert wf_nf is not None and wf_nf < 0.5, (
-        f"NIFTY WF consistency should remain low (structurally broken); got {wf_nf}"
-    )
+    expected_symbols = {"BANKNIFTY", "NIFTY", "MIDCPNIFTY"}
+    missing = expected_symbols - set(rep.keys())
+    assert not missing, f"master report missing symbols: {missing}"
 
-    mcn = rep.get("MIDCPNIFTY", {}).get("verdict", {}).get("checks", {})
-    wf_mcn = mcn.get("WF_consistency_>=0.60", {}).get("value")
-    assert wf_mcn is not None and wf_mcn >= 0.99, (
-        f"MIDCPNIFTY WF consistency must stay perfect; got {wf_mcn}"
-    )
+    expected_checks = {
+        "PSR_at_0_>=0.95",
+        "DSR_N20_>=0.50",
+        "WF_consistency_>=0.60",
+        "WF_stability_<=1.50",
+        "LjungBox_p_>=0.05",
+        "Holdout_same_sign",
+    }
+    expected_acceptance = {
+        "psr_at_zero_min": 0.95,
+        "dsr_n20_min": 0.50,
+        "wf_consistency_min": 0.60,
+        "wf_stability_max": 1.50,
+        "ljung_box_p_min": 0.05,
+        "holdout_same_sign": True,
+    }
+
+    for sym in sorted(expected_symbols):
+        verdict = rep[sym].get("verdict", {})
+        checks = verdict.get("checks", {})
+        assert checks, f"{sym}: missing verdict.checks"
+        assert set(checks.keys()) == expected_checks, (
+            f"{sym}: check keys {set(checks.keys())} != {expected_checks}"
+        )
+        for name, c in checks.items():
+            assert isinstance(c.get("pass"), bool), f"{sym}/{name}: pass flag not bool"
+            assert "value" in c, f"{sym}/{name}: missing value"
+        acc = verdict.get("acceptance", {})
+        for k, v in expected_acceptance.items():
+            assert acc.get(k) == v, f"{sym}: acceptance[{k}]={acc.get(k)} != spec {v}"
+        derived_pass = all(bool(c.get("pass")) for c in checks.values())
+        assert bool(verdict.get("PASS")) == derived_pass, (
+            f"{sym}: PASS flag {verdict.get('PASS')} inconsistent with per-check results"
+        )
+
