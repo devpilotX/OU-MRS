@@ -46,6 +46,24 @@ def need_auth(session: str = Cookie(default=None)):
         raise HTTPException(status_code=401)
     return True
 
+@app.get("/healthz")
+def healthz():
+    # Phase 9.8h.S: unauthenticated liveness + state-freshness probe for uptime monitors.
+    import time as _t
+    root = Path(__file__).resolve().parent.parent
+    now = _t.time()
+    def _age(rel):
+        fp = root / rel
+        if not fp.exists():
+            return {"present": False, "age_seconds": None}
+        return {"present": True, "age_seconds": round(now - fp.stat().st_mtime, 1)}
+    return {
+        "status": "ok",
+        "service": "ou-mrs-dashboard",
+        "now_utc": datetime.utcnow().isoformat() + "Z",
+        "state": {"pfm": _age("state/pfm.json"), "heartbeat": _age("state/heartbeat.jsonl")},
+    }
+
 @app.get("/login", response_class=HTMLResponse)
 def login_page():
     return (APP_DIR / "static" / "login.html").read_text()
