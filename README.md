@@ -4,6 +4,8 @@ Intraday systematic mean-reversion algorithm trading three Indian index futures 
 
 **Status:** Paper trading mode. **LIVE deployment target:** end of July 2026 (after 2 months of additional paper observation per current plan).
 
+**Latest (2026-05-30):** CI green (204 tests passing); test suite made hermetic and prop-firm halt-state isolated (`OU_PFM_HALT_PATH`); validation master report regenerated honestly for all 3 symbols; dashboard `/healthz` liveness probe added. Honest backtest (2026-03-30 → 05-26, 1-lot, capital-isolated): **BNF +₹9,045** (PF 1.85, Sharpe 2.62), **MCN +₹7,252** (PF 1.97), **NIFTY −₹10,727** (PF 0.49 — no robust mean-reversion edge; kept effectively short-only / disabled).
+
 ---
 
 ## 📊 Current state
