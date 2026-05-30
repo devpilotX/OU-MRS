@@ -45,7 +45,11 @@ def run_backtest(symbol: str) -> dict:
     if out_dir.exists():
         shutil.rmtree(out_dir)
     cmd = [sys.executable, "backtest.py", "--symbol", symbol, "--auto-lot"]
-    r = subprocess.run(cmd, cwd=str(HERE), capture_output=True, text=True, timeout=180)
+    # Phase 9.8h.N+: isolate halt state so a backtest never writes the live
+    # state/pfm_halt.json (which would contaminate the running paper bot).
+    bt_env = dict(os.environ)
+    bt_env.setdefault("OU_PFM_HALT_PATH", str(out_dir / "pfm_halt.bt.json"))
+    r = subprocess.run(cmd, cwd=str(HERE), capture_output=True, text=True, timeout=180, env=bt_env)
     if r.returncode != 0:
         return {"error": "backtest failed", "stderr": r.stderr[-1500:]}
     mp = out_dir / "metrics.json"
