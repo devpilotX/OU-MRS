@@ -5,13 +5,21 @@ methods instead of module-load monkey patches. Halt state survives process
 restarts within the same trading day via state/pfm_halt.json.
 """
 import json
+import os
 from datetime import date, datetime
 from pathlib import Path
 
 from account import equity_log_path  # Phase 8f.2
 
 EQUITY_LOG = equity_log_path()
-HALT_PATH = Path(__file__).resolve().parent / "state" / "pfm_halt.json"  # Phase A5
+# Phase A5; Phase 9.8h.N+: overridable via OU_PFM_HALT_PATH so backtests and
+# unit tests never mutate the live trading halt state.
+HALT_PATH = Path(
+    os.environ.get(
+        "OU_PFM_HALT_PATH",
+        str(Path(__file__).resolve().parent / "state" / "pfm_halt.json"),
+    )
+)
 
 
 def _today_iso():
