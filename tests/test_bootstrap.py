@@ -185,10 +185,15 @@ def test_holdout_split_equity_runs_on_real_data():
 )
 def test_holdout_split_trades_runs_on_real_data():
     from validation.bootstrap import holdout_split_trades
+    import pandas as pd
     r = holdout_split_trades("bt_out/trades.csv", train_days=24)
+    total_trades = len(pd.read_csv("bt_out/trades.csv"))
     assert r["train"]["n"] >= 1
     assert r["test"]["n"] >= 1
-    assert r["train"]["n"] + r["test"]["n"] == 24
+    # Every trade must land in exactly one of train/test (day-based split).
+    # Previously hard-coded "== 24", which wrongly equated *trade count* with the
+    # 24-*day* train window; the sum must equal the total number of trades.
+    assert r["train"]["n"] + r["test"]["n"] == total_trades
 
 
 def test_holdout_split_equity_constant_positive_returns_same_sign():
