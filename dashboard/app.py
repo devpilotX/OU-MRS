@@ -70,6 +70,27 @@ def logout():
     resp.delete_cookie("session")
     return resp
 
+@app.head("/")
+def head_root(session: str = Cookie(default=None)):
+    # Health checks: match GET / auth behavior
+    if not is_authed(session):
+        return RedirectResponse("/login", status_code=303)
+    return PlainTextResponse("ok")
+
+@app.head("/api/status")
+def head_api_status(session: str = Cookie(default=None)):
+    # Health checks: keep same auth behavior as GET (/api/status)
+    if not is_authed(session):
+        raise HTTPException(status_code=401)
+    return PlainTextResponse("ok")
+
+@app.head("/sse/ticks")
+def head_sse_ticks(session: str = Cookie(default=None)):
+    # Health checks: keep same auth behavior as GET (/sse/ticks)
+    if not is_authed(session):
+        raise HTTPException(status_code=401)
+    return PlainTextResponse("ok")
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(session: str = Cookie(default=None)):
     if not is_authed(session):
