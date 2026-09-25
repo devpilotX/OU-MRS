@@ -85,6 +85,24 @@ _LONG_TO_SHORT = {
 # (in which case is_entry_blocked_by_tod is a no-op).
 _BT_SYMBOL = None
 
+# Phase 9.8h.N.2: mirror per-symbol/per-side z-entry from ou_mrs.py into the backtester.
+# Defaults to symmetric BT_ZENTRY (1.4) so no behavior change unless OU_Z_ENTRY_{BUY,SELL}_{BNF,NF,MCN} is set.
+_BT_DEFAULT_Z_ENTRY = float(os.environ.get("BT_ZENTRY", 1.4))
+_Z_ENTRY_BUY_PER_SYM_BT = {
+    "BANKNIFTY":  float(os.environ.get("OU_Z_ENTRY_BUY_BNF", _BT_DEFAULT_Z_ENTRY)),
+    "NIFTY":      float(os.environ.get("OU_Z_ENTRY_BUY_NF",  _BT_DEFAULT_Z_ENTRY)),
+    "MIDCPNIFTY": float(os.environ.get("OU_Z_ENTRY_BUY_MCN", _BT_DEFAULT_Z_ENTRY)),
+}
+_Z_ENTRY_SELL_PER_SYM_BT = {
+    "BANKNIFTY":  float(os.environ.get("OU_Z_ENTRY_SELL_BNF", _BT_DEFAULT_Z_ENTRY)),
+    "NIFTY":      float(os.environ.get("OU_Z_ENTRY_SELL_NF",  _BT_DEFAULT_Z_ENTRY)),
+    "MIDCPNIFTY": float(os.environ.get("OU_Z_ENTRY_SELL_MCN", _BT_DEFAULT_Z_ENTRY)),
+}
+def _z_entry_for_bt(sym, side):
+    table = _Z_ENTRY_BUY_PER_SYM_BT if side == "BUY" else _Z_ENTRY_SELL_PER_SYM_BT
+    return table.get(sym or "", _BT_DEFAULT_Z_ENTRY)
+
+
 DATA = Path(os.environ.get("BT_DATA", "data/BANKNIFTY_FUT_1min.parquet"))
 _HERE = Path(__file__).resolve().parent  # Phase A3: CWD-independent
 OUT = _HERE / "bt_out"
@@ -260,6 +278,10 @@ def run():
                 continue
 
             if not sig or sig.side is None:
+                continue
+            # Phase 9.8h.N.2: per-symbol/per-side z-entry gate (defaults symmetric -> no-op).
+            _z_thr_p98hn2 = _z_entry_for_bt(_BT_SYMBOL, sig.side)
+            if abs(getattr(sig, "z", 0.0)) < _z_thr_p98hn2:
                 continue
             if not (SESSION_START <= t <= SESSION_END):
                 continue

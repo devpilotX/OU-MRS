@@ -30,7 +30,23 @@ logging.basicConfig(
 log = logging.getLogger("ou_mrs")
 
 LIVE          = os.environ.get("LIVE", "false").lower() == "true"
-CAPITAL       = int(os.environ.get("CAPITAL", 150_000))
+# Phase 9.8h.L.1 (2026-05-27): auto-compounding capital from pfm.json peak_equity.
+# Reads state/pfm.json["peak_equity"] at startup. Env CAPITAL acts as floor (baseline).
+# Position sizing in _cap_lots() / size_lots() now scales with realized paper PnL.
+# Disable via OU_DISABLE_AUTO_CAPITAL=1 for deterministic backtests.
+_BASE_CAPITAL_P98HL1 = int(os.environ.get("CAPITAL", 150_000))
+def _resolve_capital_p98hl1():
+    if os.environ.get("OU_DISABLE_AUTO_CAPITAL", "").lower() in ("1","true","on"):
+        return _BASE_CAPITAL_P98HL1
+    try:
+        import json as _j_p98hl1
+        with open("state/pfm.json","r") as _f_p98hl1:
+            _pfm_p98hl1 = _j_p98hl1.load(_f_p98hl1)
+        _peak_p98hl1 = float(_pfm_p98hl1.get("peak_equity") or 0)
+        return max(_BASE_CAPITAL_P98HL1, int(_peak_p98hl1)) if _peak_p98hl1 > 0 else _BASE_CAPITAL_P98HL1
+    except Exception:
+        return _BASE_CAPITAL_P98HL1
+CAPITAL       = _resolve_capital_p98hl1()
 
 # 8p.2: tier-aware parameter regime auto-applied by capital
 from tier_policy import get_policy as _get_policy
@@ -155,6 +171,27 @@ _Z_STOP_PER_SYM = {
 def _z_stop_for_sym(sym):
     return _Z_STOP_PER_SYM.get(sym, getattr(PARAMS, "z_stop", 3.5))
 
+# Phase 9.8h.N (2026-05-28): per-symbol, per-side z_entry overrides.
+# Empirical finding from L-deep BT (Mar 30 - May 26): NIFTY long-side 8% WR / -Rs5,886 (13 trades)
+# vs short-side 44% WR / +Rs376 (9 trades). BNF/MCN show no such asymmetry.
+# This gate demands stronger evidence on the structurally-weaker side rather than disabling it outright.
+# Default = symmetric (matches PARAMS.z_entry) -> no behavior change unless env vars are set.
+_DEFAULT_Z_ENTRY = getattr(PARAMS, "z_entry", 1.5)
+_Z_ENTRY_BUY_PER_SYM = {
+    "BNF": float(os.environ.get("OU_Z_ENTRY_BUY_BNF", _DEFAULT_Z_ENTRY)),
+    "NF":  float(os.environ.get("OU_Z_ENTRY_BUY_NF",  _DEFAULT_Z_ENTRY)),
+    "MCN": float(os.environ.get("OU_Z_ENTRY_BUY_MCN", _DEFAULT_Z_ENTRY)),
+}
+_Z_ENTRY_SELL_PER_SYM = {
+    "BNF": float(os.environ.get("OU_Z_ENTRY_SELL_BNF", _DEFAULT_Z_ENTRY)),
+    "NF":  float(os.environ.get("OU_Z_ENTRY_SELL_NF",  _DEFAULT_Z_ENTRY)),
+    "MCN": float(os.environ.get("OU_Z_ENTRY_SELL_MCN", _DEFAULT_Z_ENTRY)),
+}
+def _z_entry_for(sym, side):
+    """Phase 9.8h.N: returns per-symbol, per-side minimum |z| required for entry."""
+    table = _Z_ENTRY_BUY_PER_SYM if side == "BUY" else _Z_ENTRY_SELL_PER_SYM
+    return table.get(sym, _DEFAULT_Z_ENTRY)
+
 HB_INTERVAL_SEC        = 30   # Phase 5b: exactly 1-per-30s heartbeat
 PORTFOLIO_REFRESH_SEC  = 25   # Phase 4b: throttle Angel portfolio calls
 STOP_CIRCUIT_THRESHOLD = 3    # Phase 3b: 3 consecutive STOPs -> runner.kill
@@ -252,12 +289,40 @@ def _exit(broker, pos, bar, reason, symbol, *, lot_size):  # Phase 9.8h.B.2: dro
         log.debug(f"signal publish_exit failed: {_e}")
     return pnl
 
+# Phase 9.8h.N.3 (2026-05-28): NSE/BSE 2026 holiday list (Equity Derivatives segment).
+# Sources cross-referenced 2026-05-28: NSE official + Zerodha + Niftyindices + ET.
+# Root cause of 28 May 2026 Bakri Eid "tick-blind" incident: weekday-only gate let the
+# bot start on a holiday, login succeed, then spin heartbeats forever while getCandleData
+# returned [] across the entire NFO segment (zero trades occurred on any contract).
+_NSE_HOLIDAYS_2026 = {
+    "2026-01-26",  # Republic Day
+    "2026-03-03",  # Holi
+    "2026-03-26",  # Shri Ram Navami
+    "2026-03-31",  # Shri Mahavir Jayanti
+    "2026-04-03",  # Good Friday
+    "2026-04-14",  # Dr. Baba Saheb Ambedkar Jayanti
+    "2026-05-01",  # Maharashtra Day
+    "2026-05-28",  # Bakri Id
+    "2026-06-26",  # Muharram
+    "2026-09-14",  # Ganesh Chaturthi
+    "2026-10-02",  # Mahatma Gandhi Jayanti
+    "2026-10-20",  # Dussehra
+    "2026-11-10",  # Diwali-Balipratipada
+    "2026-11-24",  # Prakash Gurpurb Sri Guru Nanak Dev
+    "2026-12-25",  # Christmas
+}
+
 def _market_hours_check():
     """Phase 5a: exit cleanly on weekends / after-hours.
+    Phase 9.8h.N.3 (2026-05-28): also exit on NSE/BSE Equity Derivatives holidays.
     Prevents systemd restart-loops from burning Angel sessions."""
     now = datetime.now()
     if now.weekday() >= 5:
         log.info(f"Weekend ({now.strftime('%A')}) — not trading. Clean exit.")
+        return False
+    _today_iso = now.strftime("%Y-%m-%d")
+    if _today_iso in _NSE_HOLIDAYS_2026:
+        log.info(f"NSE holiday {_today_iso} ({now.strftime('%A')}) — not trading. Clean exit.")
         return False
     if now.time() >= dtime(15, 31):
         log.info(f"After market hours ({now.strftime('%H:%M')}) — clean exit.")
@@ -716,6 +781,12 @@ def main():
                     continue
 
                 if not sig or not sig.side:
+                    continue
+                # Phase 9.8h.N: per-symbol, per-side asymmetric z-entry gate (defaults to PARAMS.z_entry so no-op unless env vars set).
+                _z_thr_p98hn = _z_entry_for(runner.symbol, sig.side)
+                if abs(getattr(sig, "z", 0.0)) < _z_thr_p98hn:
+                    log.debug(f"[9.8h.N entry_blocked] [{sym}] {sig.side} |z|={abs(sig.z):.2f} < z_entry_{sig.side.lower()}={_z_thr_p98hn:.2f}")
+                    runner.reasons_log.append(f"BLOCKED:z_entry_side")
                     continue
                 if runner.soft_halt:  # Phase 8e: no new entries during soft halt
                     continue

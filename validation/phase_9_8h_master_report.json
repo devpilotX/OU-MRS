@@ -2,7 +2,7 @@
   "BANKNIFTY": {
     "metrics": {
       "trades": 16,
-      "total_pnl": 9042.13,
+      "total_pnl": 9045.13,
       "win_rate": 0.625,
       "profit_factor": 1.851,
       "sharpe": 2.616,
@@ -21,11 +21,11 @@
       "checks": {
         "PSR_at_0_>=0.95": {
           "pass": false,
-          "value": 0.8374586423776353
+          "value": 0.8375190302158669
         },
         "DSR_N20_>=0.50": {
           "pass": false,
-          "value": 0.18957946033648337
+          "value": 0.18965301984823502
         },
         "WF_consistency_>=0.60": {
           "pass": true,
@@ -33,11 +33,11 @@
         },
         "WF_stability_<=1.50": {
           "pass": true,
-          "value": 0.25054685723433573
+          "value": 0.2505854028182185
         },
         "LjungBox_p_>=0.05": {
           "pass": true,
-          "value": 0.13858815997855883
+          "value": 0.1386475404072643
         },
         "Holdout_same_sign": {
           "pass": true,
@@ -55,28 +55,28 @@
     },
     "validation_summary": {
       "n_trades": 16,
-      "point_mean_pnl": 565.1330521250927,
+      "point_mean_pnl": 565.3205603001036,
       "ci95_mean_pnl": [
-        -206.8978061461924,
-        1341.4955908082231
+        -206.61654388367606,
+        1341.7768530707397
       ],
       "p_value_one_sided": 0.0725,
-      "point_annualized_sharpe": 2.650755326163096,
+      "point_annualized_sharpe": 2.6514342014321386,
       "ci95_annualized_sharpe": [
-        -1.6562809245666552,
-        7.32519004798249
+        -1.6547627163655172,
+        7.325883929775607
       ],
-      "psr_at_zero": 0.8374586423776353,
-      "dsr_n10": 0.2878355857730431,
-      "dsr_n20": 0.18957946033648337,
-      "ljung_box_lag5_p": 0.13858815997855883,
-      "ljung_box_lag10_p": 0.05636811656008853,
-      "adf_p": 0.4931779124632518,
+      "psr_at_zero": 0.8375190302158669,
+      "dsr_n10": 0.28792666449815696,
+      "dsr_n20": 0.18965301984823502,
+      "ljung_box_lag5_p": 0.1386475404072643,
+      "ljung_box_lag10_p": 0.05635945683663284,
+      "adf_p": 0.49250363490297705,
       "wf_consistency_rate": 1.0,
-      "wf_stability": 0.25054685723433573,
-      "wf_sharpe_mean": 0.24994756943984667,
-      "holdout_train_sharpe": 0.24906545258507307,
-      "holdout_test_sharpe": 0.25145446084625184,
+      "wf_stability": 0.2505854028182185,
+      "wf_sharpe_mean": 0.2500015164866205,
+      "holdout_train_sharpe": 0.24913826158455682,
+      "holdout_test_sharpe": 0.2515148173506579,
       "holdout_decision": {
         "split_method": "by_entry_day(col=entry_ts)",
         "test_point_in_train_ci": true,
@@ -88,11 +88,11 @@
   "NIFTY": {
     "metrics": {
       "trades": 22,
-      "total_pnl": -10873.18,
+      "total_pnl": -10727.33,
       "win_rate": 0.2273,
-      "profit_factor": 0.482,
-      "sharpe": -4.438,
-      "max_drawdown": -8.04,
+      "profit_factor": 0.486,
+      "sharpe": -4.384,
+      "max_drawdown": -7.95,
       "reasons": {
         "PAPER_SL": 10,
         "TIME_STOP_HL": 7,
@@ -106,11 +106,11 @@
       "checks": {
         "PSR_at_0_>=0.95": {
           "pass": false,
-          "value": 0.10746399177174593
+          "value": 0.11027380238062828
         },
         "DSR_N20_>=0.50": {
           "pass": false,
-          "value": 0.0014733206511259116
+          "value": 0.001535715928189886
         },
         "WF_consistency_>=0.60": {
           "pass": false,
@@ -118,11 +118,11 @@
         },
         "WF_stability_<=1.50": {
           "pass": true,
-          "value": 0.2588639052244014
+          "value": 0.26220965113419004
         },
         "LjungBox_p_>=0.05": {
           "pass": true,
-          "value": 0.5885639670278001
+          "value": 0.5888321931428163
         },
         "Holdout_same_sign": {
           "pass": true,
@@ -140,28 +140,28 @@
     },
     "validation_summary": {
       "n_trades": 22,
-      "point_mean_pnl": -494.23525393753823,
+      "point_mean_pnl": -487.60608282252304,
       "ci95_mean_pnl": [
-        -1094.0640162532884,
-        85.55973138937681
+        -1087.350881268998,
+        92.14450742157197
       ],
-      "p_value_one_sided": 0.9534,
-      "point_annualized_sharpe": -4.502108289620077,
+      "p_value_one_sided": 0.9516,
+      "point_annualized_sharpe": -4.447885719274385,
       "ci95_annualized_sharpe": [
-        -9.87331384222604,
-        0.32006964436620605
+        -9.829183249433441,
+        0.381065002852153
       ],
-      "psr_at_zero": 0.10746399177174593,
-      "dsr_n10": 0.0037265135143830226,
-      "dsr_n20": 0.0014733206511259116,
-      "ljung_box_lag5_p": 0.5885639670278001,
-      "ljung_box_lag10_p": 0.8880021850631775,
-      "adf_p": 0.029203329939220948,
+      "psr_at_zero": 0.11027380238062828,
+      "dsr_n10": 0.00387529976948743,
+      "dsr_n20": 0.001535715928189886,
+      "ljung_box_lag5_p": 0.5888321931428163,
+      "ljung_box_lag10_p": 0.8882706638582218,
+      "adf_p": 0.02917390932515271,
       "wf_consistency_rate": 0.0,
-      "wf_stability": 0.2588639052244014,
-      "wf_sharpe_mean": -0.38228100217435645,
-      "holdout_train_sharpe": -0.5524673727295721,
-      "holdout_test_sharpe": -0.0879681016259896,
+      "wf_stability": 0.26220965113419004,
+      "wf_sharpe_mean": -0.3781003582659195,
+      "holdout_train_sharpe": -0.5487810145121373,
+      "holdout_test_sharpe": -0.08358021178306912,
       "holdout_decision": {
         "split_method": "by_entry_day(col=entry_ts)",
         "test_point_in_train_ci": true,
@@ -173,10 +173,10 @@
   "MIDCPNIFTY": {
     "metrics": {
       "trades": 15,
-      "total_pnl": 7224.6,
+      "total_pnl": 7251.55,
       "win_rate": 0.6,
-      "profit_factor": 1.96,
-      "sharpe": 1.85,
+      "profit_factor": 1.967,
+      "sharpe": 1.857,
       "max_drawdown": -1.66,
       "reasons": {
         "PAPER_SL": 5,
@@ -192,11 +192,11 @@
       "checks": {
         "PSR_at_0_>=0.95": {
           "pass": false,
-          "value": 0.7946541897521593
+          "value": 0.7958892019552972
         },
         "DSR_N20_>=0.50": {
           "pass": false,
-          "value": 0.06867194135676384
+          "value": 0.0689133348874626
         },
         "WF_consistency_>=0.60": {
           "pass": true,
@@ -208,7 +208,7 @@
         },
         "LjungBox_p_>=0.05": {
           "pass": true,
-          "value": 0.44453704050460785
+          "value": 0.44472037056465397
         },
         "Holdout_same_sign": {
           "pass": false,
@@ -226,28 +226,28 @@
     },
     "validation_summary": {
       "n_trades": 15,
-      "point_mean_pnl": 481.6397161513733,
+      "point_mean_pnl": 483.4368285598894,
       "ci95_mean_pnl": [
-        -433.40943617469856,
-        1561.7061275117594
+        -430.79409558409054,
+        1563.1046516118715
       ],
-      "p_value_one_sided": 0.2122,
-      "point_annualized_sharpe": 2.5970481379861754,
+      "p_value_one_sided": 0.2114,
+      "point_annualized_sharpe": 2.600756143935382,
       "ci95_annualized_sharpe": [
-        -1.7009581293359448,
-        4.827095408515012
+        -1.6948046324867652,
+        4.829389679423102
       ],
-      "psr_at_zero": 0.7946541897521593,
-      "dsr_n10": 0.1379246038026688,
-      "dsr_n20": 0.06867194135676384,
-      "ljung_box_lag5_p": 0.44453704050460785,
-      "ljung_box_lag10_p": 0.6554837671238715,
-      "adf_p": 0.8262845772392288,
+      "psr_at_zero": 0.7958892019552972,
+      "dsr_n10": 0.13842223446506852,
+      "dsr_n20": 0.0689133348874626,
+      "ljung_box_lag5_p": 0.44472037056465397,
+      "ljung_box_lag10_p": 0.6575975608571935,
+      "adf_p": 0.8258203877787812,
       "wf_consistency_rate": 1.0,
       "wf_stability": 0.0,
-      "wf_sharpe_mean": 0.1810354605553835,
-      "holdout_train_sharpe": -0.2636649472817069,
-      "holdout_test_sharpe": 0.3866665499380267,
+      "wf_sharpe_mean": 0.1817936507729573,
+      "holdout_train_sharpe": -0.26238879951033806,
+      "holdout_test_sharpe": 0.38698031624154183,
       "holdout_decision": {
         "split_method": "by_entry_day(col=entry_ts)",
         "test_point_in_train_ci": true,
